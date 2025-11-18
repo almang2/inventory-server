@@ -36,6 +36,6 @@ public class Store extends BaseTimeEntity {
      * 기본 알림 임계치 (0.00 ~ 0.99)
      * 예: 0.20 → 20% 이하로 떨어지면 알림
      */
-    @Column(name = "default_count_check_threshold", precision = 3, scale = 2, nullable = false)
+    @Column(name = "default_count_check_threshold", nullable = false)
     private Double defaultCountCheckThreshold;
 }

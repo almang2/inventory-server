@@ -80,5 +80,4 @@ public class StoreAdminService {
                 .role(UserRole.ADMIN)
                 .build();
     }
-
 }

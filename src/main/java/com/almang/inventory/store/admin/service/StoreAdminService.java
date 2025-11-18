@@ -31,27 +31,27 @@ public class StoreAdminService {
 
     @Transactional
     public StoreAdminCreateResponse createStoreAdmin(StoreAdminCreateRequest request) {
-        Store store = storeRepository.findById(request.storeId())
-                .orElseThrow(() -> new BaseException(ErrorCode.STORE_NOT_FOUND));
+        log.info("[StoreAdmin] 관리자 생성 요청 - storeId: {}, username: {}", request.storeId(), request.username());
 
+        Store store = findStoreById(request.storeId());
         validateUniqueUsername(request.username());
 
         String randomPassword = generateRandomPassword();
         String encodedPassword = passwordEncoder.encode(randomPassword);
 
-        User user = User.builder()
-                .store(store)
-                .username(request.username())
-                .password(encodedPassword)
-                .name(request.name())
-                .role(UserRole.ADMIN)
-                .build();
-
+        User user = createStoreAdminUser(store, request, encodedPassword);
         userRepository.save(user);
+
+        log.info("[StoreAdmin] 관리자 생성 성공 - userId: {}, storeId: {}", user.getId(), store.getId());
 
         return new StoreAdminCreateResponse(
                 user.getId(), user.getUsername(), randomPassword, user.getName(), store.getId()
         );
+    }
+
+    private Store findStoreById(Long storeId) {
+        return storeRepository.findById(storeId)
+                .orElseThrow(() -> new BaseException(ErrorCode.STORE_NOT_FOUND));
     }
 
     private void validateUniqueUsername(String username) {
@@ -70,4 +70,15 @@ public class StoreAdminService {
         }
         return sb.toString();
     }
+
+    private User createStoreAdminUser(Store store, StoreAdminCreateRequest request, String encodedPassword) {
+        return User.builder()
+                .store(store)
+                .username(request.username())
+                .password(encodedPassword)
+                .name(request.name())
+                .role(UserRole.ADMIN)
+                .build();
+    }
+
 }

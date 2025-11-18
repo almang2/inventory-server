@@ -34,7 +34,7 @@ public class StoreAdminService {
         Store store = storeRepository.findById(request.storeId())
                 .orElseThrow(() -> new BaseException(ErrorCode.STORE_NOT_FOUND));
 
-        validateUniqueUsername(request.name());
+        validateUniqueUsername(request.username());
 
         String randomPassword = generateRandomPassword();
         String encodedPassword = passwordEncoder.encode(randomPassword);

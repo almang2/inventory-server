@@ -7,6 +7,7 @@ import com.almang.inventory.store.admin.dto.response.StoreAdminCreateResponse;
 import com.almang.inventory.store.admin.service.StoreAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +28,7 @@ public class StoreAdminController {
     @PostMapping
     @Operation(summary = "상점 관리자 계정 생성", description = "상점 관리자 계정을 생성하며 생성 시에 임시 비밀번호가 반환됩니다.")
     public ResponseEntity<ApiResponse<StoreAdminCreateResponse>> createStoreAdmin(
-            @RequestBody StoreAdminCreateRequest request
+            @Valid @RequestBody StoreAdminCreateRequest request
     ) {
         log.info("[StoreAdminController] 관리자 생성 요청 - storeId={}, username={}", request.storeId(), request.username());
         StoreAdminCreateResponse response = storeAdminService.createStoreAdmin(request);

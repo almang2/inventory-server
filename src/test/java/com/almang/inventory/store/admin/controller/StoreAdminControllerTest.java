@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.almang.inventory.global.api.SuccessMessage;
+import com.almang.inventory.global.exception.BaseException;
+import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.store.admin.dto.request.StoreAdminCreateRequest;
 import com.almang.inventory.store.admin.dto.response.StoreAdminCreateResponse;
 import com.almang.inventory.store.admin.service.StoreAdminService;
@@ -56,5 +58,60 @@ public class StoreAdminControllerTest {
                 .andExpect(jsonPath("$.data.username").value("store_admin"))
                 .andExpect(jsonPath("$.data.name").value("관리자"))
                 .andExpect(jsonPath("$.data.storeId").value(10L));
+    }
+
+    @Test
+    void 상점이_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        StoreAdminCreateRequest request = new StoreAdminCreateRequest(
+                "store_admin", "관리자", 9999L
+        );
+
+        when(storeAdminService.createStoreAdmin(any()))
+                .thenThrow(new BaseException(ErrorCode.STORE_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(post("/api/v1/store/admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.STORE_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.STORE_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void username이_중복되면_예외가_발생한다() throws Exception {
+        // given
+        StoreAdminCreateRequest request = new StoreAdminCreateRequest(
+                "store_admin", "관리자", 100L
+        );
+
+        when(storeAdminService.createStoreAdmin(any()))
+                .thenThrow(new BaseException(ErrorCode.DUPLICATE_USERNAME));
+
+        // when & then
+        mockMvc.perform(post("/api/v1/store/admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(ErrorCode.DUPLICATE_USERNAME.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.DUPLICATE_USERNAME.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 상점_관리자_계정_생성_요청값_검증에_실패하면_예외가_발생한다() throws Exception {
+        // given
+        StoreAdminCreateRequest invalidRequest = new StoreAdminCreateRequest("", "", null);
+
+        // when & then
+        mockMvc.perform(post("/api/v1/store/admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

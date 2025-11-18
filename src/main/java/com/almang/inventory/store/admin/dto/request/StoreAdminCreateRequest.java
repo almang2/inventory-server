@@ -1,11 +1,9 @@
-package com.almang.inventory.user.dto.request;
+package com.almang.inventory.store.admin.dto.request;
 
 import com.almang.inventory.user.domain.UserRole;
 
-public record SignUpRequest(
+public record StoreAdminCreateRequest(
         String username,
-        String password,
         String name,
-        UserRole role,
         Long storeId
 ) {}

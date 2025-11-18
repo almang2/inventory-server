@@ -34,6 +34,8 @@ public class StoreAdminService {
         Store store = storeRepository.findById(request.storeId())
                 .orElseThrow(() -> new BaseException(ErrorCode.STORE_NOT_FOUND));
 
+        validateUniqueUsername(request.name());
+
         String randomPassword = generateRandomPassword();
         String encodedPassword = passwordEncoder.encode(randomPassword);
 
@@ -50,6 +52,12 @@ public class StoreAdminService {
         return new StoreAdminCreateResponse(
                 user.getId(), user.getUsername(), randomPassword, user.getName(), store.getId()
         );
+    }
+
+    private void validateUniqueUsername(String username) {
+        if (userRepository.existsByUsername(username)) {
+            throw new BaseException(ErrorCode.DUPLICATE_USERNAME);
+        }
     }
 
     private String generateRandomPassword() {

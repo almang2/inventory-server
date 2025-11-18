@@ -7,6 +7,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -36,6 +39,8 @@ public class Store extends BaseTimeEntity {
      * 기본 알림 임계치 (0.00 ~ 0.99)
      * 예: 0.20 → 20% 이하로 떨어지면 알림
      */
-    @Column(name = "default_count_check_threshold", nullable = false)
-    private Double defaultCountCheckThreshold;
+    @Column(name = "default_count_check_threshold", precision = 3, scale = 2, nullable = false)
+    @DecimalMin("0.00")
+    @DecimalMax("0.99")
+    private BigDecimal defaultCountCheckThreshold;
 }

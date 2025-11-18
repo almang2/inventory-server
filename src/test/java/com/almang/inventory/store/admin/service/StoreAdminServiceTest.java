@@ -12,6 +12,7 @@ import com.almang.inventory.store.repository.StoreRepository;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.domain.UserRole;
 import com.almang.inventory.user.repository.UserRepository;
+import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -34,7 +35,7 @@ public class StoreAdminServiceTest {
                 Store.builder()
                         .name("테스트 상점")
                         .isActivate(true)
-                        .defaultCountCheckThreshold(0.2)
+                        .defaultCountCheckThreshold(BigDecimal.valueOf(0.2))
                         .build()
         );
     }

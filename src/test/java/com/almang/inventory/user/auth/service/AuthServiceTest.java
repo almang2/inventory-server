@@ -7,7 +7,9 @@ import static org.mockito.Mockito.verify;
 
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.user.auth.dto.request.ChangePasswordRequest;
 import com.almang.inventory.user.auth.dto.request.LoginRequest;
+import com.almang.inventory.user.auth.dto.response.ChangePasswordResponse;
 import com.almang.inventory.user.auth.dto.response.LoginResponse;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
@@ -99,5 +101,42 @@ public class AuthServiceTest {
         assertThatThrownBy(() -> authService.login(request, httpServletResponse))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.INVALID_PASSWORD.getMessage());
+    }
+
+    @Test
+    void 비밀번호_변경에_성공하면_true를_반환한다() {
+        // given
+        Long userId = 1L;
+        User user = User.builder()
+                .id(userId)
+                .username("store_admin")
+                .password("encoded-password")
+                .build();
+
+        ChangePasswordRequest request = new ChangePasswordRequest("new-password");
+
+        given(userRepository.findById(userId))
+                .willReturn(Optional.of(user));
+
+        // when
+        ChangePasswordResponse response = authService.changePassword(request, userId);
+
+        // then
+        assertThat(response.isChanged()).isTrue();
+    }
+
+    @Test
+    void 비밀번호_변경_시_사용자를_찾지_못하면_예외가_발생한다() {
+        // given
+        Long userId = 1L;
+        ChangePasswordRequest request = new ChangePasswordRequest("new-password");
+
+        given(userRepository.findById(userId))
+                .willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> authService.changePassword(request, userId))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
     }
 }

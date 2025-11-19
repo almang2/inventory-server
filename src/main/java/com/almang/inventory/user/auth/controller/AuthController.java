@@ -65,7 +65,7 @@ public class AuthController {
     @PostMapping("/change-password")
     @Operation(summary = "비밀번호 변경", description = "비밀번호를 변경합니다.")
     public ResponseEntity<ApiResponse<ChangePasswordResponse>> changePassword(
-            @Valid ChangePasswordRequest request,
+            @Valid @RequestBody ChangePasswordRequest request,
             @AuthenticationPrincipal CustomUserPrincipal userPrincipal
     ) {
         Long userId = userPrincipal.getId();

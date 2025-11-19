@@ -3,7 +3,6 @@ package com.almang.inventory.user.service;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.store.domain.Store;
-import com.almang.inventory.store.repository.StoreRepository;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.dto.request.UpdateUserProfileRequest;
 import com.almang.inventory.user.dto.response.UpdateUserProfileResponse;

@@ -22,12 +22,12 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse login(LoginRequest request, HttpServletResponse response) {
         User user = findUserByUsername(request.username());
         validatePassword(request.password(), user.getPassword());
 
-        log.info("[AuthService] 로그인 요청 - username: {}", user.getId());
+        log.info("[AuthService] 로그인 요청 - userId: {}", user.getId());
         String accessToken = issueTokens(user.getId(), response);
 
         log.info("[AuthService] 로그인 성공 - userId: {}", user.getId());

@@ -12,6 +12,7 @@ public enum SuccessMessage {
     CHANGE_PASSWORD_SUCCESS("비밀번호 변경 성공"),
     LOGOUT_SUCCESS("로그아웃 성공"),
     RESET_PASSWORD_SUCCESS("비밀번호 초기화 성공"),
+    GET_USER_PROFILE_SUCCESS("사용자 정보 조회 성공"),
     ;
 
     private final String message;

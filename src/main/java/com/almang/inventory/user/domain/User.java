@@ -65,4 +65,8 @@ public class User extends BaseTimeEntity {
         }
         this.name = name;
     }
+
+    public void delete() {
+        this.deletedAt = LocalDateTime.now();
+    }
 }

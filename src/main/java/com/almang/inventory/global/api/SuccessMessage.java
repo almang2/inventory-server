@@ -11,6 +11,7 @@ public enum SuccessMessage {
     ACCESS_TOKEN_REISSUE_SUCCESS("액세스 토큰 재발급 성공"),
     CHANGE_PASSWORD_SUCCESS("비밀번호 변경 성공"),
     LOGOUT_SUCCESS("로그아웃 성공"),
+    RESET_PASSWORD_SUCCESS("비밀번호 초기화 성공"),
     ;
 
     private final String message;

@@ -6,10 +6,12 @@ import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.global.util.MaskingUtil;
 import com.almang.inventory.user.auth.dto.request.ChangePasswordRequest;
 import com.almang.inventory.user.auth.dto.request.LoginRequest;
+import com.almang.inventory.user.auth.dto.request.ResetPasswordRequest;
 import com.almang.inventory.user.auth.dto.response.AccessTokenResponse;
 import com.almang.inventory.user.auth.dto.response.ChangePasswordResponse;
 import com.almang.inventory.user.auth.dto.response.LoginResponse;
 import com.almang.inventory.user.auth.dto.response.LogoutResponse;
+import com.almang.inventory.user.auth.dto.response.ResetPasswordResponse;
 import com.almang.inventory.user.auth.service.AuthService;
 import com.almang.inventory.user.auth.service.TokenService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -91,6 +93,19 @@ public class AuthController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.LOGOUT_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "비밀번호 초기화", description = "비밀번호를 초기화하고 임의의 비밀번호를 반환합니다.")
+    public ResponseEntity<ApiResponse<ResetPasswordResponse>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request
+    ) {
+        log.info("[AuthController] 비밀번호 초기화 요청 - username={}", MaskingUtil.maskUsername(request.username()));
+        ResetPasswordResponse response = authService.resetPassword(request);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.RESET_PASSWORD_SUCCESS.getMessage(), response)
         );
     }
 }

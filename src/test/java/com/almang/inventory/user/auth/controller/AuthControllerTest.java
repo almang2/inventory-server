@@ -15,9 +15,11 @@ import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.store.global.config.TestSecurityConfig;
 import com.almang.inventory.user.auth.dto.request.ChangePasswordRequest;
 import com.almang.inventory.user.auth.dto.request.LoginRequest;
+import com.almang.inventory.user.auth.dto.request.ResetPasswordRequest;
 import com.almang.inventory.user.auth.dto.response.ChangePasswordResponse;
 import com.almang.inventory.user.auth.dto.response.LoginResponse;
 import com.almang.inventory.user.auth.dto.response.LogoutResponse;
+import com.almang.inventory.user.auth.dto.response.ResetPasswordResponse;
 import com.almang.inventory.user.auth.service.AuthService;
 import com.almang.inventory.user.auth.service.TokenService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -256,6 +258,58 @@ public class AuthControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(ErrorCode.ACCESS_TOKEN_INVALID.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message").value(ErrorCode.ACCESS_TOKEN_INVALID.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 비밀번호_초기화에_성공한다() throws Exception {
+        // given
+        ResetPasswordRequest request = new ResetPasswordRequest("store_admin");
+        ResetPasswordResponse response = new ResetPasswordResponse("temp-password");
+
+        when(authService.resetPassword(any(ResetPasswordRequest.class)))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.RESET_PASSWORD_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.password").value("temp-password"));
+    }
+
+    @Test
+    void 비밀번호_초기화_시_username을_찾지_못하면_예외가_발생한다() throws Exception {
+        // given
+        ResetPasswordRequest request = new ResetPasswordRequest("unknown-user");
+
+        when(authService.resetPassword(any(ResetPasswordRequest.class)))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 비밀번호_초기화_요청값_검증에_실패하면_예외가_발생한다() throws Exception {
+        // given
+        ResetPasswordRequest request = new ResetPasswordRequest("");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

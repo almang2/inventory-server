@@ -1,6 +1,8 @@
 package com.almang.inventory.user.domain;
 
 import com.almang.inventory.global.entity.BaseTimeEntity;
+import com.almang.inventory.global.exception.BaseException;
+import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.store.domain.Store;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -55,5 +57,12 @@ public class User extends BaseTimeEntity {
 
     public void changePassword(String password) {
         this.password = password;
+    }
+
+    public void updateProfile(String name) {
+        if (name != null && name.length() > 20) {
+            throw new BaseException(ErrorCode.NAME_IS_LONG);
+        }
+        this.name = name;
     }
 }

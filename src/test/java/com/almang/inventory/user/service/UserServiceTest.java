@@ -9,6 +9,8 @@ import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.store.repository.StoreRepository;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.domain.UserRole;
+import com.almang.inventory.user.dto.request.UpdateUserProfileRequest;
+import com.almang.inventory.user.dto.response.UpdateUserProfileResponse;
 import com.almang.inventory.user.dto.response.UserProfileResponse;
 import com.almang.inventory.user.repository.UserRepository;
 import java.math.BigDecimal;
@@ -76,5 +78,50 @@ public class UserServiceTest {
         assertThatThrownBy(() -> userService.getUserProfile(notExistUserId))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 사용자_정보_수정에_성공이다() {
+        // given
+        Store store = newStore();
+        User savedUser = newUser(store);
+
+        UpdateUserProfileRequest request = new UpdateUserProfileRequest("수정된 이름");
+
+        // when
+        UpdateUserProfileResponse response = userService.updateUserProfile(savedUser.getId(), request);
+
+        // then
+        assertThat(response).isNotNull();
+
+        User updatedUser = userRepository.findById(savedUser.getId())
+                .orElseThrow();
+        assertThat(updatedUser.getName()).isEqualTo("수정된 이름");
+    }
+
+    @Test
+    void 사용자_정보_수정_시_사용자를_존재하지_않으면_예외가_발생한다() {
+        // given
+        Long notExistUserId = 9999L;
+        UpdateUserProfileRequest request = new UpdateUserProfileRequest("수정된 이름");
+
+        // when & then
+        assertThatThrownBy(() -> userService.updateUserProfile(notExistUserId, request))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 사용자_정보_수정_시_이름이_20자를_초과하면_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        User savedUser = newUser(store);
+
+        UpdateUserProfileRequest request = new UpdateUserProfileRequest("123456789012345678901");
+
+        // when & then
+        assertThatThrownBy(() -> userService.updateUserProfile(savedUser.getId(), request))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.NAME_IS_LONG.getMessage());
     }
 }

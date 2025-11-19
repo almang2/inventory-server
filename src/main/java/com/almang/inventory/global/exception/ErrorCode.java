@@ -21,6 +21,7 @@ public enum ErrorCode {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증되지 않은 요청입니다."),
     ACCESS_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "만료된 Access Token 입니다."),
     ACCESS_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "유효하지 않은 Access Token 입니다."),
+    NAME_IS_LONG(HttpStatus.BAD_REQUEST, "이름은 20자를 초과할 수 없습니다"),
     ;
 
     private final HttpStatus httpStatus;

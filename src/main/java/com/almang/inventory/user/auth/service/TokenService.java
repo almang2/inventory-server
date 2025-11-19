@@ -1,11 +1,17 @@
 package com.almang.inventory.user.auth.service;
 
+import com.almang.inventory.global.exception.BaseException;
+import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.security.jwt.JwtTokenProvider;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +23,7 @@ public class TokenService {
     private int refreshTokenExpiration;
 
     private static final String REFRESH_TOKEN_PREFIX = "refreshToken";
+    private static final String ACCESS_TOKEN_PREFIX = "Bearer ";
 
     private final JwtTokenProvider jwtTokenProvider;
     private final RedisService redisService;
@@ -32,6 +39,23 @@ public class TokenService {
         setRefreshTokenCookie(response, refreshToken);
     }
 
+    public String reissueAccessToken(HttpServletRequest request, HttpServletResponse response) {
+        String refreshToken = extractRefreshToken(request);
+
+        String userId = redisService.getUserIdByRefreshToken(refreshToken);
+
+        if (userId == null) {
+            throw new BaseException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
+        }
+
+        String newRefreshToken = UUID.randomUUID().toString();
+        redisService.rotateRefreshToken(userId, refreshToken, newRefreshToken);
+
+        setRefreshTokenCookie(response, newRefreshToken);
+
+        return issueAccessToken(Long.parseLong(userId));
+    }
+
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_PREFIX, refreshToken)
                 .httpOnly(true)
@@ -42,5 +66,28 @@ public class TokenService {
                 .build();
 
         response.addHeader("Set-Cookie", cookie.toString());
+    }
+
+    private String extractRefreshToken(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+
+        if (cookies == null) {
+            throw new BaseException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
+        }
+
+        return Arrays.stream(cookies)
+                .filter(cookie -> REFRESH_TOKEN_PREFIX.equals(cookie.getName()))
+                .map(Cookie::getValue)
+                .findFirst()
+                .orElseThrow(() -> new BaseException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
+    }
+
+    private String resolveToken(HttpServletRequest request) {
+        String bearer = request.getHeader(HttpHeaders.AUTHORIZATION);
+
+        if (bearer != null && bearer.startsWith(ACCESS_TOKEN_PREFIX)) {
+            return bearer.substring(ACCESS_TOKEN_PREFIX.length());
+        }
+        return null;
     }
 }

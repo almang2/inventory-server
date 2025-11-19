@@ -4,16 +4,20 @@ import com.almang.inventory.global.api.ApiResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.user.dto.request.UpdateUserProfileRequest;
+import com.almang.inventory.user.dto.response.DeleteUserResponse;
 import com.almang.inventory.user.dto.response.UpdateUserProfileResponse;
 import com.almang.inventory.user.dto.response.UserProfileResponse;
 import com.almang.inventory.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -55,6 +59,21 @@ public class UserController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.UPDATE_USER_PROFILE_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @DeleteMapping("/me")
+    @Operation(summary = "회원 탈퇴", description = "회원 탈퇴를 진행합니다.")
+    public ResponseEntity<ApiResponse<DeleteUserResponse>> deleteUser(
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal,
+            HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[UserController] 회원 탈퇴 요청 - userId={}", userId);
+        DeleteUserResponse response = userService.deleteUser(userId, httpServletRequest, httpServletResponse);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.DELETE_USER_SUCCESS.getMessage(), response)
         );
     }
 }

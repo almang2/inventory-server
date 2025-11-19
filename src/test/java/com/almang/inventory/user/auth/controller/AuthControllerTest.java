@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -16,6 +17,7 @@ import com.almang.inventory.user.auth.dto.request.ChangePasswordRequest;
 import com.almang.inventory.user.auth.dto.request.LoginRequest;
 import com.almang.inventory.user.auth.dto.response.ChangePasswordResponse;
 import com.almang.inventory.user.auth.dto.response.LoginResponse;
+import com.almang.inventory.user.auth.dto.response.LogoutResponse;
 import com.almang.inventory.user.auth.service.AuthService;
 import com.almang.inventory.user.auth.service.TokenService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -212,6 +214,48 @@ public class AuthControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message").value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 로그아웃에_성공한다() throws Exception {
+        // given
+        CustomUserPrincipal principal =
+                new CustomUserPrincipal(1L, "store_admin", List.of());
+        UsernamePasswordAuthenticationToken auth =
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
+
+        LogoutResponse response = new LogoutResponse(true);
+
+        when(authService.logout(anyLong(), any(HttpServletRequest.class), any(HttpServletResponse.class)))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/auth/logout")
+                        .with(authentication(auth)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.LOGOUT_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.success").value(true));
+    }
+
+    @Test
+    void 로그아웃_중_예외가_발생하면_에러_응답을_반환한다() throws Exception {
+        // given
+        CustomUserPrincipal principal =
+                new CustomUserPrincipal(1L, "store_admin", List.of());
+        UsernamePasswordAuthenticationToken auth =
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
+
+        when(authService.logout(anyLong(), any(HttpServletRequest.class), any(HttpServletResponse.class)))
+                .thenThrow(new BaseException(ErrorCode.ACCESS_TOKEN_INVALID));
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/auth/logout")
+                        .with(authentication(auth)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(ErrorCode.ACCESS_TOKEN_INVALID.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.ACCESS_TOKEN_INVALID.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

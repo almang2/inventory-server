@@ -14,6 +14,7 @@ public class TestSecurityConfig {
         httpSecurity
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/v1/auth/logout").authenticated()
                         .anyRequest().permitAll());
         return httpSecurity.build();
     }

@@ -82,6 +82,36 @@ public class TokenService {
                 .orElseThrow(() -> new BaseException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
     }
 
+    public void revokeTokens(HttpServletRequest request, HttpServletResponse response, Long userId) {
+        String accessToken = resolveToken(request);
+
+        // 액세스 토큰 무효화
+        if (accessToken != null && !accessToken.isBlank()) {
+            long remainMillis = jwtTokenProvider.getRemainingMillis(accessToken);
+            if (remainMillis > 0) {
+                redisService.addAccessTokenToBlacklist(accessToken, remainMillis);
+            }
+        }
+
+        // 리프레시 토큰 삭제
+        redisService.deleteByUserId(userId.toString());
+
+        // 리프레시 쿠키 삭제
+        clearRefreshTokenCookie(response);
+    }
+
+    private void clearRefreshTokenCookie(HttpServletResponse response) {
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_PREFIX, "")
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("None")
+                .path("/")
+                .maxAge(0)
+                .build();
+
+        response.addHeader("Set-Cookie", cookie.toString());
+    }
+
     private String resolveToken(HttpServletRequest request) {
         String bearer = request.getHeader(HttpHeaders.AUTHORIZATION);
 

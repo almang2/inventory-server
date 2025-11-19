@@ -27,6 +27,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    private final RedisService redisService;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
     private final JwtAuthEntryPoint jwtAuthEntryPoint;
@@ -39,6 +40,7 @@ public class SecurityConfig {
                 .headers(h -> h.frameOptions(FrameOptionsConfig::sameOrigin)) // H2 콘솔 접근 시 iframe 사용 허용 (동일 출처만 허용하여 보안 유지)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/v1/auth/logout").authenticated()
                         .anyRequest().permitAll() // 추후 변경 예정
                 )
                 .exceptionHandling(e -> e
@@ -68,6 +70,6 @@ public class SecurityConfig {
 
     @Bean
     public TokenAuthenticationFilter tokenAuthenticationFilter() {
-        return new TokenAuthenticationFilter(jwtTokenProvider, userRepository);
+        return new TokenAuthenticationFilter(redisService, jwtTokenProvider, userRepository);
     }
 }

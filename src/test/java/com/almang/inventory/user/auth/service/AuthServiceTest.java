@@ -11,8 +11,10 @@ import com.almang.inventory.user.auth.dto.request.ChangePasswordRequest;
 import com.almang.inventory.user.auth.dto.request.LoginRequest;
 import com.almang.inventory.user.auth.dto.response.ChangePasswordResponse;
 import com.almang.inventory.user.auth.dto.response.LoginResponse;
+import com.almang.inventory.user.auth.dto.response.LogoutResponse;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,7 @@ public class AuthServiceTest {
     @Mock private TokenService tokenService;
     @Mock private UserRepository userRepository;
     @Mock private PasswordEncoder passwordEncoder;
+    @Mock private HttpServletRequest httpServletRequest;
     @Mock private HttpServletResponse httpServletResponse;
 
     @InjectMocks private AuthService authService;
@@ -142,5 +145,18 @@ public class AuthServiceTest {
         assertThatThrownBy(() -> authService.changePassword(request, userId))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 로그아웃에_성공하면_true를_반환하고_토큰을_폐기한다() {
+        // given
+        Long userId = 1L;
+
+        // when
+        LogoutResponse response = authService.logout(userId, httpServletRequest, httpServletResponse);
+
+        // then
+        assertThat(response.success()).isTrue();
+        verify(tokenService).revokeTokens(httpServletRequest, httpServletResponse, userId);
     }
 }

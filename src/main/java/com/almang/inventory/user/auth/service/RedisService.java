@@ -12,6 +12,7 @@ public class RedisService {
 
     private static final String REFRESH_USER_PREFIX = "refresh:user:";
     private static final String REFRESH_TOKEN_PREFIX = "refresh:token:";
+    private static final String ACCESS_BLACKLIST_PREFIX = "blacklist:access:";
 
     private final RedisTemplate<String, String> redisTemplate;
 
@@ -24,6 +25,10 @@ public class RedisService {
 
     private String tokenKey(String token) {
         return REFRESH_TOKEN_PREFIX + token;
+    }
+
+    private String blacklistAccessTokenKey(String token) {
+        return ACCESS_BLACKLIST_PREFIX + token;
     }
 
     public void saveRefreshToken(String userId, String refreshToken) {
@@ -68,5 +73,15 @@ public class RedisService {
         }
         redisTemplate.delete(userKey(userId));
         saveRefreshToken(userId, newToken);
+    }
+
+    public void addAccessTokenToBlacklist(String accessToken, long remainingMillis) {
+        if (remainingMillis <= 0) return;
+        redisTemplate.opsForValue().set(
+                blacklistAccessTokenKey(accessToken), "true", Duration.ofMillis(remainingMillis));
+    }
+
+    public boolean isAccessTokenBlacklisted(String accessToken) {
+        return redisTemplate.hasKey(blacklistAccessTokenKey(accessToken));
     }
 }

@@ -9,6 +9,7 @@ import com.almang.inventory.user.auth.dto.request.LoginRequest;
 import com.almang.inventory.user.auth.dto.response.AccessTokenResponse;
 import com.almang.inventory.user.auth.dto.response.ChangePasswordResponse;
 import com.almang.inventory.user.auth.dto.response.LoginResponse;
+import com.almang.inventory.user.auth.dto.response.LogoutResponse;
 import com.almang.inventory.user.auth.service.AuthService;
 import com.almang.inventory.user.auth.service.TokenService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -74,6 +76,21 @@ public class AuthController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.CHANGE_PASSWORD_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @DeleteMapping("/logout")
+    @Operation(summary = "로그아웃", description = "로그아웃을 진행합니다.")
+    public ResponseEntity<ApiResponse<LogoutResponse>> logout(
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal,
+            HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[AuthController] 로그아웃 요청 - userId={}", userId);
+        LogoutResponse response = authService.logout(userId, httpServletRequest, httpServletResponse);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.LOGOUT_SUCCESS.getMessage(), response)
         );
     }
 }

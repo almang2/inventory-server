@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
@@ -116,5 +117,71 @@ public class RedisServiceTest {
         verify(redisTemplate).delete("refresh:user:1");
         verify(valueOperations).set("refresh:user:1", newToken, Duration.ofDays(7));
         verify(valueOperations).set("refresh:token:new-token", userId, Duration.ofDays(7));
+    }
+
+    @Test
+    void userId와_refreshToken으로_리프레시_토큰을_삭제한다() {
+        // given
+        String userId = "1";
+        String refreshToken = "token-value";
+
+        // when
+        redisService.deleteRefreshToken(userId, refreshToken);
+
+        // then
+        verify(redisTemplate).delete("refresh:user:1");
+        verify(redisTemplate).delete("refresh:token:token-value");
+    }
+
+    @Test
+    void 액세스_토큰을_블랙리스트에_추가한다() {
+        // given
+        String accessToken = "access-token";
+        long remainingMillis = 1000L;
+
+        // when
+        redisService.addAccessTokenToBlacklist(accessToken, remainingMillis);
+
+        // then
+        verify(valueOperations).set("blacklist:access:access-token", "true", Duration.ofMillis(remainingMillis));
+    }
+
+    @Test
+    void 만료시간이_0이하면_블랙리스트에_추가하지_않는다() {
+        // given
+        String accessToken = "access-token";
+        long remainingMillis = 0L;
+
+        // when
+        redisService.addAccessTokenToBlacklist(accessToken, remainingMillis);
+
+        // then
+        verifyNoInteractions(valueOperations);
+    }
+
+    @Test
+    void 액세스_토큰이_블랙리스트에_포함되어_있으면_true를_반환한다() {
+        // given
+        String accessToken = "access-token";
+        given(redisTemplate.hasKey("blacklist:access:access-token")).willReturn(true);
+
+        // when
+        boolean result = redisService.isAccessTokenBlacklisted(accessToken);
+
+        // then
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void 액세스_토큰이_블랙리스트에_포함되어_있지_않으면_false를_반환한다() {
+        // given
+        String accessToken = "access-token";
+        given(redisTemplate.hasKey("blacklist:access:access-token")).willReturn(false);
+
+        // when
+        boolean result = redisService.isAccessTokenBlacklisted(accessToken);
+
+        // then
+        assertThat(result).isFalse();
     }
 }

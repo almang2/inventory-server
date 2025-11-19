@@ -10,9 +10,12 @@ import com.almang.inventory.store.repository.StoreRepository;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.domain.UserRole;
 import com.almang.inventory.user.dto.request.UpdateUserProfileRequest;
+import com.almang.inventory.user.dto.response.DeleteUserResponse;
 import com.almang.inventory.user.dto.response.UpdateUserProfileResponse;
 import com.almang.inventory.user.dto.response.UserProfileResponse;
 import com.almang.inventory.user.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -123,5 +126,38 @@ public class UserServiceTest {
         assertThatThrownBy(() -> userService.updateUserProfile(savedUser.getId(), request))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.NAME_IS_LONG.getMessage());
+    }
+
+    @Test
+    void 회원_탈퇴에_성공한다() {
+        // given
+        Store store = newStore();
+        User savedUser = newUser(store);
+
+        HttpServletRequest request = org.mockito.Mockito.mock(HttpServletRequest.class);
+        HttpServletResponse response = org.mockito.Mockito.mock(HttpServletResponse.class);
+
+        // when
+        DeleteUserResponse deleteResponse = userService.deleteUser(savedUser.getId(), request, response);
+
+        // then
+        assertThat(deleteResponse.success()).isTrue();
+
+        User deletedUser = userRepository.findById(savedUser.getId())
+                .orElseThrow();
+        assertThat(deletedUser.getDeletedAt()).isNotNull();
+    }
+
+    @Test
+    void 회원_탈퇴_시_사용자가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Long notExistUserId = 9999L;
+        HttpServletRequest request = org.mockito.Mockito.mock(HttpServletRequest.class);
+        HttpServletResponse response = org.mockito.Mockito.mock(HttpServletResponse.class);
+
+        // when & then
+        assertThatThrownBy(() -> userService.deleteUser(notExistUserId, request, response))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
     }
 }

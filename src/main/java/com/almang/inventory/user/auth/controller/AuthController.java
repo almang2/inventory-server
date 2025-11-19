@@ -69,6 +69,7 @@ public class AuthController {
             @AuthenticationPrincipal CustomUserPrincipal userPrincipal
     ) {
         Long userId = userPrincipal.getId();
+        log.info("[AuthController] 비밀번호 변경 요청 - userId={}", userId);
         ChangePasswordResponse response = authService.changePassword(request, userId);
 
         return ResponseEntity.ok(

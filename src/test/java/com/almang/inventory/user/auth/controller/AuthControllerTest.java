@@ -12,7 +12,9 @@ import com.almang.inventory.store.global.config.TestSecurityConfig;
 import com.almang.inventory.user.auth.dto.request.LoginRequest;
 import com.almang.inventory.user.auth.dto.response.LoginResponse;
 import com.almang.inventory.user.auth.service.AuthService;
+import com.almang.inventory.user.auth.service.TokenService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +35,7 @@ public class AuthControllerTest {
     @Autowired private ObjectMapper objectMapper;
 
     @MockitoBean private AuthService authService;
+    @MockitoBean private TokenService tokenService;
     @MockitoBean private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
@@ -102,6 +105,36 @@ public class AuthControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message").value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 리프레시_토큰으로_액세스_토큰_재발급에_성공한다() throws Exception {
+        // given
+        String newAccessToken = "new-access-token";
+
+        when(tokenService.reissueAccessToken(any(HttpServletRequest.class), any(HttpServletResponse.class)))
+                .thenReturn(newAccessToken);
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/reissue"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.ACCESS_TOKEN_REISSUE_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.accessToken").value(newAccessToken));
+    }
+
+    @Test
+    void 리프레시_토큰이_유효하지_않으면_재발급_요청시_예외가_발생한다() throws Exception {
+        // given
+        when(tokenService.reissueAccessToken(any(HttpServletRequest.class), any(HttpServletResponse.class)))
+                .thenThrow(new BaseException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/reissue"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(ErrorCode.REFRESH_TOKEN_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.REFRESH_TOKEN_NOT_FOUND.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

@@ -27,6 +27,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    private final RedisService redisService;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
     private final JwtAuthEntryPoint jwtAuthEntryPoint;
@@ -68,6 +69,6 @@ public class SecurityConfig {
 
     @Bean
     public TokenAuthenticationFilter tokenAuthenticationFilter() {
-        return new TokenAuthenticationFilter(jwtTokenProvider, userRepository);
+        return new TokenAuthenticationFilter(redisService, jwtTokenProvider, userRepository);
     }
 }

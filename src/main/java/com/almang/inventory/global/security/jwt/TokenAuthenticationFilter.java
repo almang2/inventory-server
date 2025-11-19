@@ -3,6 +3,7 @@ package com.almang.inventory.global.security.jwt;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
+import com.almang.inventory.user.auth.service.RedisService;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
 import jakarta.servlet.FilterChain;
@@ -25,6 +26,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @RequiredArgsConstructor
 public class TokenAuthenticationFilter extends OncePerRequestFilter {
 
+    private final RedisService redisService;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
     private static final String TOKEN_PREFIX = "Bearer ";
@@ -68,18 +70,24 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
         log.debug("[AUTH] path={}, authHeader={}", request.getServletPath(), request.getHeader(HttpHeaders.AUTHORIZATION));
         log.debug("[AUTH] tokenStatus={}", status);
         if (status == TokenStatus.VALID) {
-            Long userId = jwtTokenProvider.getUserIdFromToken(token);
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new BaseException(ErrorCode.USER_NOT_FOUND));
+            if (redisService.isAccessTokenBlacklisted(token)) {
+                log.warn("블랙리스트에 등록된 액세스 토큰입니다.");
+                SecurityContextHolder.clearContext();
+                request.setAttribute("authErrorCode", ErrorCode.ACCESS_TOKEN_INVALID);
+            } else {
+                Long userId = jwtTokenProvider.getUserIdFromToken(token);
+                User user = userRepository.findById(userId)
+                        .orElseThrow(() -> new BaseException(ErrorCode.USER_NOT_FOUND));
 
-            GrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + user.getRole().name());
-            List<GrantedAuthority> authorities = List.of(authority);
-            CustomUserPrincipal principal =
-                    new CustomUserPrincipal(user.getId(), user.getUsername(), authorities);
+                GrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + user.getRole().name());
+                List<GrantedAuthority> authorities = List.of(authority);
+                CustomUserPrincipal principal =
+                        new CustomUserPrincipal(user.getId(), user.getUsername(), authorities);
 
-            UsernamePasswordAuthenticationToken authenticationToken =
-                    new UsernamePasswordAuthenticationToken(principal, null, authorities);
-            SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                UsernamePasswordAuthenticationToken authenticationToken =
+                        new UsernamePasswordAuthenticationToken(principal, null, authorities);
+                SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+            }
         } else {
             SecurityContextHolder.clearContext();
             ErrorCode errorCode = (status == TokenStatus.EXPIRED)

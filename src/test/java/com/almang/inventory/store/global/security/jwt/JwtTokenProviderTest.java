@@ -60,7 +60,7 @@ public class JwtTokenProviderTest {
     @Test
     void 토큰이_만료_되었을_때_EXPIRED를_반환한다() {
         // given
-        JwtTokenProvider immediateExpireJwtTokenProvider = new JwtTokenProvider(SECRET, 0);
+        JwtTokenProvider immediateExpireJwtTokenProvider = new JwtTokenProvider(SECRET, -1);
         Long userId = 1L;
 
         // when

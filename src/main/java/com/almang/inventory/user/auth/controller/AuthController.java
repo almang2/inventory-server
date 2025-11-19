@@ -2,9 +2,12 @@ package com.almang.inventory.user.auth.controller;
 
 import com.almang.inventory.global.api.ApiResponse;
 import com.almang.inventory.global.api.SuccessMessage;
+import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.global.util.MaskingUtil;
+import com.almang.inventory.user.auth.dto.request.ChangePasswordRequest;
 import com.almang.inventory.user.auth.dto.request.LoginRequest;
 import com.almang.inventory.user.auth.dto.response.AccessTokenResponse;
+import com.almang.inventory.user.auth.dto.response.ChangePasswordResponse;
 import com.almang.inventory.user.auth.dto.response.LoginResponse;
 import com.almang.inventory.user.auth.service.AuthService;
 import com.almang.inventory.user.auth.service.TokenService;
@@ -16,6 +19,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -55,6 +59,21 @@ public class AuthController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.ACCESS_TOKEN_REISSUE_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @PostMapping("/change-password")
+    @Operation(summary = "비밀번호 변경", description = "비밀번호를 변경합니다.")
+    public ResponseEntity<ApiResponse<ChangePasswordResponse>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[AuthController] 비밀번호 변경 요청 - userId={}", userId);
+        ChangePasswordResponse response = authService.changePassword(request, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.CHANGE_PASSWORD_SUCCESS.getMessage(), response)
         );
     }
 }

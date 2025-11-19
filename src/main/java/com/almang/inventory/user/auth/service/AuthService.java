@@ -2,7 +2,9 @@ package com.almang.inventory.user.auth.service;
 
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.user.auth.dto.request.ChangePasswordRequest;
 import com.almang.inventory.user.auth.dto.request.LoginRequest;
+import com.almang.inventory.user.auth.dto.response.ChangePasswordResponse;
 import com.almang.inventory.user.auth.dto.response.LoginResponse;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
@@ -34,8 +36,25 @@ public class AuthService {
         return new LoginResponse(accessToken);
     }
 
+    @Transactional
+    public ChangePasswordResponse changePassword(ChangePasswordRequest request, Long userId) {
+        User user = findUserById(userId);
+
+        log.info("[AuthService] 비밀번호 변경 요청 - userId: {}", user.getId());
+        String encodedPassword = passwordEncoder.encode(request.password());
+        user.changePassword(encodedPassword);
+
+        log.info("[AuthService] 비밀번호 변경 성공 - userId: {}", user.getId());
+        return new ChangePasswordResponse(true);
+    }
+
     private User findUserByUsername(String username) {
         return userRepository.findByUsername(username)
+                .orElseThrow(() -> new BaseException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private User findUserById(Long id) {
+        return userRepository.findById(id)
                 .orElseThrow(() -> new BaseException(ErrorCode.USER_NOT_FOUND));
     }
 

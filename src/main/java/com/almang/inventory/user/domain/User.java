@@ -52,4 +52,8 @@ public class User extends BaseTimeEntity {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
+
+    public void changePassword(String password) {
+        this.password = password;
+    }
 }

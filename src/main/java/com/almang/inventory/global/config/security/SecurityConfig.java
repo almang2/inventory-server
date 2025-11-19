@@ -1,4 +1,4 @@
-package com.almang.inventory.global.config;
+package com.almang.inventory.global.config.security;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;

@@ -14,14 +14,18 @@ import org.springframework.util.StringUtils;
 @Configuration
 public class RedisConfig {
 
-    @Value("${spring.data.redis.host}")
-    private String redisHost;
+    private final String redisHost;
+    private final int redisPort;
+    private final String password;
 
-    @Value("${spring.data.redis.port}")
-    private int redisPort;
-
-    @Value("${spring.data.redis.password:}")
-    private String password;
+    public RedisConfig(
+            @Value("${spring.data.redis.host}") String redisHost,
+            @Value("${spring.data.redis.port}") int redisPort,
+            @Value("${spring.data.redis.password:}") String password) {
+        this.redisHost = redisHost;
+        this.redisPort = redisPort;
+        this.password = password;
+    }
 
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {

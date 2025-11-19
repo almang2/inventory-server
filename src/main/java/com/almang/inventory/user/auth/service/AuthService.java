@@ -41,7 +41,8 @@ public class AuthService {
         User user = findUserById(userId);
 
         log.info("[AuthService] 비밀번호 변경 요청 - userId: {}", user.getId());
-        user.changePassword(request.password());
+        String encodedPassword = passwordEncoder.encode(request.password());
+        user.changePassword(encodedPassword);
 
         log.info("[AuthService] 비밀번호 변경 성공 - userId: {}", user.getId());
         return new ChangePasswordResponse(true);

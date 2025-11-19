@@ -6,8 +6,10 @@ import com.almang.inventory.user.auth.dto.request.ChangePasswordRequest;
 import com.almang.inventory.user.auth.dto.request.LoginRequest;
 import com.almang.inventory.user.auth.dto.response.ChangePasswordResponse;
 import com.almang.inventory.user.auth.dto.response.LoginResponse;
+import com.almang.inventory.user.auth.dto.response.LogoutResponse;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +48,15 @@ public class AuthService {
 
         log.info("[AuthService] 비밀번호 변경 성공 - userId: {}", user.getId());
         return new ChangePasswordResponse(true);
+    }
+
+    @Transactional
+    public LogoutResponse logout(Long userId, HttpServletRequest request, HttpServletResponse response) {
+        log.info("[AuthService] 로그아웃 요청 - userId: {}", userId);
+        tokenService.revokeTokens(request, response, userId);
+
+        log.info("[AuthService] 로그아웃 성공 - userId: {}", userId);
+        return new LogoutResponse(true);
     }
 
     private User findUserByUsername(String username) {

@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.almang.inventory.global.api.SuccessMessage;
+import com.almang.inventory.global.exception.BaseException;
+import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.store.global.config.TestSecurityConfig;
 import com.almang.inventory.user.auth.dto.request.LoginRequest;
 import com.almang.inventory.user.auth.dto.response.LoginResponse;
@@ -50,5 +52,56 @@ public class AuthControllerTest {
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value(SuccessMessage.LOGIN_SUCCESS.getMessage()))
                 .andExpect(jsonPath("$.data.accessToken").value("access-token"));
+    }
+
+    @Test
+    void username이_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        LoginRequest request = new LoginRequest("error-user", "password");
+
+        when(authService.login(any(LoginRequest.class), any(HttpServletResponse.class)))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 비밀번호가_일치하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        LoginRequest request = new LoginRequest("store_admin", "wrong-password");
+
+        when(authService.login(any(LoginRequest.class), any(HttpServletResponse.class)))
+                .thenThrow(new BaseException(ErrorCode.INVALID_PASSWORD));
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(ErrorCode.INVALID_PASSWORD.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.INVALID_PASSWORD.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 로그인_요청값_검증에_실패하면_예외가_발생한다() throws Exception {
+        // given
+        LoginRequest invalidRequest = new LoginRequest("", "");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

@@ -2,6 +2,7 @@ package com.almang.inventory.user.auth.controller;
 
 import com.almang.inventory.global.api.ApiResponse;
 import com.almang.inventory.global.api.SuccessMessage;
+import com.almang.inventory.global.util.MaskingUtil;
 import com.almang.inventory.user.auth.dto.request.LoginRequest;
 import com.almang.inventory.user.auth.dto.response.LoginResponse;
 import com.almang.inventory.user.auth.service.AuthService;
@@ -32,7 +33,7 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletResponse httpServletResponse
     ) {
-        log.info("[AuthController] 로그인 요청 - username={}", request.username());
+        log.info("[AuthController] 로그인 요청 - username={}", MaskingUtil.maskUsername(request.username()));
         LoginResponse response = authService.login(request, httpServletResponse);
 
         return ResponseEntity.ok(

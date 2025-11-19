@@ -24,11 +24,10 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request, HttpServletResponse response) {
-        log.info("[AuthService] 로그인 요청 - username: {}", request.username());
-
         User user = findUserByUsername(request.username());
         validatePassword(request.password(), user.getPassword());
 
+        log.info("[AuthService] 로그인 요청 - username: {}", user.getId());
         String accessToken = issueTokens(user.getId(), response);
 
         log.info("[AuthService] 로그인 성공 - userId: {}", user.getId());

@@ -152,4 +152,23 @@ public class UserControllerTest {
                 .andExpect(jsonPath("$.message").value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
+
+    @Test
+    void 사용자_프로필_수정_요청_이름이_20자를_초과하면_예외가_발생한다() throws Exception {
+        // given
+        UpdateUserProfileRequest invalidRequest = new UpdateUserProfileRequest("123456789012345678901");
+
+        when(userService.updateUserProfile(anyLong(), any(UpdateUserProfileRequest.class)))
+                .thenThrow(new BaseException(ErrorCode.NAME_IS_LONG));
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/users/me")
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(ErrorCode.NAME_IS_LONG.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.NAME_IS_LONG.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
 }

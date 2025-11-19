@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -15,10 +16,13 @@ import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.store.global.config.TestSecurityConfig;
 import com.almang.inventory.user.domain.UserRole;
 import com.almang.inventory.user.dto.request.UpdateUserProfileRequest;
+import com.almang.inventory.user.dto.response.DeleteUserResponse;
 import com.almang.inventory.user.dto.response.UpdateUserProfileResponse;
 import com.almang.inventory.user.dto.response.UserProfileResponse;
 import com.almang.inventory.user.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,8 +57,6 @@ public class UserControllerTest {
     @Test
     void 사용자_정보_조회에_성공한다() throws Exception {
         // given
-        Long userId = 1L;
-
         UserProfileResponse response = new UserProfileResponse(
                 "store_admin",
                 "상점 관리자",
@@ -81,9 +83,6 @@ public class UserControllerTest {
     @Test
     void 사용자_정보_조회_시_사용자를_존재하지_않으면_예외가_발생한다() throws Exception {
         // given
-        Long userId = 1L;
-
-
         when(userService.getUserProfile(anyLong()))
                 .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
 
@@ -169,6 +168,54 @@ public class UserControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(ErrorCode.NAME_IS_LONG.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message").value(ErrorCode.NAME_IS_LONG.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 회원_탈퇴에_성공한다() throws Exception {
+        // given
+        DeleteUserResponse response = new DeleteUserResponse(true);
+
+        when(userService.deleteUser(anyLong(), any(HttpServletRequest.class), any(HttpServletResponse.class)))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/users/me")
+                        .with(authentication(auth())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.DELETE_USER_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.success").value(true));
+    }
+
+    @Test
+    void 회원_탈퇴_시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        when(userService.deleteUser(anyLong(), any(HttpServletRequest.class), any(HttpServletResponse.class)))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/users/me")
+                        .with(authentication(auth())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 회원_탈퇴_중_예외가_발생하면_에러_응답을_반환한다() throws Exception {
+        // given
+        when(userService.deleteUser(anyLong(), any(HttpServletRequest.class), any(HttpServletResponse.class)))
+                .thenThrow(new BaseException(ErrorCode.ACCESS_TOKEN_INVALID));
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/users/me")
+                        .with(authentication(auth())))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(ErrorCode.ACCESS_TOKEN_INVALID.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.ACCESS_TOKEN_INVALID.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

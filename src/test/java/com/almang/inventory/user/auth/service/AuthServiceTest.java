@@ -117,12 +117,16 @@ public class AuthServiceTest {
 
         given(userRepository.findById(userId))
                 .willReturn(Optional.of(user));
+        given(passwordEncoder.encode("new-password"))
+                .willReturn("encoded-new-password");
 
         // when
         ChangePasswordResponse response = authService.changePassword(request, userId);
 
         // then
         assertThat(response.isChanged()).isTrue();
+        verify(passwordEncoder).encode("new-password");
+        assertThat(user.getPassword()).isEqualTo("encoded-new-password");
     }
 
     @Test

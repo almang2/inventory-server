@@ -1,11 +1,17 @@
 package com.almang.inventory.user.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 
+import com.almang.inventory.global.exception.BaseException;
+import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.security.jwt.JwtTokenProvider;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +28,7 @@ class TokenServiceTest {
 
     @Mock private JwtTokenProvider jwtTokenProvider;
     @Mock private RedisService redisService;
+    @Mock private HttpServletRequest httpServletRequest;
     @Mock private HttpServletResponse httpServletResponse;
 
     @InjectMocks private TokenService tokenService;
@@ -68,5 +75,74 @@ class TokenServiceTest {
         assertThat(cookieValue).contains("Secure");
         assertThat(cookieValue).contains("SameSite=None");
         assertThat(cookieValue).contains("Max-Age=" + Duration.ofDays(7).toSeconds());
+    }
+
+    @Test
+    void 리프레시_토큰으로_새_액세스_토큰과_새_리프레시_토큰을_발급한다() {
+        // given
+        String oldRefreshToken = "old-refresh-token";
+        String userId = "1";
+        String newAccessToken = "new-access-token";
+
+        Cookie refreshCookie = new Cookie("refreshToken", oldRefreshToken);
+        when(httpServletRequest.getCookies()).thenReturn(new Cookie[] {refreshCookie});
+        when(redisService.getUserIdByRefreshToken(oldRefreshToken)).thenReturn(userId);
+        when(jwtTokenProvider.generateAccessToken(1L)).thenReturn(newAccessToken);
+
+        // when
+        String result = tokenService.reissueAccessToken(httpServletRequest, httpServletResponse);
+
+        // then
+        // 액세스 토큰 재발급 확인
+        assertThat(result).isEqualTo(newAccessToken);
+        verify(jwtTokenProvider).generateAccessToken(1L);
+
+        // 리프레시 토큰 rotate 확인
+        ArgumentCaptor<String> userIdCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> oldTokenCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> newTokenCaptor = ArgumentCaptor.forClass(String.class);
+
+        verify(redisService).rotateRefreshToken(
+                userIdCaptor.capture(), oldTokenCaptor.capture(), newTokenCaptor.capture()
+        );
+
+        assertThat(userIdCaptor.getValue()).isEqualTo("1");
+        assertThat(oldTokenCaptor.getValue()).isEqualTo(oldRefreshToken);
+        assertThat(newTokenCaptor.getValue()).isNotNull();
+
+        // 새 리프레시 토큰이 쿠키에 설정되는지 확인
+        ArgumentCaptor<String> headerCaptor = ArgumentCaptor.forClass(String.class);
+        verify(httpServletResponse).addHeader(eq("Set-Cookie"), headerCaptor.capture());
+
+        String cookieValue = headerCaptor.getValue();
+        assertThat(cookieValue).contains("refreshToken=");
+        assertThat(cookieValue).contains("HttpOnly");
+        assertThat(cookieValue).contains("Secure");
+        assertThat(cookieValue).contains("SameSite=None");
+    }
+
+    @Test
+    void 쿠키에_refreshToken이_없으면_재발급_시_예외가_발생한다() {
+        // given
+        when(httpServletRequest.getCookies()).thenReturn(null);
+
+        // when & then
+        assertThatThrownBy(() -> tokenService.reissueAccessToken(httpServletRequest, httpServletResponse))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.REFRESH_TOKEN_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void redis에_refreshToken이_존재하지_않으면_재발급_시_예외가_발생한다() {
+        // given
+        String refreshToken = "invalid-refresh-token";
+        Cookie cookie = new Cookie("refreshToken", refreshToken);
+        when(httpServletRequest.getCookies()).thenReturn(new Cookie[] {cookie});
+        when(redisService.getUserIdByRefreshToken(refreshToken)).thenReturn(null);
+
+        // when & then
+        assertThatThrownBy(() -> tokenService.reissueAccessToken(httpServletRequest, httpServletResponse))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.REFRESH_TOKEN_NOT_FOUND.getMessage());
     }
 }

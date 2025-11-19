@@ -61,4 +61,12 @@ public class RedisService {
         redisTemplate.delete(userKey(userId));
         redisTemplate.delete(tokenKey(refreshToken));
     }
+
+    public void rotateRefreshToken(String userId, String oldToken, String newToken) {
+        if (oldToken != null) {
+            redisTemplate.delete(tokenKey(oldToken));
+        }
+        redisTemplate.delete(userKey(userId));
+        saveRefreshToken(userId, newToken);
+    }
 }

@@ -8,6 +8,7 @@ import lombok.Getter;
 public enum SuccessMessage {
     SIGNUP_SUCCESS("회원가입 성공"),
     LOGIN_SUCCESS("로그인 성공"),
+    ACCESS_TOKEN_REISSUE_SUCCESS("액세스 토큰 재발급 성공"),
     ;
 
     private final String message;

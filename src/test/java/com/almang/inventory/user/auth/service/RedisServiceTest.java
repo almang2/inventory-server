@@ -100,4 +100,21 @@ public class RedisServiceTest {
         verify(redisTemplate).delete("refresh:user:1");
         verify(redisTemplate).delete("refresh:token:token-value");
     }
+
+    @Test
+    void 기존_리프레시_토큰이_존재할_때_리프레시_토큰을_rotate한다() {
+        // given
+        String userId = "1";
+        String oldToken = "old-token";
+        String newToken = "new-token";
+
+        // when
+        redisService.rotateRefreshToken(userId, oldToken, newToken);
+
+        // then
+        verify(redisTemplate).delete("refresh:token:old-token");
+        verify(redisTemplate).delete("refresh:user:1");
+        verify(valueOperations).set("refresh:user:1", newToken, Duration.ofDays(7));
+        verify(valueOperations).set("refresh:token:new-token", userId, Duration.ofDays(7));
+    }
 }

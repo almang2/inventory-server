@@ -4,10 +4,13 @@ import com.almang.inventory.global.api.ApiResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.util.MaskingUtil;
 import com.almang.inventory.user.auth.dto.request.LoginRequest;
+import com.almang.inventory.user.auth.dto.response.AccessTokenResponse;
 import com.almang.inventory.user.auth.dto.response.LoginResponse;
 import com.almang.inventory.user.auth.service.AuthService;
+import com.almang.inventory.user.auth.service.TokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final TokenService tokenService;
 
     @PostMapping("/login")
     @Operation(summary = "로그인", description = "사용자의 로그인 요청을 처리합니다.")
@@ -38,6 +42,19 @@ public class AuthController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.LOGIN_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @PostMapping("/reissue")
+    @Operation(summary = "액세스 토큰 재발급", description = "리프레시 토큰을 확인해 액세스 토큰을 재발급합니다.")
+    public ResponseEntity<ApiResponse<AccessTokenResponse>> reissueToken(
+            HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse
+    ) {
+        String accessToken = tokenService.reissueAccessToken(httpServletRequest, httpServletResponse);
+        AccessTokenResponse response = new AccessTokenResponse(accessToken);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.ACCESS_TOKEN_REISSUE_SUCCESS.getMessage(), response)
         );
     }
 }

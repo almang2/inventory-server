@@ -2,6 +2,7 @@ package com.almang.inventory.user.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -9,9 +10,11 @@ import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.user.auth.dto.request.ChangePasswordRequest;
 import com.almang.inventory.user.auth.dto.request.LoginRequest;
+import com.almang.inventory.user.auth.dto.request.ResetPasswordRequest;
 import com.almang.inventory.user.auth.dto.response.ChangePasswordResponse;
 import com.almang.inventory.user.auth.dto.response.LoginResponse;
 import com.almang.inventory.user.auth.dto.response.LogoutResponse;
+import com.almang.inventory.user.auth.dto.response.ResetPasswordResponse;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +22,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -158,5 +162,50 @@ public class AuthServiceTest {
         // then
         assertThat(response.success()).isTrue();
         verify(tokenService).revokeTokens(httpServletRequest, httpServletResponse, userId);
+    }
+
+    @Test
+    void 비밀번호_초기화에_성공하면_임시_비밀번호를_반환한다() {
+        // given
+        String username = "store_admin";
+        User user = User.builder()
+                .id(1L)
+                .username(username)
+                .password("old-password")
+                .build();
+
+        ResetPasswordRequest request = new ResetPasswordRequest(username);
+
+        given(userRepository.findByUsername(username))
+                .willReturn(Optional.of(user));
+        given(passwordEncoder.encode(anyString()))
+                .willReturn("encoded-random-password");
+
+        // when
+        ResetPasswordResponse response = authService.resetPassword(request);
+
+        // then
+        ArgumentCaptor<String> rawPasswordCaptor = ArgumentCaptor.forClass(String.class);
+        verify(passwordEncoder).encode(rawPasswordCaptor.capture());
+        String randomPassword = rawPasswordCaptor.getValue();
+
+        assertThat(response.password()).isEqualTo(randomPassword);
+        assertThat(randomPassword).isNotBlank();
+        assertThat(user.getPassword()).isEqualTo("encoded-random-password");
+    }
+
+    @Test
+    void 비밀번호_초기화_시_사용자를_찾지_못하면_예외가_발생한다() {
+        // given
+        String username = "unknown-user";
+        ResetPasswordRequest request = new ResetPasswordRequest(username);
+
+        given(userRepository.findByUsername(username))
+                .willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> authService.resetPassword(request))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
     }
 }

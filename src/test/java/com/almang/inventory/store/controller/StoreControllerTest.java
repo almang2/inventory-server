@@ -14,7 +14,7 @@ import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.store.dto.request.UpdateStoreRequest;
 import com.almang.inventory.store.dto.response.UpdateStoreResponse;
 import com.almang.inventory.store.service.StoreService;
-import com.almang.inventory.store.global.config.TestSecurityConfig;
+import com.almang.inventory.global.config.TestSecurityConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.List;

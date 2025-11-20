@@ -10,7 +10,7 @@ import com.almang.inventory.admin.dto.response.CreateStoreResponse;
 import com.almang.inventory.admin.service.AdminService;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.exception.ErrorCode;
-import com.almang.inventory.store.global.config.TestSecurityConfig;
+import com.almang.inventory.global.config.TestSecurityConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;

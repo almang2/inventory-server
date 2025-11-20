@@ -11,7 +11,7 @@ import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.store.admin.dto.request.StoreAdminCreateRequest;
 import com.almang.inventory.store.admin.dto.response.StoreAdminCreateResponse;
 import com.almang.inventory.store.admin.service.StoreAdminService;
-import com.almang.inventory.store.global.config.TestSecurityConfig;
+import com.almang.inventory.global.config.TestSecurityConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

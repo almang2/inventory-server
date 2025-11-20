@@ -1,4 +1,4 @@
-package com.almang.inventory.store.global.security.jwt;
+package com.almang.inventory.global.security.jwt;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

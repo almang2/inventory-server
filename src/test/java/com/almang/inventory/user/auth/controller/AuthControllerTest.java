@@ -12,7 +12,7 @@ import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
-import com.almang.inventory.store.global.config.TestSecurityConfig;
+import com.almang.inventory.global.config.TestSecurityConfig;
 import com.almang.inventory.user.auth.dto.request.ChangePasswordRequest;
 import com.almang.inventory.user.auth.dto.request.LoginRequest;
 import com.almang.inventory.user.auth.dto.request.ResetPasswordRequest;

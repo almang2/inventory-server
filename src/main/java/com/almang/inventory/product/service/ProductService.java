@@ -18,7 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,7 +56,7 @@ public class ProductService {
         product.updateBasicInfo(request.name(), request.code(), request.unit());
         product.updateWeights(request.boxWeightG(), request.unitPerBox(), request.unitWeightG());
         product.updatePrices(request.costPrice(), request.retailPrice(), request.wholesalePrice());
-        product.updateActivation(request.isActivate());
+        product.updateActivation(request.isActivated());
 
         log.info("[ProductService] 품목 수정 성공 - productId: {}", product.getId());
         return ProductResponse.from(product);
@@ -101,7 +100,7 @@ public class ProductService {
                 .boxWeightG(request.boxWeightG())
                 .unitPerBox(request.unitPerBox())
                 .unitWeightG(request.unitWeightG())
-                .isActivate(true)
+                .activated(true)
                 .costPrice(request.costPrice())
                 .retailPrice(request.retailPrice())
                 .wholesalePrice(request.wholesalePrice())
@@ -154,7 +153,7 @@ public class ProductService {
 
         // 활성 여부
         if (isActivate != null && !hasName) {
-            return productRepository.findAllByStoreIdAndActivateIsTrue(storeId, pageable);
+            return productRepository.findAllByStoreIdAndActivatedTrue(storeId, pageable);
         }
 
         // 이름 검색
@@ -165,7 +164,7 @@ public class ProductService {
         }
 
         // 활성 여부 + 이름 검색
-        return productRepository.findAllByStoreIdAndActivateIsTrueAndNameContainingIgnoreCase(
+        return productRepository.findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
                 storeId, nameKeyword, pageable
         );
     }

@@ -14,7 +14,7 @@ public record UpdateProductRequest(
         BigDecimal boxWeightG,
         @Positive Integer unitPerBox,
         BigDecimal unitWeightG,
-        Boolean isActivate,
+        Boolean isActivated,
         @Min(0) Integer costPrice,
         @Min(0) Integer retailPrice,
         @Min(0) Integer wholesalePrice

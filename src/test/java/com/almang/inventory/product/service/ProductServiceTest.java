@@ -5,10 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
-import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.domain.ProductUnit;
 import com.almang.inventory.product.dto.request.CreateProductRequest;
-import com.almang.inventory.product.dto.response.CreateProductResponse;
+import com.almang.inventory.product.dto.response.ProductResponse;
 import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.store.repository.StoreRepository;
@@ -92,7 +91,7 @@ public class ProductServiceTest {
         );
 
         // when
-        CreateProductResponse response = productService.createProduct(request, user.getId());
+        ProductResponse response = productService.createProduct(request, user.getId());
 
         // then
         assertThat(response.name()).isEqualTo("고체치약");

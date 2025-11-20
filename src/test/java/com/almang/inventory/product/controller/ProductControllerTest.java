@@ -14,7 +14,7 @@ import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.product.domain.ProductUnit;
 import com.almang.inventory.product.dto.request.CreateProductRequest;
-import com.almang.inventory.product.dto.response.CreateProductResponse;
+import com.almang.inventory.product.dto.response.ProductResponse;
 import com.almang.inventory.product.service.ProductService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
@@ -65,7 +65,7 @@ public class ProductControllerTest {
                 1200
         );
 
-        CreateProductResponse response = new CreateProductResponse(
+        ProductResponse response = new ProductResponse(
                 "고체치약",
                 "P-001",
                 ProductUnit.G,

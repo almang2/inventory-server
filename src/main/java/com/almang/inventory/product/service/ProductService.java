@@ -4,7 +4,7 @@ import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.dto.request.CreateProductRequest;
-import com.almang.inventory.product.dto.response.CreateProductResponse;
+import com.almang.inventory.product.dto.response.ProductResponse;
 import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
@@ -25,7 +25,7 @@ public class ProductService {
     private final UserRepository userRepository;
 
     @Transactional
-    public CreateProductResponse createProduct(CreateProductRequest request, Long userId) {
+    public ProductResponse createProduct(CreateProductRequest request, Long userId) {
         User user = findUserById(userId);
 
         log.info("[ProductService] 품목 생성 요청 - userId: {}", user.getId());
@@ -33,7 +33,7 @@ public class ProductService {
         Product saved = productRepository.save(product);
 
         log.info("[ProductService] 품목 생성 성공 - productId: {}", saved.getId());
-        return CreateProductResponse.from(saved);
+        return ProductResponse.from(saved);
     }
 
     private Product toEntity(CreateProductRequest request, User user) {

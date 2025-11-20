@@ -4,7 +4,7 @@ import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.domain.ProductUnit;
 import java.math.BigDecimal;
 
-public record CreateProductResponse(
+public record ProductResponse(
         String name,
         String code,
         ProductUnit unit,
@@ -18,8 +18,8 @@ public record CreateProductResponse(
         Long storeId,
         Long vendorId
 ) {
-    public static CreateProductResponse from(Product product) {
-        return new CreateProductResponse(
+    public static ProductResponse from(Product product) {
+        return new ProductResponse(
                 product.getName(),
                 product.getCode(),
                 product.getUnit(),

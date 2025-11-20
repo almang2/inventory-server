@@ -5,6 +5,7 @@ import com.almang.inventory.product.domain.ProductUnit;
 import java.math.BigDecimal;
 
 public record ProductResponse(
+        Long productId,
         String name,
         String code,
         ProductUnit unit,
@@ -20,6 +21,7 @@ public record ProductResponse(
 ) {
     public static ProductResponse from(Product product) {
         return new ProductResponse(
+                product.getId(),
                 product.getName(),
                 product.getCode(),
                 product.getUnit(),

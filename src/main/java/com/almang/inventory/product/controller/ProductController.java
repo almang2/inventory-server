@@ -4,6 +4,7 @@ import com.almang.inventory.global.api.ApiResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.product.dto.request.CreateProductRequest;
+import com.almang.inventory.product.dto.request.UpdateProductRequest;
 import com.almang.inventory.product.dto.response.ProductResponse;
 import com.almang.inventory.product.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -42,4 +45,19 @@ public class ProductController {
         );
     }
 
+    @PatchMapping("/{productId}")
+    @Operation(summary = "품목 수정", description = "품목을 수정하고 수정된 품목 정보를 반환합니다.")
+    public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
+            @PathVariable Long productId,
+            @Valid @RequestBody UpdateProductRequest request,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[ProductController] 품목 수정 요청 - userId: {}, productId: {}", userId, productId);
+        ProductResponse response = productService.updateProduct(productId, request, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.UPDATE_PRODUCT_SUCCESS.getMessage(), response)
+        );
+    }
 }

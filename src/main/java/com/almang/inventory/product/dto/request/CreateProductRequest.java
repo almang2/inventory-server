@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 public record CreateProductRequest(
+        @NotNull Long vendorId,
         @NotBlank String name,
         @NotBlank String code,
         @NotNull ProductUnit unit,

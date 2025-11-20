@@ -59,6 +59,12 @@ public class Product extends BaseTimeEntity {
     @Column(name = "wholesale_price")
     private int wholesalePrice;
 
+    public void updateVendor(Vendor vendor) {
+        if (!this.vendor.getId().equals(vendor.getId())) {
+            this.vendor = vendor;
+        }
+    }
+
     public void updateBasicInfo(String name, String code, ProductUnit unit) {
         if (name != null) {
             this.name = name;

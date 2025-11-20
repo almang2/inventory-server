@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -58,6 +59,21 @@ public class ProductController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.UPDATE_PRODUCT_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @GetMapping("/{productId}")
+    @Operation(summary = "품목 상세 조회", description = "품목을 상세 조회합니다.")
+    public ResponseEntity<ApiResponse<ProductResponse>> getProductDetail(
+            @PathVariable Long productId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[ProductController] 품목 상세 조회 요청 - userId: {}, productId: {}", userId, productId);
+        ProductResponse response = productService.getProductDetail(productId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.GET_PRODUCT_DETAIL_SUCCESS.getMessage(), response)
         );
     }
 }

@@ -41,10 +41,7 @@ public class ProductService {
     public ProductResponse updateProduct(Long productId, UpdateProductRequest request, Long userId) {
         User user = findUserById(userId);
         Product product = findProductById(productId);
-
-        if (!product.getStore().getId().equals(user.getStore().getId())) {
-            throw new BaseException(ErrorCode.STORE_ACCESS_DENIED);
-        }
+        validateStoreAccess(product, user);
 
         Vendor vendor = findVendorByIdAndValidateAccess(request.vendorId(), user);
 
@@ -57,6 +54,16 @@ public class ProductService {
         product.updateActivation(request.isActivate());
 
         log.info("[ProductService] 품목 수정 성공 - productId: {}", product.getId());
+        return ProductResponse.from(product);
+    }
+
+    @Transactional(readOnly = true)
+    public ProductResponse getProductDetail(Long productId, Long userId) {
+        User user = findUserById(userId);
+        Product product = findProductById(productId);
+        validateStoreAccess(product, user);
+
+        log.info("[ProductService] 품목 상세 조회 성공 - productId: {}", product.getId());
         return ProductResponse.from(product);
     }
 
@@ -98,5 +105,11 @@ public class ProductService {
     private Product findProductById(Long id) {
         return productRepository.findById(id)
                 .orElseThrow(() -> new BaseException(ErrorCode.PRODUCT_NOT_FOUND));
+    }
+
+    private void validateStoreAccess(Product product, User user) {
+        if (!product.getStore().getId().equals(user.getStore().getId())) {
+            throw new BaseException(ErrorCode.STORE_ACCESS_DENIED);
+        }
     }
 }

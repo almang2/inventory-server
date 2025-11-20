@@ -1,7 +1,9 @@
 package com.almang.inventory.product.dto.request;
 
 import com.almang.inventory.product.domain.ProductUnit;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 
 public record UpdateProductRequest(
@@ -10,10 +12,10 @@ public record UpdateProductRequest(
         String code,
         ProductUnit unit,
         BigDecimal boxWeightG,
-        Integer unitPerBox,
+        @Positive Integer unitPerBox,
         BigDecimal unitWeightG,
         Boolean isActivate,
-        Integer costPrice,
-        Integer retailPrice,
-        Integer wholesalePrice
+        @Min(0) Integer costPrice,
+        @Min(0) Integer retailPrice,
+        @Min(0) Integer wholesalePrice
 ) {}

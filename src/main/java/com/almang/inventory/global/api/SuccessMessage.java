@@ -8,6 +8,7 @@ import lombok.Getter;
 public enum SuccessMessage {
     // STORE
     CREATE_STORE_SUCCESS("상점 등록 성공"),
+    UPDATE_STORE_SUCCESS("상점 정보 수정 성공"),
 
     // USER
     SIGNUP_SUCCESS("회원가입 성공"),

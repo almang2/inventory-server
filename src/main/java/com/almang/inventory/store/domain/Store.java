@@ -43,4 +43,16 @@ public class Store extends BaseTimeEntity {
     @DecimalMin("0.00")
     @DecimalMax("1.00")
     private BigDecimal defaultCountCheckThreshold;
+
+    public void updateName(String name) {
+        this.name = name;
+    }
+
+    public void updateActivation(boolean isActivate) {
+        this.isActivate = isActivate;
+    }
+
+    public void updateThreshold(BigDecimal defaultCountCheckThreshold) {
+        this.defaultCountCheckThreshold = defaultCountCheckThreshold;
+    }
 }

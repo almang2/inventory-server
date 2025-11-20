@@ -428,4 +428,102 @@ public class ProductServiceTest {
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.STORE_ACCESS_DENIED.getMessage());
     }
+
+    @Test
+    void 품목_상세_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor = newVendor(store);
+        User user = newUser(store);
+
+        ProductResponse created = productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                user.getId()
+        );
+
+        // when
+        ProductResponse detail = productService.getProductDetail(created.productId(), user.getId());
+
+        // then
+        assertThat(detail.productId()).isEqualTo(created.productId());
+        assertThat(detail.name()).isEqualTo("고체치약");
+        assertThat(detail.code()).isEqualTo("P-001");
+        assertThat(detail.unit()).isEqualTo(ProductUnit.G);
+        assertThat(detail.boxWeightG()).isEqualByComparingTo("900.0");
+        assertThat(detail.unitPerBox()).isEqualTo(10);
+        assertThat(detail.unitWeightG()).isEqualByComparingTo("90.0");
+        assertThat(detail.costPrice()).isEqualTo(1000);
+        assertThat(detail.retailPrice()).isEqualTo(1500);
+        assertThat(detail.wholesalePrice()).isEqualTo(1200);
+        assertThat(detail.storeId()).isEqualTo(store.getId());
+        assertThat(detail.vendorId()).isEqualTo(vendor.getId());
+        assertThat(detail.isActivate()).isTrue();
+    }
+
+    @Test
+    void 존재하지_않는_품목_상세_조회시_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Long notExistProductId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> productService.getProductDetail(notExistProductId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 다른_상점의_품목을_상세_조회하면_예외가_발생한다() {
+        // given
+        Store store1 = newStore();
+        Store store2 = newStore();
+
+        Vendor vendorOfStore2 = newVendor(store2);
+
+        User userOfStore1 = newUser(store1);
+        User userOfStore2 = userRepository.save(
+                User.builder()
+                        .store(store2)
+                        .username("detail_tester_store2")
+                        .password("password")
+                        .name("상점2 관리자(상세조회)")
+                        .role(UserRole.ADMIN)
+                        .build()
+        );
+
+        ProductResponse productOfStore2 = productService.createProduct(
+                new CreateProductRequest(
+                        vendorOfStore2.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                userOfStore2.getId()
+        );
+
+        // when & then
+        assertThatThrownBy(() ->
+                productService.getProductDetail(productOfStore2.productId(), userOfStore1.getId())
+        )
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.STORE_ACCESS_DENIED.getMessage());
+    }
 }

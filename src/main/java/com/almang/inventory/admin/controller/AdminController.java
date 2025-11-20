@@ -25,7 +25,7 @@ public class AdminController {
 
     private final AdminService adminService;
 
-    @PostMapping
+    @PostMapping("/store")
     @Operation(summary = "상점 생성", description = "상점을 생성하여 상점 정보를 반환합니다.")
     public ResponseEntity<ApiResponse<CreateStoreResponse>> createStore(
             @Valid @RequestBody CreateStoreRequest request

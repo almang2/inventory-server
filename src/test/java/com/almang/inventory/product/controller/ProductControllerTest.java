@@ -7,6 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.config.TestSecurityConfig;
@@ -379,6 +380,87 @@ public class ProductControllerTest {
                         .value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message")
                         .value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 품목_상세_조회에_성공한다() throws Exception {
+        // given
+        Long productId = 1L;
+
+        ProductResponse response = new ProductResponse(
+                productId,
+                "고체치약",
+                "P-001",
+                ProductUnit.G,
+                BigDecimal.valueOf(1000.0),
+                true,
+                10,
+                BigDecimal.valueOf(100.0),
+                1000,
+                1500,
+                1200,
+                1L,
+                1L
+        );
+
+        when(productService.getProductDetail(anyLong(), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/product/{productId}", productId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.GET_PRODUCT_DETAIL_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.productId").value(1L))
+                .andExpect(jsonPath("$.data.name").value("고체치약"))
+                .andExpect(jsonPath("$.data.code").value("P-001"))
+                .andExpect(jsonPath("$.data.unit").value(ProductUnit.G.name()))
+                .andExpect(jsonPath("$.data.isActivate").value(true))
+                .andExpect(jsonPath("$.data.storeId").value(1L))
+                .andExpect(jsonPath("$.data.vendorId").value(1L));
+    }
+
+    @Test
+    void 품목_상세_조회_시_품목이_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long notExistProductId = 9999L;
+
+        when(productService.getProductDetail(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/product/{productId}", notExistProductId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.PRODUCT_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.PRODUCT_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 품목_상세_조회_시_다른_상점_품목이면_예외가_발생한다() throws Exception {
+        // given
+        Long productId = 1L;
+
+        when(productService.getProductDetail(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.STORE_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/product/{productId}", productId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.STORE_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.STORE_ACCESS_DENIED.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

@@ -1,6 +1,7 @@
 package com.almang.inventory.product.controller;
 
 import com.almang.inventory.global.api.ApiResponse;
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.product.dto.request.CreateProductRequest;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
@@ -74,6 +76,26 @@ public class ProductController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.GET_PRODUCT_DETAIL_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @GetMapping
+    @Operation(summary = "품목 목록 조회", description = "품목 목록을 페이지네이션, 활성 여부, 이름 검색 조건과 함께 조회합니다.")
+    public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getProductList(
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size,
+            @RequestParam(value = "isActivate", required = false) Boolean isActivate,
+            @RequestParam(value = "name", required = false) String nameKeyword
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[ProductController] 품목 목록 조회 요청 - userId: {}, page: {}, size: {}, isActivate: {}, name: {}",
+                userId, page, size, isActivate, nameKeyword);
+        PageResponse<ProductResponse> response =
+                productService.getProductList(userId, page, size, isActivate, nameKeyword);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.GET_PRODUCT_LIST_SUCCESS.getMessage(), response)
         );
     }
 }

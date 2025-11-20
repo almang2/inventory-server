@@ -6,6 +6,10 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum SuccessMessage {
+    // STORE
+    CREATE_STORE_SUCCESS("상점 등록 성공"),
+
+    // USER
     SIGNUP_SUCCESS("회원가입 성공"),
     LOGIN_SUCCESS("로그인 성공"),
     ACCESS_TOKEN_REISSUE_SUCCESS("액세스 토큰 재발급 성공"),

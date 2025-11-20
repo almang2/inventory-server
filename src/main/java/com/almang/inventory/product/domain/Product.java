@@ -48,15 +48,15 @@ public class Product extends BaseTimeEntity {
     @Column(name = "unit_weight_g", precision = 8, scale = 3)
     private BigDecimal unitWeightG;
 
-    @Column(name = "activated", nullable = false)
-    private Boolean activated;
+    @Column(name = "is_activate", nullable = false)
+    private boolean isActivate;
 
     @Column(name = "cost_price")
-    private Integer costPrice;
+    private int costPrice;
 
     @Column(name = "retail_price")
-    private Integer retailPrice;
+    private int retailPrice;
 
     @Column(name = "wholesale_price")
-    private Integer wholesalePrice;
+    private int wholesalePrice;
 }

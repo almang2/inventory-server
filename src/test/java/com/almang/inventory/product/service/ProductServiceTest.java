@@ -162,4 +162,38 @@ public class ProductServiceTest {
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.VENDOR_NOT_FOUND.getMessage());
     }
+
+    @Test
+    void 다른_상점의_발주처로_품목_생성시_예외가_발생한다() {
+        // given
+        Store store1 = newStore();
+        Store store2 = storeRepository.save(
+                Store.builder()
+                        .name("다른 상점")
+                        .isActivate(true)
+                        .defaultCountCheckThreshold(BigDecimal.valueOf(0.2))
+                        .build()
+        );
+
+        Vendor vendorOfStore2 = newVendor(store2);
+        User userOfStore1 = newUser(store1);
+
+        CreateProductRequest request = new CreateProductRequest(
+                vendorOfStore2.getId(),  // 다른 상점의 발주처!
+                "고체치약",
+                "P-001",
+                ProductUnit.G,
+                BigDecimal.valueOf(1000.0),
+                10,
+                BigDecimal.valueOf(100.0),
+                1000,
+                1500,
+                1200
+        );
+
+        // when & then
+        assertThatThrownBy(() -> productService.createProduct(request, userOfStore1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
+    }
 }

@@ -43,6 +43,7 @@ public class ProductService {
                 .store(user.getStore())
                 .vendor(vendor)
                 .name(request.name())
+                .code(request.code())
                 .unit(request.unit())
                 .boxWeightG(request.boxWeightG())
                 .unitPerBox(request.unitPerBox())

@@ -5,10 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
-import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.domain.ProductUnit;
 import com.almang.inventory.product.dto.request.CreateProductRequest;
-import com.almang.inventory.product.dto.response.CreateProductResponse;
+import com.almang.inventory.product.dto.request.UpdateProductRequest;
+import com.almang.inventory.product.dto.response.ProductResponse;
 import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.store.repository.StoreRepository;
@@ -92,7 +92,7 @@ public class ProductServiceTest {
         );
 
         // when
-        CreateProductResponse response = productService.createProduct(request, user.getId());
+        ProductResponse response = productService.createProduct(request, user.getId());
 
         // then
         assertThat(response.name()).isEqualTo("고체치약");
@@ -195,5 +195,237 @@ public class ProductServiceTest {
         assertThatThrownBy(() -> productService.createProduct(request, userOfStore1.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 품목_수정에_성공한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor1 = newVendor(store);
+        Vendor vendor2 = newVendor(store);
+        User user = newUser(store);
+
+        CreateProductRequest createRequest = new CreateProductRequest(
+                vendor1.getId(),
+                "고체치약",
+                "P-001",
+                ProductUnit.G,
+                BigDecimal.valueOf(900.0),
+                10,
+                BigDecimal.valueOf(90.0),
+                1000,
+                1500,
+                1200
+        );
+
+        ProductResponse created = productService.createProduct(createRequest, user.getId());
+
+        // when
+        UpdateProductRequest updateRequest = new UpdateProductRequest(
+                vendor2.getId(),
+                "수정된 고체치약",
+                "P-999",
+                ProductUnit.ML,
+                BigDecimal.valueOf(1200.0),
+                20,
+                BigDecimal.valueOf(110.0),
+                false,
+                2000,
+                2500,
+                2200
+        );
+
+        ProductResponse updated = productService.updateProduct(created.productId(), updateRequest, user.getId());
+
+        // then
+        assertThat(updated.name()).isEqualTo("수정된 고체치약");
+        assertThat(updated.code()).isEqualTo("P-999");
+        assertThat(updated.unit()).isEqualTo(ProductUnit.ML);
+        assertThat(updated.boxWeightG()).isEqualByComparingTo("1200.0");
+        assertThat(updated.unitPerBox()).isEqualTo(20);
+        assertThat(updated.unitWeightG()).isEqualByComparingTo("110.0");
+        assertThat(updated.isActivate()).isFalse();
+        assertThat(updated.costPrice()).isEqualTo(2000);
+        assertThat(updated.retailPrice()).isEqualTo(2500);
+        assertThat(updated.wholesalePrice()).isEqualTo(2200);
+        assertThat(updated.vendorId()).isEqualTo(vendor2.getId());
+    }
+
+    @Test
+    void 존재하지_않는_품목을_수정하려고_하면_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor = newVendor(store);
+        User user = newUser(store);
+
+        Long notExistProductId = 9999L;
+
+        UpdateProductRequest request = new UpdateProductRequest(
+                vendor.getId(),
+                "변경 이름",
+                "CODE",
+                ProductUnit.G,
+                BigDecimal.valueOf(1000.0),
+                10,
+                BigDecimal.valueOf(100.0),
+                true,
+                1000,
+                2000,
+                1500
+        );
+
+        // when & then
+        assertThatThrownBy(() -> productService.updateProduct(notExistProductId, request, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 존재하지_않는_발주처로_수정시_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor = newVendor(store);
+        User user = newUser(store);
+
+        ProductResponse created = productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                user.getId()
+        );
+
+        Long notExistVendorId = 9999L;
+
+        UpdateProductRequest request = new UpdateProductRequest(
+                notExistVendorId,
+                "변경됨",
+                "NEW",
+                ProductUnit.G,
+                BigDecimal.valueOf(1000.0),
+                10,
+                BigDecimal.valueOf(100.0),
+                true,
+                2000,
+                3000,
+                2500
+        );
+
+        // when & then
+        assertThatThrownBy(() -> productService.updateProduct(created.productId(), request, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 다른_상점의_발주처로_수정하면_예외가_발생한다() {
+        // given
+        Store store1 = newStore();
+        Store store2 = newStore();
+
+        Vendor vendor1 = newVendor(store1);
+        Vendor vendorOfStore2 = newVendor(store2);
+        User user = newUser(store1);
+
+        ProductResponse created = productService.createProduct(
+                new CreateProductRequest(
+                        vendor1.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                user.getId()
+        );
+
+        UpdateProductRequest request = new UpdateProductRequest(
+                vendorOfStore2.getId(),
+                "변경됨",
+                "NEW",
+                ProductUnit.ML,
+                BigDecimal.valueOf(1000.0),
+                10,
+                BigDecimal.valueOf(100.0),
+                true,
+                2000,
+                3000,
+                2500
+        );
+
+        // when & then
+        assertThatThrownBy(() -> productService.updateProduct(created.productId(), request, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 다른_상점의_품목을_수정하려고_하면_예외가_발생한다() {
+        // given
+        Store store1 = newStore();
+        Store store2 = newStore();
+
+        Vendor vendorOfStore1 = newVendor(store1);
+        Vendor vendorOfStore2 = newVendor(store2);
+
+        User userOfStore1 = newUser(store1);
+        User userOfStore2 = userRepository.save(
+                User.builder()
+                        .store(store2)
+                        .username("tester_store2")
+                        .password("password")
+                        .name("상점2 관리자")
+                        .role(UserRole.ADMIN)
+                        .build()
+        );
+
+        ProductResponse productOfStore2 = productService.createProduct(
+                new CreateProductRequest(
+                        vendorOfStore2.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                userOfStore2.getId()
+        );
+
+        // when & then
+        UpdateProductRequest request = new UpdateProductRequest(
+                vendorOfStore1.getId(),
+                "변경됨",
+                "NEW",
+                ProductUnit.ML,
+                BigDecimal.valueOf(1000.0),
+                10,
+                BigDecimal.valueOf(100.0),
+                true,
+                2000,
+                3000,
+                2500
+        );
+
+        assertThatThrownBy(() ->
+                productService.updateProduct(productOfStore2.productId(), request, userOfStore1.getId())
+        )
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.STORE_ACCESS_DENIED.getMessage());
     }
 }

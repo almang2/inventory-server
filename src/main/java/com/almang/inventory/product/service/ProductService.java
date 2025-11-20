@@ -4,7 +4,8 @@ import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.dto.request.CreateProductRequest;
-import com.almang.inventory.product.dto.response.CreateProductResponse;
+import com.almang.inventory.product.dto.request.UpdateProductRequest;
+import com.almang.inventory.product.dto.response.ProductResponse;
 import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
@@ -25,7 +26,7 @@ public class ProductService {
     private final UserRepository userRepository;
 
     @Transactional
-    public CreateProductResponse createProduct(CreateProductRequest request, Long userId) {
+    public ProductResponse createProduct(CreateProductRequest request, Long userId) {
         User user = findUserById(userId);
 
         log.info("[ProductService] 품목 생성 요청 - userId: {}", user.getId());
@@ -33,15 +34,34 @@ public class ProductService {
         Product saved = productRepository.save(product);
 
         log.info("[ProductService] 품목 생성 성공 - productId: {}", saved.getId());
-        return CreateProductResponse.from(saved);
+        return ProductResponse.from(saved);
+    }
+
+    @Transactional
+    public ProductResponse updateProduct(Long productId, UpdateProductRequest request, Long userId) {
+        User user = findUserById(userId);
+        Product product = findProductById(productId);
+
+        if (!product.getStore().getId().equals(user.getStore().getId())) {
+            throw new BaseException(ErrorCode.STORE_ACCESS_DENIED);
+        }
+
+        Vendor vendor = findVendorByIdAndValidateAccess(request.vendorId(), user);
+
+        log.info("[ProductService] 품목 수정 요청 - userId: {}, productId: {}", user.getId(), product.getId());
+
+        product.updateVendor(vendor);
+        product.updateBasicInfo(request.name(), request.code(), request.unit());
+        product.updateWeights(request.boxWeightG(), request.unitPerBox(), request.unitWeightG());
+        product.updatePrices(request.costPrice(), request.retailPrice(), request.wholesalePrice());
+        product.updateActivation(request.isActivate());
+
+        log.info("[ProductService] 품목 수정 성공 - productId: {}", product.getId());
+        return ProductResponse.from(product);
     }
 
     private Product toEntity(CreateProductRequest request, User user) {
-        Vendor vendor = findVendorById(request.vendorId());
-
-        if (!vendor.getStore().getId().equals(user.getStore().getId())) {
-            throw new BaseException(ErrorCode.VENDOR_ACCESS_DENIED);
-        }
+        Vendor vendor = findVendorByIdAndValidateAccess(request.vendorId(), user);
 
         return Product.builder()
                 .store(user.getStore())
@@ -64,8 +84,19 @@ public class ProductService {
                 .orElseThrow(() -> new BaseException(ErrorCode.USER_NOT_FOUND));
     }
 
-    private Vendor findVendorById(Long id) {
-        return vendorRepository.findById(id)
+    private Vendor findVendorByIdAndValidateAccess(Long vendorId, User user) {
+        Vendor vendor = vendorRepository.findById(vendorId)
                 .orElseThrow(() -> new BaseException(ErrorCode.VENDOR_NOT_FOUND));
+
+        if (!vendor.getStore().getId().equals(user.getStore().getId())) {
+            throw new BaseException(ErrorCode.VENDOR_ACCESS_DENIED);
+        }
+
+        return vendor;
+    }
+
+    private Product findProductById(Long id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> new BaseException(ErrorCode.PRODUCT_NOT_FOUND));
     }
 }

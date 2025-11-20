@@ -23,6 +23,7 @@ public enum SuccessMessage {
 
     // PRODUCT
     CREATE_PRODUCT_SUCCESS("품목 등록 성공"),
+    UPDATE_PRODUCT_SUCCESS("품목 수정 성공"),
     ;
 
     private final String message;

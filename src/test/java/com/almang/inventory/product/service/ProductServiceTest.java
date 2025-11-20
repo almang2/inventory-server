@@ -3,6 +3,7 @@ package com.almang.inventory.product.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.product.domain.ProductUnit;
@@ -106,7 +107,7 @@ public class ProductServiceTest {
         assertThat(response.wholesalePrice()).isEqualTo(1200);
         assertThat(response.storeId()).isEqualTo(store.getId());
         assertThat(response.vendorId()).isEqualTo(vendor.getId());
-        assertThat(response.isActivate()).isTrue();
+        assertThat(response.isActivated()).isTrue();
     }
 
     @Test
@@ -244,7 +245,7 @@ public class ProductServiceTest {
         assertThat(updated.boxWeightG()).isEqualByComparingTo("1200.0");
         assertThat(updated.unitPerBox()).isEqualTo(20);
         assertThat(updated.unitWeightG()).isEqualByComparingTo("110.0");
-        assertThat(updated.isActivate()).isFalse();
+        assertThat(updated.isActivated()).isFalse();
         assertThat(updated.costPrice()).isEqualTo(2000);
         assertThat(updated.retailPrice()).isEqualTo(2500);
         assertThat(updated.wholesalePrice()).isEqualTo(2200);
@@ -468,7 +469,7 @@ public class ProductServiceTest {
         assertThat(detail.wholesalePrice()).isEqualTo(1200);
         assertThat(detail.storeId()).isEqualTo(store.getId());
         assertThat(detail.vendorId()).isEqualTo(vendor.getId());
-        assertThat(detail.isActivate()).isTrue();
+        assertThat(detail.isActivated()).isTrue();
     }
 
     @Test
@@ -525,5 +526,370 @@ public class ProductServiceTest {
         )
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.STORE_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 품목_목록_전체_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor = newVendor(store);
+        User user = newUser(store);
+
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                user.getId()
+        );
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고무장갑",
+                        "P-002",
+                        ProductUnit.EA,
+                        null,
+                        1,
+                        null,
+                        500,
+                        800,
+                        600
+                ),
+                user.getId()
+        );
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "세제",
+                        "P-003",
+                        ProductUnit.ML,
+                        BigDecimal.valueOf(1000.0),
+                        5,
+                        BigDecimal.valueOf(200.0),
+                        3000,
+                        4000,
+                        3500
+                ),
+                user.getId()
+        );
+
+        // when
+        PageResponse<ProductResponse> page =
+                productService.getProductList(user.getId(), 1, 10, null, null);
+
+        // then
+        assertThat(page.page()).isEqualTo(1);
+        assertThat(page.size()).isEqualTo(10);
+        assertThat(page.totalElements()).isEqualTo(3);
+        assertThat(page.content()).hasSize(3);
+    }
+
+    @Test
+    void 품목_목록_활성_필터_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor = newVendor(store);
+        User user = newUser(store);
+
+        // 활성 품목
+        ProductResponse active = productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                user.getId()
+        );
+
+        // 비활성으로 바꿀 품목
+        ProductResponse willBeInactive = productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고무장갑",
+                        "P-002",
+                        ProductUnit.EA,
+                        null,
+                        1,
+                        null,
+                        500,
+                        800,
+                        600
+                ),
+                user.getId()
+        );
+
+        // 고무장갑 비활성 처리
+        productService.updateProduct(
+                willBeInactive.productId(),
+                new UpdateProductRequest(
+                        vendor.getId(),
+                        willBeInactive.name(),
+                        willBeInactive.code(),
+                        willBeInactive.unit(),
+                        willBeInactive.boxWeightG(),
+                        willBeInactive.unitPerBox(),
+                        willBeInactive.unitWeightG(),
+                        false,
+                        willBeInactive.costPrice(),
+                        willBeInactive.retailPrice(),
+                        willBeInactive.wholesalePrice()
+                ),
+                user.getId()
+        );
+
+        // when
+        PageResponse<ProductResponse> page =
+                productService.getProductList(user.getId(), 1, 10, true, null);
+
+        // then
+        assertThat(page.totalElements()).isEqualTo(1);
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.content().get(0).productId()).isEqualTo(active.productId());
+        assertThat(page.content().get(0).isActivated()).isTrue();
+    }
+
+    @Test
+    void 품목_목록_이름검색으로_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor = newVendor(store);
+        User user = newUser(store);
+
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                user.getId()
+        );
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고무장갑",
+                        "P-002",
+                        ProductUnit.EA,
+                        null,
+                        1,
+                        null,
+                        500,
+                        800,
+                        600
+                ),
+                user.getId()
+        );
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "세제",
+                        "P-003",
+                        ProductUnit.ML,
+                        BigDecimal.valueOf(1000.0),
+                        5,
+                        BigDecimal.valueOf(200.0),
+                        3000,
+                        4000,
+                        3500
+                ),
+                user.getId()
+        );
+
+        // when
+        PageResponse<ProductResponse> page =
+                productService.getProductList(user.getId(), 1, 10, null, "고");
+
+        // then
+        assertThat(page.totalElements()).isEqualTo(2);
+        assertThat(page.content()).hasSize(2);
+        assertThat(page.content())
+                .extracting(ProductResponse::name)
+                .allMatch(name -> name.contains("고"));
+    }
+
+    @Test
+    void 품목_목록_활성_및_이름검색_동시_필터링_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor = newVendor(store);
+        User user = newUser(store);
+
+        ProductResponse activeMatch = productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                user.getId()
+        );
+
+        ProductResponse inactiveMatch = productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고무장갑",
+                        "P-002",
+                        ProductUnit.EA,
+                        null,
+                        1,
+                        null,
+                        500,
+                        800,
+                        600
+                ),
+                user.getId()
+        );
+
+        // 고무장갑 비활성 처리
+        productService.updateProduct(
+                inactiveMatch.productId(),
+                new UpdateProductRequest(
+                        vendor.getId(),
+                        inactiveMatch.name(),
+                        inactiveMatch.code(),
+                        inactiveMatch.unit(),
+                        inactiveMatch.boxWeightG(),
+                        inactiveMatch.unitPerBox(),
+                        inactiveMatch.unitWeightG(),
+                        false,
+                        inactiveMatch.costPrice(),
+                        inactiveMatch.retailPrice(),
+                        inactiveMatch.wholesalePrice()
+                ),
+                user.getId()
+        );
+
+        // when
+        PageResponse<ProductResponse> page =
+                productService.getProductList(user.getId(), 1, 10, true, "고");
+
+        // then
+        assertThat(page.totalElements()).isEqualTo(1);
+        assertThat(page.content()).hasSize(1);
+        ProductResponse only = page.content().get(0);
+        assertThat(only.productId()).isEqualTo(activeMatch.productId());
+        assertThat(only.name()).isEqualTo("고체치약");
+        assertThat(only.isActivated()).isTrue();
+    }
+
+    @Test
+    void 품목_목록_조회시_다른_상점_품목은_포함되지_않는다() {
+        // given
+        Store store1 = newStore();
+        Store store2 = newStore();
+
+        Vendor vendor1 = newVendor(store1);
+        Vendor vendor2 = newVendor(store2);
+
+        User user1 = newUser(store1);
+        User user2 = userRepository.save(
+                User.builder()
+                        .store(store2)
+                        .username("tester_store2")
+                        .password("password")
+                        .name("상점2 관리자")
+                        .role(UserRole.ADMIN)
+                        .build()
+        );
+
+        // store1의 품목 2개
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor1.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                user1.getId()
+        );
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor1.getId(),
+                        "고무장갑",
+                        "P-002",
+                        ProductUnit.EA,
+                        null,
+                        1,
+                        null,
+                        500,
+                        800,
+                        600
+                ),
+                user1.getId()
+        );
+
+        // store2의 품목 1개
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor2.getId(),
+                        "세제",
+                        "P-003",
+                        ProductUnit.ML,
+                        BigDecimal.valueOf(1000.0),
+                        5,
+                        BigDecimal.valueOf(200.0),
+                        3000,
+                        4000,
+                        3500
+                ),
+                user2.getId()
+        );
+
+        // when
+        PageResponse<ProductResponse> page =
+                productService.getProductList(user1.getId(), 1, 10, null, null);
+
+        // then
+        assertThat(page.totalElements()).isEqualTo(2);
+        assertThat(page.content()).hasSize(2);
+        assertThat(page.content())
+                .extracting(ProductResponse::storeId)
+                .containsOnly(store1.getId());
+    }
+
+    @Test
+    void 존재하지_않는_사용자_품목_목록_조회시_예외가_발생한다() {
+        // given
+        Long notExistUserId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() ->
+                productService.getProductList(notExistUserId, 1, 10, null, null)
+        )
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
     }
 }

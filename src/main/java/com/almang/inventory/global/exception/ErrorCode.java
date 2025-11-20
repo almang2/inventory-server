@@ -14,6 +14,7 @@ public enum ErrorCode {
     STORE_NAME_IS_LONG(HttpStatus.BAD_REQUEST, "상점 이름은 20자를 초과할 수 없습니다."),
     DEFAULT_COUNT_CHECK_THRESHOLD_NOT_IN_RANGE(HttpStatus.BAD_REQUEST, "기본 임계치는 0과 1 사이여야 합니다."),
     STORE_NOT_FOUND(HttpStatus.NOT_FOUND, "상점을 찾을 수 없습니다."),
+    STORE_ACCESS_DENIED(HttpStatus.BAD_REQUEST, "상점에 접근할 수 없습니다."),
 
     //USER
     DUPLICATE_USERNAME(HttpStatus.CONFLICT, "이미 존재하는 회원 아이디입니다."),

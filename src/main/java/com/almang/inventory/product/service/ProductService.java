@@ -41,6 +41,11 @@ public class ProductService {
     public ProductResponse updateProduct(Long productId, UpdateProductRequest request, Long userId) {
         User user = findUserById(userId);
         Product product = findProductById(productId);
+
+        if (!product.getStore().getId().equals(user.getStore().getId())) {
+            throw new BaseException(ErrorCode.STORE_ACCESS_DENIED);
+        }
+
         Vendor vendor = findVendorByIdAndValidateAccess(request.vendorId(), user);
 
         log.info("[ProductService] 품목 수정 요청 - userId: {}, productId: {}", user.getId(), product.getId());

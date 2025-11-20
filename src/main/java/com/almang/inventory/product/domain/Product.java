@@ -5,7 +5,6 @@ import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.vendor.domain.Vendor;
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.math.BigDecimal;
 
 @Entity
@@ -59,4 +58,46 @@ public class Product extends BaseTimeEntity {
 
     @Column(name = "wholesale_price")
     private int wholesalePrice;
+
+    public void updateBasicInfo(String name, String code, ProductUnit unit) {
+        if (name != null) {
+            this.name = name;
+        }
+        if (code != null) {
+            this.code = code;
+        }
+        if (unit != null) {
+            this.unit = unit;
+        }
+    }
+
+    public void updateWeights(BigDecimal boxWeightG, Integer unitPerBox, BigDecimal unitWeightG) {
+        if (boxWeightG != null) {
+            this.boxWeightG = boxWeightG;
+        }
+        if (unitPerBox != null) {
+            this.unitPerBox = unitPerBox;
+        }
+        if (unitWeightG != null) {
+            this.unitWeightG = unitWeightG;
+        }
+    }
+
+    public void updatePrices(Integer costPrice, Integer retailPrice, Integer wholesalePrice) {
+        if (costPrice != null) {
+            this.costPrice = costPrice;
+        }
+        if (retailPrice != null) {
+            this.retailPrice = retailPrice;
+        }
+        if (wholesalePrice != null) {
+            this.wholesalePrice = wholesalePrice;
+        }
+    }
+
+    public void updateActivation(Boolean isActivate) {
+        if (isActivate != null) {
+            this.isActivate = isActivate;
+        }
+    }
 }

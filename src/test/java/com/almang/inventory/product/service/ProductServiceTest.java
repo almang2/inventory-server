@@ -370,4 +370,62 @@ public class ProductServiceTest {
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
     }
+
+    @Test
+    void 다른_상점의_품목을_수정하려고_하면_예외가_발생한다() {
+        // given
+        Store store1 = newStore();
+        Store store2 = newStore();
+
+        Vendor vendorOfStore1 = newVendor(store1);
+        Vendor vendorOfStore2 = newVendor(store2);
+
+        User userOfStore1 = newUser(store1);
+        User userOfStore2 = userRepository.save(
+                User.builder()
+                        .store(store2)
+                        .username("tester_store2")
+                        .password("password")
+                        .name("상점2 관리자")
+                        .role(UserRole.ADMIN)
+                        .build()
+        );
+
+        ProductResponse productOfStore2 = productService.createProduct(
+                new CreateProductRequest(
+                        vendorOfStore2.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                userOfStore2.getId()
+        );
+
+        // when & then
+        UpdateProductRequest request = new UpdateProductRequest(
+                vendorOfStore1.getId(),
+                "변경됨",
+                "NEW",
+                ProductUnit.ML,
+                BigDecimal.valueOf(1000.0),
+                10,
+                BigDecimal.valueOf(100.0),
+                true,
+                2000,
+                3000,
+                2500
+        );
+
+        assertThatThrownBy(() ->
+                productService.updateProduct(productOfStore2.productId(), request, userOfStore1.getId())
+        )
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.STORE_ACCESS_DENIED.getMessage());
+    }
 }

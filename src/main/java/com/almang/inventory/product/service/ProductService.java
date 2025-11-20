@@ -39,6 +39,10 @@ public class ProductService {
     private Product toEntity(CreateProductRequest request, User user) {
         Vendor vendor = findVendorById(request.vendorId());
 
+        if (!vendor.getStore().getId().equals(user.getStore().getId())) {
+            throw new BaseException(ErrorCode.VENDOR_ACCESS_DENIED);
+        }
+
         return Product.builder()
                 .store(user.getStore())
                 .vendor(vendor)

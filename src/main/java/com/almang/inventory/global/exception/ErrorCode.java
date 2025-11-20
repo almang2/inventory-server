@@ -27,6 +27,7 @@ public enum ErrorCode {
 
     // VENDOR
     VENDOR_NOT_FOUND(HttpStatus.NOT_FOUND, "발주처를 찾을 수 없습니다."),
+    VENDOR_ACCESS_DENIED(HttpStatus.BAD_REQUEST, "해당 상점의 발주처가 아닙니다."),
     ;
 
     private final HttpStatus httpStatus;

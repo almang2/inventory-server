@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.config.TestSecurityConfig;
 import com.almang.inventory.global.exception.BaseException;
@@ -99,7 +100,7 @@ public class ProductControllerTest {
                 .andExpect(jsonPath("$.data.name").value("고체치약"))
                 .andExpect(jsonPath("$.data.code").value("P-001"))
                 .andExpect(jsonPath("$.data.unit").value(ProductUnit.G.name()))
-                .andExpect(jsonPath("$.data.isActivate").value(true))
+                .andExpect(jsonPath("$.data.isActivated").value(true))
                 .andExpect(jsonPath("$.data.storeId").value(1L))
                 .andExpect(jsonPath("$.data.vendorId").value(1L));
     }
@@ -243,7 +244,7 @@ public class ProductControllerTest {
                 .andExpect(jsonPath("$.data.name").value("수정된 고체치약"))
                 .andExpect(jsonPath("$.data.code").value("P-999"))
                 .andExpect(jsonPath("$.data.unit").value(ProductUnit.ML.name()))
-                .andExpect(jsonPath("$.data.isActivate").value(false))
+                .andExpect(jsonPath("$.data.isActivated").value(false))
                 .andExpect(jsonPath("$.data.storeId").value(1L))
                 .andExpect(jsonPath("$.data.vendorId").value(1L));
     }
@@ -419,7 +420,7 @@ public class ProductControllerTest {
                 .andExpect(jsonPath("$.data.name").value("고체치약"))
                 .andExpect(jsonPath("$.data.code").value("P-001"))
                 .andExpect(jsonPath("$.data.unit").value(ProductUnit.G.name()))
-                .andExpect(jsonPath("$.data.isActivate").value(true))
+                .andExpect(jsonPath("$.data.isActivated").value(true))
                 .andExpect(jsonPath("$.data.storeId").value(1L))
                 .andExpect(jsonPath("$.data.vendorId").value(1L));
     }
@@ -461,6 +462,97 @@ public class ProductControllerTest {
                         .value(ErrorCode.STORE_ACCESS_DENIED.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message")
                         .value(ErrorCode.STORE_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 품목_목록_조회에_성공한다() throws Exception {
+        // given
+        ProductResponse product1 = new ProductResponse(
+                1L,
+                "고체치약",
+                "P-001",
+                ProductUnit.G,
+                BigDecimal.valueOf(1000.0),
+                true,
+                10,
+                BigDecimal.valueOf(100.0),
+                1000,
+                1500,
+                1200,
+                1L,
+                1L
+        );
+
+        ProductResponse product2 = new ProductResponse(
+                2L,
+                "고무장갑",
+                "P-002",
+                ProductUnit.G,
+                BigDecimal.valueOf(800.0),
+                true,
+                20,
+                BigDecimal.valueOf(40.0),
+                500,
+                1000,
+                800,
+                1L,
+                2L
+        );
+
+        PageResponse<ProductResponse> pageResponse = new PageResponse<>(
+                List.of(product1, product2),
+                1,
+                10,
+                2L,
+                1,
+                true
+        );
+
+        when(productService.getProductList(anyLong(), any(), any(), any(), any()))
+                .thenReturn(pageResponse);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/product")
+                        .with(authentication(auth()))
+                        .param("page", "1")
+                        .param("size", "10")
+                        .param("isActivate", "true")
+                        .param("name", "고"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.GET_PRODUCT_LIST_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.page").value(1))
+                .andExpect(jsonPath("$.data.size").value(10))
+                .andExpect(jsonPath("$.data.totalElements").value(2))
+                .andExpect(jsonPath("$.data.totalPages").value(1))
+                .andExpect(jsonPath("$.data.last").value(true))
+                .andExpect(jsonPath("$.data.content[0].productId").value(1L))
+                .andExpect(jsonPath("$.data.content[0].name").value("고체치약"))
+                .andExpect(jsonPath("$.data.content[0].code").value("P-001"))
+                .andExpect(jsonPath("$.data.content[0].unit").value(ProductUnit.G.name()))
+                .andExpect(jsonPath("$.data.content[0].isActivated").value(true))
+                .andExpect(jsonPath("$.data.content[0].storeId").value(1L))
+                .andExpect(jsonPath("$.data.content[0].vendorId").value(1L));
+    }
+
+    @Test
+    void 품목_목록_조회_시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        when(productService.getProductList(anyLong(), any(), any(), any(), any()))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/product")
+                        .with(authentication(auth()))
+                        .param("page", "1")
+                        .param("size", "10"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.USER_NOT_FOUND.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

@@ -48,7 +48,7 @@ public class Product extends BaseTimeEntity {
     private BigDecimal unitWeightG;
 
     @Column(name = "is_activate", nullable = false)
-    private boolean isActivate;
+    private boolean activated;
 
     @Column(name = "cost_price")
     private int costPrice;
@@ -101,9 +101,9 @@ public class Product extends BaseTimeEntity {
         }
     }
 
-    public void updateActivation(Boolean isActivate) {
-        if (isActivate != null) {
-            this.isActivate = isActivate;
+    public void updateActivation(Boolean activated) {
+        if (activated != null) {
+            this.activated = activated;
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.almang.inventory.product.service;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.product.domain.Product;
@@ -7,12 +8,16 @@ import com.almang.inventory.product.dto.request.CreateProductRequest;
 import com.almang.inventory.product.dto.request.UpdateProductRequest;
 import com.almang.inventory.product.dto.response.ProductResponse;
 import com.almang.inventory.product.repository.ProductRepository;
+import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
 import com.almang.inventory.vendor.domain.Vendor;
 import com.almang.inventory.vendor.repository.VendorRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,7 +56,7 @@ public class ProductService {
         product.updateBasicInfo(request.name(), request.code(), request.unit());
         product.updateWeights(request.boxWeightG(), request.unitPerBox(), request.unitWeightG());
         product.updatePrices(request.costPrice(), request.retailPrice(), request.wholesalePrice());
-        product.updateActivation(request.isActivate());
+        product.updateActivation(request.isActivated());
 
         log.info("[ProductService] 품목 수정 성공 - productId: {}", product.getId());
         return ProductResponse.from(product);
@@ -67,6 +72,22 @@ public class ProductService {
         return ProductResponse.from(product);
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<ProductResponse> getProductList(
+            Long userId, Integer page, Integer size, Boolean isActivate, String nameKeyword
+    ) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[ProductService] 품목 목록 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
+        PageRequest pageable = createPageRequest(page, size);
+        Page<Product> productPage = findProductsByFilter(store.getId(), isActivate, nameKeyword, pageable);
+        Page<ProductResponse> mapped = productPage.map(ProductResponse::from);
+
+        log.info("[ProductService] 품목 목록 조회 성공 - userId: {}, storeId: {}", userId, store.getId());
+        return PageResponse.from(mapped);
+    }
+
     private Product toEntity(CreateProductRequest request, User user) {
         Vendor vendor = findVendorByIdAndValidateAccess(request.vendorId(), user);
 
@@ -79,7 +100,7 @@ public class ProductService {
                 .boxWeightG(request.boxWeightG())
                 .unitPerBox(request.unitPerBox())
                 .unitWeightG(request.unitWeightG())
-                .isActivate(true)
+                .activated(true)
                 .costPrice(request.costPrice())
                 .retailPrice(request.retailPrice())
                 .wholesalePrice(request.wholesalePrice())
@@ -111,5 +132,40 @@ public class ProductService {
         if (!product.getStore().getId().equals(user.getStore().getId())) {
             throw new BaseException(ErrorCode.STORE_ACCESS_DENIED);
         }
+    }
+
+    private PageRequest createPageRequest(Integer page, Integer size) {
+        int pageIndex = (page == null || page < 1) ? 0 : page - 1; // 0-based로 변환
+        int pageSize = (size == null || size < 1) ? 20 : size;
+
+        return PageRequest.of(pageIndex, pageSize, Sort.by(Sort.Direction.ASC, "name"));
+    }
+
+    private Page<Product> findProductsByFilter(
+            Long storeId, Boolean isActivate, String nameKeyword, PageRequest pageable
+    ) {
+        boolean hasName = nameKeyword != null && !nameKeyword.isBlank();
+
+        // 필터 없음
+        if (isActivate == null && !hasName) {
+            return productRepository.findAllByStoreId(storeId, pageable);
+        }
+
+        // 활성 여부
+        if (isActivate != null && !hasName) {
+            return productRepository.findAllByStoreIdAndActivatedTrue(storeId, pageable);
+        }
+
+        // 이름 검색
+        if (isActivate == null) {
+            return productRepository.findAllByStoreIdAndNameContainingIgnoreCase(
+                    storeId, nameKeyword, pageable
+            );
+        }
+
+        // 활성 여부 + 이름 검색
+        return productRepository.findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
+                storeId, nameKeyword, pageable
+        );
     }
 }

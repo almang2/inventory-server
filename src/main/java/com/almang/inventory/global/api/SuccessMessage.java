@@ -25,6 +25,7 @@ public enum SuccessMessage {
     CREATE_PRODUCT_SUCCESS("품목 등록 성공"),
     UPDATE_PRODUCT_SUCCESS("품목 수정 성공"),
     GET_PRODUCT_DETAIL_SUCCESS("품목 상세 조회 성공"),
+    GET_PRODUCT_LIST_SUCCESS("품목 목록 조회 성공"),
     ;
 
     private final String message;

@@ -24,6 +24,10 @@ public enum ErrorCode {
     ACCESS_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "만료된 Access Token 입니다."),
     ACCESS_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "유효하지 않은 Access Token 입니다."),
     NAME_IS_LONG(HttpStatus.BAD_REQUEST, "이름은 20자를 초과할 수 없습니다"),
+
+    // VENDOR
+    VENDOR_NOT_FOUND(HttpStatus.NOT_FOUND, "발주처를 찾을 수 없습니다."),
+    VENDOR_ACCESS_DENIED(HttpStatus.BAD_REQUEST, "해당 상점의 발주처가 아닙니다."),
     ;
 
     private final HttpStatus httpStatus;

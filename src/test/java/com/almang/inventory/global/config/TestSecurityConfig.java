@@ -1,4 +1,4 @@
-package com.almang.inventory.store.global.config;
+package com.almang.inventory.global.config;
 
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;

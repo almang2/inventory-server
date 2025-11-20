@@ -344,7 +344,7 @@ public class ProductControllerTest {
                         .with(authentication(auth()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status")
                         .value(ErrorCode.VENDOR_ACCESS_DENIED.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message")

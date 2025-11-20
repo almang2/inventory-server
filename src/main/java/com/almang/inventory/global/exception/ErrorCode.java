@@ -14,7 +14,7 @@ public enum ErrorCode {
     STORE_NAME_IS_LONG(HttpStatus.BAD_REQUEST, "상점 이름은 20자를 초과할 수 없습니다."),
     DEFAULT_COUNT_CHECK_THRESHOLD_NOT_IN_RANGE(HttpStatus.BAD_REQUEST, "기본 임계치는 0과 1 사이여야 합니다."),
     STORE_NOT_FOUND(HttpStatus.NOT_FOUND, "상점을 찾을 수 없습니다."),
-    STORE_ACCESS_DENIED(HttpStatus.BAD_REQUEST, "상점에 접근할 수 없습니다."),
+    STORE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "상점에 접근할 수 없습니다."),
 
     //USER
     DUPLICATE_USERNAME(HttpStatus.CONFLICT, "이미 존재하는 회원 아이디입니다."),
@@ -28,7 +28,7 @@ public enum ErrorCode {
 
     // VENDOR
     VENDOR_NOT_FOUND(HttpStatus.NOT_FOUND, "발주처를 찾을 수 없습니다."),
-    VENDOR_ACCESS_DENIED(HttpStatus.BAD_REQUEST, "해당 상점의 발주처가 아닙니다."),
+    VENDOR_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 상점의 발주처가 아닙니다."),
 
     // PRODUCT
     PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND,"품목을 찾을 수 없습니다."),

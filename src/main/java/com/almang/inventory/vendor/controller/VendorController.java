@@ -4,6 +4,7 @@ import com.almang.inventory.global.api.ApiResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.vendor.dto.request.CreateVendorRequest;
+import com.almang.inventory.vendor.dto.request.UpdateVendorRequest;
 import com.almang.inventory.vendor.dto.response.VendorResponse;
 import com.almang.inventory.vendor.service.VendorService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,6 +42,22 @@ public class VendorController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.CREATE_VENDOR_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @PatchMapping("/{vendorId}")
+    @Operation(summary = "발주처 수정", description = "발주처를 수정하고 수정된 발주처 정보를 반환합니다.")
+    public ResponseEntity<ApiResponse<VendorResponse>> updateVendor(
+            @PathVariable Long vendorId,
+            @Valid @RequestBody UpdateVendorRequest request,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[VendorController] 발주처 수정 요청 - vendorId: {}, userId: {}", vendorId, userId);
+        VendorResponse response = vendorService.updateVendor(vendorId, request, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.UPDATE_VENDOR_SUCCESS.getMessage(), response)
         );
     }
 }

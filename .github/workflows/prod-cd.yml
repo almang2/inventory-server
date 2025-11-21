@@ -1,7 +1,7 @@
 name: prod-cd
 
 on:
-  workflow_dispatch:  # 수동 실행
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -13,42 +13,51 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      # 1) prod-ci.yml 의 최신 성공 run 에서 app-jar 아티팩트 다운로드
+      # 0) EC2 host key 등록 (보안 강화)
+      - name: Add EC2 host key to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      # 1) CI에서 생성된 아티팩트 다운로드
       - name: Download JAR artifact from latest prod-ci
         uses: dawidd6/action-download-artifact@v8
         with:
-          workflow: prod-ci.yml          # CI 파일 이름
+          workflow: prod-ci.yml
           workflow_conclusion: success
           branch: prod
-          name: app-jar                  # prod-ci에서 업로드한 이름과 동일
+          name: app-jar
           path: ./artifact
 
       - name: Check downloaded files
         run: ls -R .
 
-      # 2) JAR & 배포 스크립트 EC2로 전송
+      # 2) JAR & deploy.sh EC2로 업로드
       - name: Copy JAR & deploy script to EC2
         run: |
-          JAR_PATH=$(ls artifact/*SNAPSHOT.jar | head -n 1)
+          JAR_FILES=(artifact/*SNAPSHOT.jar)
+          JAR_PATH="${JAR_FILES[0]}"
+
           if [ -z "$JAR_PATH" ]; then
             echo "ERROR: 다운로드한 JAR가 없습니다."
             exit 1
           fi
 
-          # JAR를 EC2의 app 디렉터리로 업로드
-          scp -o StrictHostKeyChecking=no \
+          # JAR 올리기
+          scp -o StrictHostKeyChecking=accept-new \
             "$JAR_PATH" \
             ec2-user@${{ secrets.EC2_HOST }}:/home/ec2-user/app/app.jar
 
-          # deploy.sh 스크립트도 함께 업로드 (레포 내 scripts/deploy.sh 기준)
-          scp -o StrictHostKeyChecking=no \
+          # deploy.sh 올리기
+          scp -o StrictHostKeyChecking=accept-new \
             scripts/deploy.sh \
             ec2-user@${{ secrets.EC2_HOST }}:/home/ec2-user/app/deploy/deploy.sh
 
       # 3) EC2에서 배포 스크립트 실행
       - name: Run deploy script on EC2
         run: |
-          ssh -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_HOST }} "\
-            chmod +x /home/ec2-user/app/deploy/deploy.sh && \
-            /home/ec2-user/app/deploy/deploy.sh \
-          "
+          ssh -o StrictHostKeyChecking=accept-new \
+            ec2-user@${{ secrets.EC2_HOST }} "\
+              chmod +x /home/ec2-user/app/deploy/deploy.sh && \
+              /home/ec2-user/app/deploy/deploy.sh \
+            "

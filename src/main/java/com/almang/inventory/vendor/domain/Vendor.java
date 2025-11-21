@@ -37,4 +37,24 @@ public class Vendor extends BaseTimeEntity {
 
     @Column(name = "is_activate", nullable = false)
     private boolean activated;
+
+    public void updateVendorInfo(
+            String name, VendorChannel channel, String contactPoint, String note, Boolean activated
+    ) {
+        if (name != null && !name.isBlank()) {
+            this.name = name;
+        }
+        if (channel != null) {
+            this.channel = channel;
+        }
+        if (contactPoint != null && !contactPoint.isBlank()) {
+            this.contactPoint = contactPoint;
+        }
+        if (note != null) {
+            this.note = note;
+        }
+        if (activated != null) {
+            this.activated = activated;
+        }
+    }
 }

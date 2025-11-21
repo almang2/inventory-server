@@ -1,0 +1,54 @@
+name: prod-cd
+
+on:
+  workflow_dispatch:  # 수동 실행
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      # 1) prod-ci.yml 의 최신 성공 run 에서 app-jar 아티팩트 다운로드
+      - name: Download JAR artifact from latest prod-ci
+        uses: dawidd6/action-download-artifact@v8
+        with:
+          workflow: prod-ci.yml          # CI 파일 이름
+          workflow_conclusion: success
+          branch: prod
+          name: app-jar                  # prod-ci에서 업로드한 이름과 동일
+          path: ./artifact
+
+      - name: Check downloaded files
+        run: ls -R .
+
+      # 2) JAR & 배포 스크립트 EC2로 전송
+      - name: Copy JAR & deploy script to EC2
+        run: |
+          JAR_PATH=$(ls artifact/*SNAPSHOT.jar | head -n 1)
+          if [ -z "$JAR_PATH" ]; then
+            echo "ERROR: 다운로드한 JAR가 없습니다."
+            exit 1
+          fi
+
+          # JAR를 EC2의 app 디렉터리로 업로드
+          scp -o StrictHostKeyChecking=no \
+            "$JAR_PATH" \
+            ec2-user@${{ secrets.EC2_HOST }}:/home/ec2-user/app/app.jar
+
+          # deploy.sh 스크립트도 함께 업로드 (레포 내 scripts/deploy.sh 기준)
+          scp -o StrictHostKeyChecking=no \
+            scripts/deploy.sh \
+            ec2-user@${{ secrets.EC2_HOST }}:/home/ec2-user/app/deploy/deploy.sh
+
+      # 3) EC2에서 배포 스크립트 실행
+      - name: Run deploy script on EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_HOST }} "\
+            chmod +x /home/ec2-user/app/deploy/deploy.sh && \
+            /home/ec2-user/app/deploy/deploy.sh \
+          "

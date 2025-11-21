@@ -31,7 +31,6 @@ public class RedisConfig {
         LettuceClientConfiguration clientConfig =
                 LettuceClientConfiguration.builder()
                         .useSsl()                  // TLS 활성화
-                        .disablePeerVerification() // 필요 시: 서버 인증서 검증 끄기 (Serverless 환경에서 자주 씀)
                         .build();
 
         return new LettuceConnectionFactory(configuration, clientConfig);

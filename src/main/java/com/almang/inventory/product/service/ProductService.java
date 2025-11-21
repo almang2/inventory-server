@@ -3,6 +3,7 @@ package com.almang.inventory.product.service;
 import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.global.util.PaginationUtil;
 import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.dto.request.CreateProductRequest;
 import com.almang.inventory.product.dto.request.UpdateProductRequest;
@@ -80,7 +81,7 @@ public class ProductService {
         Store store = user.getStore();
 
         log.info("[ProductService] 품목 목록 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
-        PageRequest pageable = createPageRequest(page, size);
+        PageRequest pageable = PaginationUtil.createPageRequest(page, size, "name");
         Page<Product> productPage = findProductsByFilter(store.getId(), isActivate, nameKeyword, pageable);
         Page<ProductResponse> mapped = productPage.map(ProductResponse::from);
 
@@ -132,13 +133,6 @@ public class ProductService {
         if (!product.getStore().getId().equals(user.getStore().getId())) {
             throw new BaseException(ErrorCode.STORE_ACCESS_DENIED);
         }
-    }
-
-    private PageRequest createPageRequest(Integer page, Integer size) {
-        int pageIndex = (page == null || page < 1) ? 0 : page - 1; // 0-based로 변환
-        int pageSize = (size == null || size < 1) ? 20 : size;
-
-        return PageRequest.of(pageIndex, pageSize, Sort.by(Sort.Direction.ASC, "name"));
     }
 
     private Page<Product> findProductsByFilter(

@@ -55,7 +55,7 @@ public class ProductServiceTest {
                         .channel(VendorChannel.KAKAO)
                         .contactPoint("010-0000-0000")
                         .note("테스트 메모")
-                        .isActivate(true)
+                        .activated(true)
                         .build()
         );
     }

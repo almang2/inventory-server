@@ -36,5 +36,5 @@ public class Vendor extends BaseTimeEntity {
     private String note;
 
     @Column(name = "is_activate", nullable = false)
-    private boolean isActivate;
+    private boolean activated;
 }

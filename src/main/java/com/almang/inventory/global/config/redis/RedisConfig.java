@@ -6,10 +6,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration.LettuceSslClientConfigurationBuilder;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-import org.springframework.util.StringUtils;
 
 @Configuration
 public class RedisConfig {
@@ -27,8 +27,14 @@ public class RedisConfig {
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration(redisHost, redisPort);
-        LettuceClientConfiguration.LettuceClientConfigurationBuilder client = LettuceClientConfiguration.builder();
-        return new LettuceConnectionFactory(configuration, client.build());
+
+        LettuceClientConfiguration clientConfig =
+                LettuceClientConfiguration.builder()
+                        .useSsl()                  // TLS 활성화
+                        .disablePeerVerification() // 필요 시: 서버 인증서 검증 끄기 (Serverless 환경에서 자주 씀)
+                        .build();
+
+        return new LettuceConnectionFactory(configuration, clientConfig);
     }
 
     @Bean

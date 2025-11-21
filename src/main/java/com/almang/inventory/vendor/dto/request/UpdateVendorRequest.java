@@ -1,13 +1,12 @@
 package com.almang.inventory.vendor.dto.request;
 
 import com.almang.inventory.vendor.domain.VendorChannel;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public record UpdateVendorRequest(
-        @NotNull Long vendorId,
-        String name,
+        @Size(max = 30) String name,
         VendorChannel channel,
-        String contactPoint,
+        @Size(max = 30) String contactPoint,
         String note,
         Boolean activated
 ) {}

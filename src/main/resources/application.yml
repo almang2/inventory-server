@@ -3,3 +3,9 @@ spring:
     name: inventory-server
   profiles:
     active: local
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

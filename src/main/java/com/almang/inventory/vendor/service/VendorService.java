@@ -48,6 +48,15 @@ public class VendorService {
         return VendorResponse.from(vendor);
     }
 
+    @Transactional(readOnly = true)
+    public VendorResponse getVendorDetail(Long vendorId, Long userId) {
+        User user = findUserById(userId);
+        Vendor vendor = findVendorByIdAndValidateAccess(vendorId, user);
+
+        log.info("[VendorService] 발주처 상세 조회 성공 - vendorId: {}", vendor.getId());
+        return VendorResponse.from(vendor);
+    }
+
     private Vendor toEntity(CreateVendorRequest request, User user) {
         return Vendor.builder()
                 .store(user.getStore())

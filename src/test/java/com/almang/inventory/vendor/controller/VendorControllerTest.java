@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.config.TestSecurityConfig;
 import com.almang.inventory.global.exception.BaseException;
@@ -288,5 +289,98 @@ class VendorControllerTest {
                         .value(ErrorCode.VENDOR_NOT_FOUND.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message").value(ErrorCode.VENDOR_NOT_FOUND.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주처_목록_조회에_성공한다() throws Exception {
+        // given
+        PageResponse<VendorResponse> response = new PageResponse<>(
+                List.of(
+                        new VendorResponse(1L, "테스트1", VendorChannel.KAKAO, "010-1111-1111", "메모1", true, 1L),
+                        new VendorResponse(2L, "테스트2", VendorChannel.EMAIL, "010-2222-2222", "메모2", true, 1L)
+                ),
+                1,
+                20,
+                2,
+                1,
+                true
+        );
+
+        when(vendorService.getVendorList(anyLong(), any(), any(), any(), any()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/vendor")
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.GET_VENDOR_LIST_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.content").isArray())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.page").value(1))
+                .andExpect(jsonPath("$.data.totalElements").value(2));
+    }
+
+    @Test
+    void 발주처_목록_조회_시_활성_필터가_적용된다() throws Exception {
+        // given
+        PageResponse<VendorResponse> response = new PageResponse<>(
+                List.of(
+                        new VendorResponse(1L, "활성 발주처", VendorChannel.KAKAO, "010-3333-3333", "메모", true, 1L)
+                ),
+                1,
+                20,
+                1,
+                1,
+                true
+        );
+
+        when(vendorService.getVendorList(anyLong(), any(), any(), any(), any()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/vendor")
+                        .with(authentication(auth()))
+                        .param("isActivate", "true")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.GET_VENDOR_LIST_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].activated").value(true))
+                .andExpect(jsonPath("$.data.content[0].name").value("활성 발주처"));
+    }
+
+    @Test
+    void 발주처_목록_조회_시_이름검색_필터가_적용된다() throws Exception {
+        // given
+        PageResponse<VendorResponse> response = new PageResponse<>(
+                List.of(
+                        new VendorResponse(1L, "사과 공장", VendorChannel.KAKAO, "010-4444-4444", "메모", true, 1L)
+                ),
+                1,
+                20,
+                1,
+                1,
+                true
+        );
+
+        when(vendorService.getVendorList(anyLong(), any(), any(), any(), any()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/vendor")
+                        .with(authentication(auth()))
+                        .param("name", "사과")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.GET_VENDOR_LIST_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].name").value("사과 공장"));
     }
 }

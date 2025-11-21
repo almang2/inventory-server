@@ -1,7 +1,10 @@
 package com.almang.inventory.vendor.service;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.global.util.PaginationUtil;
+import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
 import com.almang.inventory.vendor.domain.Vendor;
@@ -11,6 +14,8 @@ import com.almang.inventory.vendor.dto.response.VendorResponse;
 import com.almang.inventory.vendor.repository.VendorRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,6 +62,22 @@ public class VendorService {
         return VendorResponse.from(vendor);
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<VendorResponse> getVendorList(
+            Long userId, Integer page, Integer size, Boolean isActivate, String nameKeyword
+    ) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[VendorService] 발주처 목록 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
+        PageRequest pageable = PaginationUtil.createPageRequest(page, size, "name");
+        Page<Vendor> vendorPage = findVendorsByFilter(store.getId(), isActivate, nameKeyword, pageable);
+        Page<VendorResponse> mapped = vendorPage.map(VendorResponse::from);
+
+        log.info("[VendorService] 발주처 목록 조회 성공 - userId: {}, storeId: {}", userId, store.getId());
+        return PageResponse.from(mapped);
+    }
+
     private Vendor toEntity(CreateVendorRequest request, User user) {
         return Vendor.builder()
                 .store(user.getStore())
@@ -82,5 +103,33 @@ public class VendorService {
         }
 
         return vendor;
+    }
+
+    private Page<Vendor> findVendorsByFilter(
+            Long storeId, Boolean isActivate, String nameKeyword, PageRequest pageable
+    ) {
+        boolean hasName = nameKeyword != null && !nameKeyword.isBlank();
+
+        // 필터 없음
+        if (isActivate == null && !hasName) {
+            return vendorRepository.findAllByStoreId(storeId, pageable);
+        }
+
+        // 활성 여부
+        if (isActivate != null && !hasName) {
+            return vendorRepository.findAllByStoreIdAndActivatedTrue(storeId, pageable);
+        }
+
+        // 이름 검색
+        if (isActivate == null) {
+            return vendorRepository.findAllByStoreIdAndNameContainingIgnoreCase(
+                    storeId, nameKeyword, pageable
+            );
+        }
+
+        // 활성 여부 + 이름 검색
+        return vendorRepository.findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
+                storeId, nameKeyword, pageable
+        );
     }
 }

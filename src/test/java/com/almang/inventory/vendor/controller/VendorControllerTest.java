@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.almang.inventory.global.api.SuccessMessage;
@@ -232,6 +233,60 @@ class VendorControllerTest {
                         .value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message")
                         .value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주처_상세_조회에_성공한다() throws Exception {
+        // given
+        Long vendorId = 1L;
+
+        VendorResponse response = new VendorResponse(
+                vendorId,
+                "테스트 발주처",
+                VendorChannel.KAKAO,
+                "010-1111-2222",
+                "메모",
+                true,
+                1L
+        );
+
+        when(vendorService.getVendorDetail(anyLong(), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/vendor/{vendorId}", vendorId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.GET_VENDOR_DETAIL_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.vendorId").value(vendorId))
+                .andExpect(jsonPath("$.data.name").value("테스트 발주처"))
+                .andExpect(jsonPath("$.data.channel").value("KAKAO"))
+                .andExpect(jsonPath("$.data.contactPoint").value("010-1111-2222"))
+                .andExpect(jsonPath("$.data.note").value("메모"))
+                .andExpect(jsonPath("$.data.storeId").value(1L))
+                .andExpect(jsonPath("$.data.activated").value(true));
+    }
+
+    @Test
+    void 발주처_상세_조회_시_존재하지_않는_발주처면_예외가_발생한다() throws Exception {
+        // given
+        Long vendorId = 9999L;
+
+        when(vendorService.getVendorDetail(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.VENDOR_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/vendor/{vendorId}", vendorId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.VENDOR_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.VENDOR_NOT_FOUND.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

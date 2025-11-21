@@ -30,6 +30,7 @@ public enum SuccessMessage {
     // VENDOR
     CREATE_VENDOR_SUCCESS("발주처 등록 성공"),
     UPDATE_VENDOR_SUCCESS("발주처 수정 성공"),
+    GET_VENDOR_DETAIL_SUCCESS("발주처 상세 조회 성공"),
     ;
 
     private final String message;

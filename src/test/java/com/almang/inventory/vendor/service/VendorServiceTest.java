@@ -238,4 +238,73 @@ class VendorServiceTest {
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
     }
+
+    @Test
+    void 발주처_상세_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Vendor vendor = newVendor(store);
+
+        // when
+        VendorResponse response = vendorService.getVendorDetail(vendor.getId(), user.getId());
+
+        // then
+        assertThat(response.vendorId()).isEqualTo(vendor.getId());
+        assertThat(response.name()).isEqualTo("기존 발주처");
+        assertThat(response.channel()).isEqualTo(VendorChannel.KAKAO);
+        assertThat(response.contactPoint()).isEqualTo("010-1111-1111");
+        assertThat(response.note()).isEqualTo("원본 메모");
+        assertThat(response.storeId()).isEqualTo(store.getId());
+        assertThat(response.activated()).isTrue();
+    }
+
+    @Test
+    void 존재하지_않는_발주처_상세_조회시_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Long notExistVendorId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> vendorService.getVendorDetail(notExistVendorId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 다른_상점_발주처_상세_조회시_예외가_발생한다() {
+        // given
+        Store store1 = newStore();
+        Store store2 = newStore();
+
+        User userOfStore1 = newUser(store1);
+        User userOfStore2 = userRepository.save(
+                User.builder()
+                        .store(store2)
+                        .username("detail_tester_store2")
+                        .password("password")
+                        .name("상점2 관리자")
+                        .role(UserRole.ADMIN)
+                        .build()
+        );
+
+        Vendor vendorOfStore2 = vendorRepository.save(
+                Vendor.builder()
+                        .store(store2)
+                        .name("상점2 발주처")
+                        .channel(VendorChannel.KAKAO)
+                        .contactPoint("010-2222-2222")
+                        .note("상점2 메모")
+                        .activated(true)
+                        .build()
+        );
+
+        // when & then
+        assertThatThrownBy(() ->
+                vendorService.getVendorDetail(vendorOfStore2.getId(), userOfStore1.getId())
+        )
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
+    }
 }

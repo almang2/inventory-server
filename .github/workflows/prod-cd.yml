@@ -1,4 +1,4 @@
-name: prod-cd
+name: CD - Deploy to EC2
 
 on:
   workflow_dispatch:
@@ -12,6 +12,10 @@ jobs:
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      # 레포 체크아웃
+      - name: Checkout
+        uses: actions/checkout@v4
 
       # 0) EC2 host key 등록 (보안 강화)
       - name: Add EC2 host key to known_hosts

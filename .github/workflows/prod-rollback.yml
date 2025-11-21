@@ -1,4 +1,4 @@
-name: prod-rollback
+name: ROLLBACK
 
 on:
   workflow_dispatch:

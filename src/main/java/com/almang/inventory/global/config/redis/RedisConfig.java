@@ -6,33 +6,34 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration.LettuceSslClientConfigurationBuilder;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-import org.springframework.util.StringUtils;
 
 @Configuration
 public class RedisConfig {
 
     private final String redisHost;
     private final int redisPort;
-    private final String password;
 
     public RedisConfig(
             @Value("${spring.data.redis.host}") String redisHost,
-            @Value("${spring.data.redis.port}") int redisPort,
-            @Value("${spring.data.redis.password:}") String password) {
+            @Value("${spring.data.redis.port}") int redisPort) {
         this.redisHost = redisHost;
         this.redisPort = redisPort;
-        this.password = password;
     }
 
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration(redisHost, redisPort);
-        if (StringUtils.hasText(password)) configuration.setPassword(password);
-        LettuceClientConfiguration.LettuceClientConfigurationBuilder client = LettuceClientConfiguration.builder();
-        return new LettuceConnectionFactory(configuration, client.build());
+
+        LettuceClientConfiguration clientConfig =
+                LettuceClientConfiguration.builder()
+                        .useSsl()                  // TLS 활성화
+                        .build();
+
+        return new LettuceConnectionFactory(configuration, clientConfig);
     }
 
     @Bean

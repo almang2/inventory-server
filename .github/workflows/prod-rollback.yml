@@ -1,0 +1,38 @@
+name: prod-rollback
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Add EC2 host key to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # rollback.sh 업로드
+      - name: Copy rollback.sh to EC2
+        run: |
+          scp -o StrictHostKeyChecking=accept-new \
+            scripts/rollback.sh \
+            ec2-user@${{ secrets.EC2_HOST }}:/home/ec2-user/app/deploy/rollback.sh
+
+      # EC2에서 롤백 실행
+      - name: Run rollback script on EC2
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new \
+            ec2-user@${{ secrets.EC2_HOST }} "\
+              chmod +x /home/ec2-user/app/deploy/rollback.sh && \
+              /home/ec2-user/app/deploy/rollback.sh \
+            "

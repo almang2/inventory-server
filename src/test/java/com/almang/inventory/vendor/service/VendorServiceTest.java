@@ -3,6 +3,7 @@ package com.almang.inventory.vendor.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.store.domain.Store;
@@ -306,5 +307,150 @@ class VendorServiceTest {
         )
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 발주처_목록_전체_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+
+        vendorRepository.save(newVendor(store));
+        vendorRepository.save(
+                Vendor.builder()
+                        .store(store)
+                        .name("두번째 발주처")
+                        .channel(VendorChannel.EMAIL)
+                        .contactPoint("email@test.com")
+                        .note("메모")
+                        .activated(true)
+                        .build()
+        );
+
+        // when
+        PageResponse<VendorResponse> response =
+                vendorService.getVendorList(user.getId(), 1, 20, null, null);
+
+        // then
+        assertThat(response.content()).hasSize(2);
+        assertThat(response.totalElements()).isEqualTo(2);
+        assertThat(response.page()).isEqualTo(1);
+        assertThat(response.size()).isEqualTo(20);
+    }
+
+    @Test
+    void 활성된_발주처만_조회된다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+
+        vendorRepository.save(
+                Vendor.builder()
+                        .store(store)
+                        .name("활성 발주처")
+                        .channel(VendorChannel.KAKAO)
+                        .contactPoint("010-1111-1111")
+                        .note("메모")
+                        .activated(true)
+                        .build()
+        );
+
+        vendorRepository.save(
+                Vendor.builder()
+                        .store(store)
+                        .name("비활성 발주처")
+                        .channel(VendorChannel.EMAIL)
+                        .contactPoint("email@test.com")
+                        .note("메모2")
+                        .activated(false)
+                        .build()
+        );
+
+        // when
+        PageResponse<VendorResponse> response =
+                vendorService.getVendorList(user.getId(), 1, 20, true, null);
+
+        // then
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.totalElements()).isEqualTo(1);
+        assertThat(response.content().get(0).name()).isEqualTo("활성 발주처");
+        assertThat(response.content().get(0).activated()).isTrue();
+    }
+
+    @Test
+    void 이름_검색_필터로_조회된다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+
+        vendorRepository.save(
+                Vendor.builder()
+                        .store(store)
+                        .name("사과 공장")
+                        .channel(VendorChannel.KAKAO)
+                        .contactPoint("010-1111-2222")
+                        .note("메모")
+                        .activated(true)
+                        .build()
+        );
+
+        vendorRepository.save(
+                Vendor.builder()
+                        .store(store)
+                        .name("바나나 공장")
+                        .channel(VendorChannel.EMAIL)
+                        .contactPoint("010-3333-4444")
+                        .note("메모2")
+                        .activated(true)
+                        .build()
+        );
+
+        // when
+        PageResponse<VendorResponse> response =
+                vendorService.getVendorList(user.getId(), 1, 20, null, "사과");
+
+        // then
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.totalElements()).isEqualTo(1);
+        assertThat(response.content().get(0).name()).isEqualTo("사과 공장");
+    }
+
+    @Test
+    void 활성여부와_이름_검색이_둘다_적용되어_조회된다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+
+        vendorRepository.save(
+                Vendor.builder()
+                        .store(store)
+                        .name("사과 공장")
+                        .channel(VendorChannel.KAKAO)
+                        .contactPoint("010-1111-2222")
+                        .note("메모")
+                        .activated(true)
+                        .build()
+        );
+
+        vendorRepository.save(
+                Vendor.builder()
+                        .store(store)
+                        .name("사과 비활성 공장")
+                        .channel(VendorChannel.EMAIL)
+                        .contactPoint("010-3333-4444")
+                        .note("메모2")
+                        .activated(false)
+                        .build()
+        );
+
+        // when
+        PageResponse<VendorResponse> response =
+                vendorService.getVendorList(user.getId(), 1, 20, true, "사과");
+
+        // then
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.totalElements()).isEqualTo(1);
+        assertThat(response.content().get(0).name()).isEqualTo("사과 공장");
+        assertThat(response.content().get(0).activated()).isTrue();
     }
 }

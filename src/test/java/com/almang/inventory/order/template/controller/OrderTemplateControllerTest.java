@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.almang.inventory.global.api.SuccessMessage;
@@ -137,6 +138,97 @@ class OrderTemplateControllerTest {
                         .value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message")
                         .value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_템플릿_상세_조회에_성공한다() throws Exception {
+        // given
+        Long orderTemplateId = 1L;
+
+        OrderTemplateResponse response = new OrderTemplateResponse(
+                orderTemplateId,
+                10L,
+                "상세 제목",
+                "상세 본문 내용",
+                true
+        );
+
+        when(orderTemplateService.getOrderTemplateDetail(anyLong(), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/order-template/{orderTemplateId}", orderTemplateId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.GET_ORDER_TEMPLATE_DETAIL.getMessage()))
+                .andExpect(jsonPath("$.data.orderTemplateId").value(orderTemplateId))
+                .andExpect(jsonPath("$.data.vendorId").value(10L))
+                .andExpect(jsonPath("$.data.title").value("상세 제목"))
+                .andExpect(jsonPath("$.data.body").value("상세 본문 내용"))
+                .andExpect(jsonPath("$.data.activated").value(true));
+    }
+
+    @Test
+    void 발주_템플릿_상세_조회_시_템플릿이_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long notExistOrderTemplateId = 9999L;
+
+        when(orderTemplateService.getOrderTemplateDetail(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.ORDER_TEMPLATE_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/order-template/{orderTemplateId}", notExistOrderTemplateId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.ORDER_TEMPLATE_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.ORDER_TEMPLATE_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_템플릿_상세_조회_시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long orderTemplateId = 1L;
+
+        when(orderTemplateService.getOrderTemplateDetail(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/order-template/{orderTemplateId}", orderTemplateId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_템플릿_상세_조회_시_접근권한이_없으면_예외가_발생한다() throws Exception {
+        // given
+        Long orderTemplateId = 1L;
+
+        when(orderTemplateService.getOrderTemplateDetail(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.ORDER_TEMPLATE_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/order-template/{orderTemplateId}", orderTemplateId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.ORDER_TEMPLATE_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.ORDER_TEMPLATE_ACCESS_DENIED.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

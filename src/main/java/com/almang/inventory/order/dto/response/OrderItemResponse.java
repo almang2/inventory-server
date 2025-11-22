@@ -1,5 +1,7 @@
 package com.almang.inventory.order.dto.response;
 
+import com.almang.inventory.global.exception.BaseException;
+import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.order.domain.OrderItem;
 
 public record OrderItemResponse(
@@ -11,6 +13,9 @@ public record OrderItemResponse(
         Integer amount
 ) {
     public static OrderItemResponse from(OrderItem orderItem) {
+        if (orderItem.getOrder() == null || orderItem.getProduct() == null) {
+            throw new BaseException(ErrorCode.ORDER_ITEM_MUST_HAVE_ORDER_AND_PRODUCT);
+        }
         return new OrderItemResponse(
                 orderItem.getId(),
                 orderItem.getOrder().getId(),

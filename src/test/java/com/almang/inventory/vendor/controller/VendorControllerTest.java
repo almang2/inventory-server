@@ -387,6 +387,45 @@ class VendorControllerTest {
     }
 
     @Test
+    void 발주처_목록_조회_시_비활성_필터가_적용된다() throws Exception {
+        // given
+        PageResponse<VendorResponse> response = new PageResponse<>(
+                List.of(
+                        new VendorResponse(
+                                1L,
+                                "비활성 발주처",
+                                VendorChannel.KAKAO,
+                                "010-3333-3333",
+                                "메모",
+                                false,
+                                1L
+                        )
+                ),
+                1,
+                20,
+                1,
+                1,
+                true
+        );
+
+        when(vendorService.getVendorList(anyLong(), any(), any(), any(), any()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/vendor")
+                        .with(authentication(auth()))
+                        .param("isActivate", "false")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.GET_VENDOR_LIST_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].activated").value(false))
+                .andExpect(jsonPath("$.data.content[0].name").value("비활성 발주처"));
+    }
+
+    @Test
     void 발주_템플릿_생성에_성공한다() throws Exception {
         // given
         Long vendorId = 1L;

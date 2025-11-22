@@ -806,7 +806,7 @@ class VendorServiceTest {
         User userOfStore2 = userRepository.save(
                 User.builder()
                         .store(store2)
-                        .username("template_viewer_store2")
+                        .username("template_viewer")
                         .password("password")
                         .name("상점2 관리자")
                         .role(UserRole.ADMIN)

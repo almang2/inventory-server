@@ -29,13 +29,21 @@ public class OrderTemplateService {
             Long orderTemplateId, UpdateOrderTemplateRequest request, Long userId
     ) {
         User user = findUserById(userId);
-        Vendor vendor = findVendorByIdAndValidateAccess(request.vendorId(), user);
-        OrderTemplate orderTemplate = findOrderTemplateByIdAndValidateAccess(orderTemplateId, vendor);
+        OrderTemplate orderTemplate = findOrderTemplateByIdAndValidateAccess(orderTemplateId, user);
 
         log.info("[OrderTemplateService] 발주처 양식 수정 요청 - userId: {}, orderTemplateId: {}", userId, orderTemplateId);
         orderTemplate.updateTemplate(request.title(), request.body(), request.activated());
 
         log.info("[OrderTemplateService] 발주처 양식 수정 성공 - userId: {}, orderTemplateId: {}", userId, orderTemplateId);
+        return OrderTemplateResponse.from(orderTemplate);
+    }
+
+    @Transactional(readOnly = true)
+    public OrderTemplateResponse getOrderTemplateDetail(Long orderTemplateId, Long userId) {
+        User user = findUserById(userId);
+        OrderTemplate orderTemplate = findOrderTemplateByIdAndValidateAccess(orderTemplateId, user);
+
+        log.info("[OrderTemplateService] 발주처 양식 상세 조회 성공 - userId: {}, orderTemplateId: {}", userId, orderTemplateId);
         return OrderTemplateResponse.from(orderTemplate);
     }
 
@@ -55,11 +63,11 @@ public class OrderTemplateService {
         return vendor;
     }
 
-    private OrderTemplate findOrderTemplateByIdAndValidateAccess(Long orderTemplateId, Vendor vendor) {
+    private OrderTemplate findOrderTemplateByIdAndValidateAccess(Long orderTemplateId, User user) {
         OrderTemplate orderTemplate =  orderTemplateRepository.findById(orderTemplateId)
                 .orElseThrow(() -> new BaseException(ErrorCode.ORDER_TEMPLATE_NOT_FOUND));
 
-        if (!orderTemplate.getVendor().getId().equals(vendor.getId())) {
+        if (!orderTemplate.getVendor().getStore().getId().equals(user.getStore().getId())) {
             throw new BaseException(ErrorCode.ORDER_TEMPLATE_ACCESS_DENIED);
         }
 

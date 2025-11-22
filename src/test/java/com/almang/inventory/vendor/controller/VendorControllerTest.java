@@ -15,7 +15,9 @@ import com.almang.inventory.global.config.TestSecurityConfig;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
+import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;
 import com.almang.inventory.vendor.domain.VendorChannel;
+import com.almang.inventory.vendor.dto.request.CreateOrderTemplateRequest;
 import com.almang.inventory.vendor.dto.request.CreateVendorRequest;
 import com.almang.inventory.vendor.dto.request.UpdateVendorRequest;
 import com.almang.inventory.vendor.dto.response.VendorResponse;
@@ -382,5 +384,88 @@ class VendorControllerTest {
                         .value(SuccessMessage.GET_VENDOR_LIST_SUCCESS.getMessage()))
                 .andExpect(jsonPath("$.data.content.length()").value(1))
                 .andExpect(jsonPath("$.data.content[0].name").value("사과 공장"));
+    }
+
+    @Test
+    void 발주_템플릿_생성에_성공한다() throws Exception {
+        // given
+        Long vendorId = 1L;
+
+        CreateOrderTemplateRequest request = new CreateOrderTemplateRequest(
+                "발주 제목",
+                "발주 본문 내용입니다."
+        );
+
+        OrderTemplateResponse response = new OrderTemplateResponse(
+                1L,
+                vendorId,
+                "발주 제목",
+                "발주 본문 내용입니다.",
+                true
+        );
+
+        when(vendorService.createOrderTemplate(anyLong(), any(CreateOrderTemplateRequest.class), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(post("/api/v1/vendor/{vendorId}/order-template", vendorId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.CREATE_ORDER_TEMPLATE_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.orderTemplateId").value(1L))
+                .andExpect(jsonPath("$.data.title").value("발주 제목"))
+                .andExpect(jsonPath("$.data.body").value("발주 본문 내용입니다."))
+                .andExpect(jsonPath("$.data.activated").value(true))
+                .andExpect(jsonPath("$.data.vendorId").value(vendorId));
+    }
+
+    @Test
+    void 발주_템플릿_생성_시_존재하지_않는_발주처면_예외가_발생한다() throws Exception {
+        // given
+        Long vendorId = 9999L;
+
+        CreateOrderTemplateRequest request = new CreateOrderTemplateRequest(
+                "발주 제목",
+                "발주 본문 내용입니다."
+        );
+
+        when(vendorService.createOrderTemplate(anyLong(), any(CreateOrderTemplateRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.VENDOR_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(post("/api/v1/vendor/{vendorId}/order-template", vendorId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.VENDOR_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.VENDOR_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_템플릿_생성_요청값_검증에_실패하면_예외가_발생한다() throws Exception {
+        // given
+        CreateOrderTemplateRequest invalidRequest = new CreateOrderTemplateRequest(
+                "",
+                ""
+        );
+
+        // when & then
+        mockMvc.perform(post("/api/v1/vendor/{vendorId}/order-template", 1L)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

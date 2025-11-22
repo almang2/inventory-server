@@ -4,10 +4,14 @@ import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.util.PaginationUtil;
+import com.almang.inventory.order.template.OrderTemplateRepository;
+import com.almang.inventory.order.template.domain.OrderTemplate;
+import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
 import com.almang.inventory.vendor.domain.Vendor;
+import com.almang.inventory.vendor.dto.request.CreateOrderTemplateRequest;
 import com.almang.inventory.vendor.dto.request.CreateVendorRequest;
 import com.almang.inventory.vendor.dto.request.UpdateVendorRequest;
 import com.almang.inventory.vendor.dto.response.VendorResponse;
@@ -26,13 +30,14 @@ public class VendorService {
 
     private final VendorRepository vendorRepository;
     private final UserRepository userRepository;
+    private final OrderTemplateRepository orderTemplateRepository;
 
     @Transactional
     public VendorResponse createVendor(CreateVendorRequest request, Long userId) {
         User user = findUserById(userId);
 
         log.info("[VendorService] 발주처 생성 요청 - userId: {}", user.getId());
-        Vendor vendor = toEntity(request, user);
+        Vendor vendor = toVendorEntity(request, user);
         Vendor saved = vendorRepository.save(vendor);
 
         log.info("[VendorService] 발주처 생성 성공 - vendorId: {}", saved.getId());
@@ -78,13 +83,35 @@ public class VendorService {
         return PageResponse.from(mapped);
     }
 
-    private Vendor toEntity(CreateVendorRequest request, User user) {
+    @Transactional
+    public OrderTemplateResponse createOrderTemplate(Long vendorId, CreateOrderTemplateRequest request, Long userId) {
+        User user = findUserById(userId);
+        Vendor vendor = findVendorByIdAndValidateAccess(vendorId, user);
+
+        log.info("[VendorService] 발주처 양식 등록 요청 - userId: {}, vendorId: {}", userId, vendorId);
+        OrderTemplate orderTemplate = toOrderTemplateEntity(request, vendor);
+        OrderTemplate saved = orderTemplateRepository.save(orderTemplate);
+
+        log.info("[VendorService] 발주처 양식 등록 성공 - orderTemplateId: {}", saved.getId());
+        return OrderTemplateResponse.from(saved);
+    }
+
+    private Vendor toVendorEntity(CreateVendorRequest request, User user) {
         return Vendor.builder()
                 .store(user.getStore())
                 .name(request.name())
                 .channel(request.channel())
                 .contactPoint(request.contactPoint())
                 .note(request.note())
+                .activated(true)
+                .build();
+    }
+
+    private OrderTemplate toOrderTemplateEntity(CreateOrderTemplateRequest request, Vendor vendor) {
+        return OrderTemplate.builder()
+                .vendor(vendor)
+                .title(request.title())
+                .body(request.body())
                 .activated(true)
                 .build();
     }

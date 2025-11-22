@@ -3,6 +3,7 @@ package com.almang.inventory.order.template.dto.response;
 import com.almang.inventory.order.template.domain.OrderTemplate;
 
 public record OrderTemplateResponse(
+        Long orderTemplateId,
         Long vendorId,
         String title,
         String body,
@@ -10,6 +11,7 @@ public record OrderTemplateResponse(
 ) {
     public static OrderTemplateResponse from(OrderTemplate orderTemplate) {
         return new OrderTemplateResponse(
+                orderTemplate.getId(),
                 orderTemplate.getVendor().getId(),
                 orderTemplate.getTitle(),
                 orderTemplate.getBody(),

@@ -55,11 +55,11 @@ public class OrderTemplateService {
         return vendor;
     }
 
-    private OrderTemplate findOrderTemplateByIdAndValidateAccess(Long orderTemplateId, Vendor vendor) {
+    private OrderTemplate findOrderTemplateByIdAndValidateAccess(Long orderTemplateId, User user) {
         OrderTemplate orderTemplate =  orderTemplateRepository.findById(orderTemplateId)
                 .orElseThrow(() -> new BaseException(ErrorCode.ORDER_TEMPLATE_NOT_FOUND));
 
-        if (!orderTemplate.getVendor().getId().equals(vendor.getId())) {
+        if (!orderTemplate.getVendor().getStore().getId().equals(user.getStore().getId())) {
             throw new BaseException(ErrorCode.ORDER_TEMPLATE_ACCESS_DENIED);
         }
 

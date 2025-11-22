@@ -4,6 +4,8 @@ import com.almang.inventory.global.api.ApiResponse;
 import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
+import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;
+import com.almang.inventory.vendor.dto.request.CreateOrderTemplateRequest;
 import com.almang.inventory.vendor.dto.request.CreateVendorRequest;
 import com.almang.inventory.vendor.dto.request.UpdateVendorRequest;
 import com.almang.inventory.vendor.dto.response.VendorResponse;
@@ -96,6 +98,22 @@ public class VendorController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.GET_VENDOR_LIST_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @PostMapping("/{vendorId}/order-template")
+    @Operation(summary = "발주 템플릿 등록", description = "발주 템플릿을 등록하고 생성된 발주 템플릿을 반환합니다.")
+    public ResponseEntity<ApiResponse<OrderTemplateResponse>> createOrderTemplate(
+            @PathVariable Long vendorId,
+            @Valid @RequestBody CreateOrderTemplateRequest request,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[VendorController] 발주 템플릿 생성 요청 - userId: {}, vendorId: {}", userId, vendorId);
+        OrderTemplateResponse response = vendorService.createOrderTemplate(vendorId, request, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.CREATE_ORDER_TEMPLATE_SUCCESS.getMessage(), response)
         );
     }
 }

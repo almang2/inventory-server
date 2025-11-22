@@ -32,6 +32,9 @@ public enum SuccessMessage {
     UPDATE_VENDOR_SUCCESS("발주처 수정 성공"),
     GET_VENDOR_DETAIL_SUCCESS("발주처 상세 조회 성공"),
     GET_VENDOR_LIST_SUCCESS("발주처 목록 조회 성공"),
+
+    // ORDER
+    CREATE_ORDER_TEMPLATE_SUCCESS("발주 템플릿 등록 성공"),
     ;
 
     private final String message;

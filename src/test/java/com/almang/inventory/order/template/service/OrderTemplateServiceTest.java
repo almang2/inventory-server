@@ -126,8 +126,7 @@ class OrderTemplateServiceTest {
 
         // when & then
         assertThatThrownBy(() ->
-                orderTemplateService.updateOrderTemplate(1L, request, notExistUserId)
-        )
+                orderTemplateService.updateOrderTemplate(1L, request, notExistUserId))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
     }
@@ -146,8 +145,7 @@ class OrderTemplateServiceTest {
 
         // when & then
         assertThatThrownBy(() ->
-                orderTemplateService.updateOrderTemplate(9999L, request, user.getId())
-        )
+                orderTemplateService.updateOrderTemplate(9999L, request, user.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.ORDER_TEMPLATE_NOT_FOUND.getMessage());
     }
@@ -180,8 +178,80 @@ class OrderTemplateServiceTest {
 
         // when & then
         assertThatThrownBy(() ->
-                orderTemplateService.updateOrderTemplate(templateOfStore2.getId(), request, store1User.getId())
-        )
+                orderTemplateService.updateOrderTemplate(templateOfStore2.getId(), request, store1User.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.ORDER_TEMPLATE_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 발주_템플릿_상세_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Vendor vendor = newVendor(store);
+        OrderTemplate template = newOrderTemplate(vendor);
+
+        // when
+        OrderTemplateResponse response =
+                orderTemplateService.getOrderTemplateDetail(template.getId(), user.getId());
+
+        // then
+        assertThat(response.orderTemplateId()).isEqualTo(template.getId());
+        assertThat(response.vendorId()).isEqualTo(vendor.getId());
+        assertThat(response.title()).isEqualTo("기존 제목");
+        assertThat(response.body()).isEqualTo("기존 본문");
+        assertThat(response.activated()).isTrue();
+    }
+
+    @Test
+    void 사용자가_없으면_발주_템플릿_상세_조회시_예외가_발생한다() {
+        // given
+        Long notExistUserId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() ->
+                orderTemplateService.getOrderTemplateDetail(1L, notExistUserId))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 템플릿이_존재하지_않으면_발주_템플릿_상세_조회시_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Long notExistTemplateId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() ->
+                orderTemplateService.getOrderTemplateDetail(notExistTemplateId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.ORDER_TEMPLATE_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 다른_상점의_발주_템플릿이면_상세_조회시_접근이_거부된다() {
+        // given
+        Store store1 = newStore();
+        Store store2 = newStore();
+
+        User store1User = newUser(store1);
+        User store2User = userRepository.save(
+                User.builder()
+                        .store(store2)
+                        .username("vendor_owner")
+                        .password("password")
+                        .name("상점2 유저")
+                        .role(UserRole.ADMIN)
+                        .build()
+        );
+
+        Vendor store2Vendor = newVendor(store2);
+        OrderTemplate templateOfStore2 = newOrderTemplate(store2Vendor);
+
+        // when & then
+        assertThatThrownBy(() ->
+                orderTemplateService.getOrderTemplateDetail(templateOfStore2.getId(), store1User.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.ORDER_TEMPLATE_ACCESS_DENIED.getMessage());
     }

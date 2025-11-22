@@ -13,6 +13,7 @@ import com.almang.inventory.vendor.service.VendorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -114,6 +115,22 @@ public class VendorController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.CREATE_ORDER_TEMPLATE_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @GetMapping("/{vendorId}/order-templates")
+    @Operation(summary = "발주처 발주 템플릿 조회", description = "발주처의 발주 템플릿을 조회합니다.")
+    public ResponseEntity<ApiResponse<List<OrderTemplateResponse>>> getOrderTemplates(
+            @PathVariable Long vendorId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal,
+            @RequestParam(value = "activated", required = false) Boolean activated
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[VendorController] 발주처 발주 템플릿 조회 요청 - userId: {}, vendorId: {}", userId, vendorId);
+        List<OrderTemplateResponse> response = vendorService.getOrderTemplates(vendorId, userId, activated);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.GET_VENDOR_ORDER_TEMPLATE_SUCCESS.getMessage(), response)
         );
     }
 }

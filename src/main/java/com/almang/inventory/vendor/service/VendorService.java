@@ -16,6 +16,7 @@ import com.almang.inventory.vendor.dto.request.CreateVendorRequest;
 import com.almang.inventory.vendor.dto.request.UpdateVendorRequest;
 import com.almang.inventory.vendor.dto.response.VendorResponse;
 import com.almang.inventory.vendor.repository.VendorRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -96,6 +97,20 @@ public class VendorService {
         return OrderTemplateResponse.from(saved);
     }
 
+    @Transactional(readOnly = true)
+    public List<OrderTemplateResponse> getOrderTemplates(Long vendorId, Long userId, Boolean activated) {
+        User user = findUserById(userId);
+        Vendor vendor = findVendorByIdAndValidateAccess(vendorId, user);
+
+        log.info("[VendorService] 발주처 발주처 템플릿 조회 요청 - userId: {}, vendorId: {}", userId, vendorId);
+        List<OrderTemplate> templates = findOrderTemplatesByFilter(vendor.getId(), activated);
+
+        log.info("[VendorService] 발주처 발주처 템플릿 조회 성공 - userId: {}, vendorId: {}", userId, vendorId);
+        return templates.stream()
+                .map(OrderTemplateResponse::from)
+                .toList();
+    }
+
     private Vendor toVendorEntity(CreateVendorRequest request, User user) {
         return Vendor.builder()
                 .store(user.getStore())
@@ -136,27 +151,48 @@ public class VendorService {
             Long storeId, Boolean isActivate, String nameKeyword, PageRequest pageable
     ) {
         boolean hasName = nameKeyword != null && !nameKeyword.isBlank();
+        boolean filterActivate = isActivate != null;
 
-        // 필터 없음
-        if (isActivate == null && !hasName) {
+        // 1) 필터 없음
+        if (!filterActivate && !hasName) {
             return vendorRepository.findAllByStoreId(storeId, pageable);
         }
 
-        // 활성 여부
-        if (isActivate != null && !hasName) {
-            return vendorRepository.findAllByStoreIdAndActivatedTrue(storeId, pageable);
+        // 2) 활성/비활성 필터
+        if (filterActivate && !hasName) {
+            if (isActivate) {
+                return vendorRepository.findAllByStoreIdAndActivatedTrue(storeId, pageable);
+            }
+            return vendorRepository.findAllByStoreIdAndActivatedFalse(storeId, pageable);
         }
 
-        // 이름 검색
-        if (isActivate == null) {
+        // 3) 이름 필터
+        if (!filterActivate) {
             return vendorRepository.findAllByStoreIdAndNameContainingIgnoreCase(
                     storeId, nameKeyword, pageable
             );
         }
 
-        // 활성 여부 + 이름 검색
-        return vendorRepository.findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
+        // 4) 활성 여부 + 이름 필터 둘 다 적용
+        if (isActivate) {
+            return vendorRepository.findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
+                    storeId, nameKeyword, pageable
+            );
+        }
+        return vendorRepository.findAllByStoreIdAndActivatedFalseAndNameContainingIgnoreCase(
                 storeId, nameKeyword, pageable
         );
+    }
+
+    private List<OrderTemplate> findOrderTemplatesByFilter(Long vendorId, Boolean activated) {
+        if (activated == null) {
+            return orderTemplateRepository.findAllByVendorId(vendorId);
+        }
+
+        if (Boolean.TRUE.equals(activated)) {
+            return orderTemplateRepository.findAllByVendorIdAndActivatedTrue(vendorId);
+        }
+
+        return orderTemplateRepository.findAllByVendorIdAndActivatedFalse(vendorId);
     }
 }

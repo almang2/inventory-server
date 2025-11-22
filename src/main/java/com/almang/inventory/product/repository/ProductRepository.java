@@ -9,15 +9,17 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     Page<Product> findAllByStoreId(Long storeId, Pageable pageable);
 
-    Page<Product> findAllByStoreIdAndActivatedTrue(
-            Long storeId, Pageable pageable
-    );
+    Page<Product> findAllByStoreIdAndActivatedTrue(Long storeId, Pageable pageable);
 
-    Page<Product> findAllByStoreIdAndNameContainingIgnoreCase(
+    Page<Product> findAllByStoreIdAndActivatedFalse(Long storeId, Pageable pageable);
+
+    Page<Product> findAllByStoreIdAndNameContainingIgnoreCase(Long storeId, String name, Pageable pageable);
+
+    Page<Product> findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
             Long storeId, String name, Pageable pageable
     );
 
-    Page<Product> findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
+    Page<Product> findAllByStoreIdAndActivatedFalseAndNameContainingIgnoreCase(
             Long storeId, String name, Pageable pageable
     );
 }

@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,6 +41,21 @@ public class OrderController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.CREATE_ORDER_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @GetMapping("/{orderId}")
+    @Operation(summary = "발주 조회", description = "발주 정보를 조회합니다.")
+    public ResponseEntity<ApiResponse<OrderResponse>> getOrder(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[OrderController] 발주 조회 요청 - orderId: {}, userId: {}", orderId, userId);
+        OrderResponse response = orderService.getOrder(orderId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.GET_ORDER_SUCCESS.getMessage(), response)
         );
     }
 }

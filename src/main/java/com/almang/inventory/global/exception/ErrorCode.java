@@ -32,10 +32,12 @@ public enum ErrorCode {
 
     // PRODUCT
     PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND,"품목을 찾을 수 없습니다."),
+    PRODUCT_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 상점의 상품이 아닙니다."),
 
     // ORDER
     ORDER_TEMPLATE_NOT_FOUND(HttpStatus.NOT_FOUND, "발주 템플릿을 찾을 수 없습니다."),
     ORDER_TEMPLATE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 상점의 발주 템플릿이 아닙니다."),
+    ORDER_ITEM_EMPTY(HttpStatus.BAD_REQUEST, "주문 목록이 비어있습니다."),
     ;
 
     private final HttpStatus httpStatus;

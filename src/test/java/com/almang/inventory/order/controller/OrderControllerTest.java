@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.almang.inventory.global.api.SuccessMessage;
@@ -232,7 +233,7 @@ class OrderControllerTest {
         );
 
         when(orderService.createOrder(any(CreateOrderRequest.class), anyLong()))
-                .thenThrow(new BaseException(ErrorCode.ORDER_ITEM_EMPTY));
+                .thenThrow(new BaseException(ErrorCode.INVALID_INPUT_VALUE));
 
         // when & then
         mockMvc.perform(post("/api/v1/order")
@@ -240,8 +241,77 @@ class OrderControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(ErrorCode.ORDER_ITEM_EMPTY.getHttpStatus().value()))
-                .andExpect(jsonPath("$.message").value(ErrorCode.ORDER_ITEM_EMPTY.getMessage()))
+                .andExpect(jsonPath("$.status").value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_조회에_성공한다() throws Exception {
+        // given
+        Long orderId = 100L;
+
+        OrderResponse response = new OrderResponse(
+                orderId,
+                10L,
+                10L,
+                "조회 메시지 입니다",
+                OrderStatus.REQUEST,
+                3,
+                LocalDate.now().plusDays(3),
+                null,
+                null,
+                true,
+                30000,
+                List.of()
+        );
+
+        when(orderService.getOrder(anyLong(), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/order/{orderId}", orderId)
+                                .with(authentication(auth())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.GET_ORDER_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.orderId").value(orderId))
+                .andExpect(jsonPath("$.data.vendorId").value(10L))
+                .andExpect(jsonPath("$.data.totalPrice").value(30000))
+                .andExpect(jsonPath("$.data.activated").value(true));
+    }
+
+    @Test
+    void 발주_조회시_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long notExistId = 9999L;
+
+        when(orderService.getOrder(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.ORDER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/order/{orderId}", notExistId)
+                                .with(authentication(auth())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.ORDER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.ORDER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_조회시_다른_상점의_발주면_접근_거부_예외가_발생한다() throws Exception {
+        // given
+        Long orderId = 100L;
+
+        when(orderService.getOrder(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.ORDER_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/order/{orderId}", orderId)
+                        .with(authentication(auth())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(ErrorCode.ORDER_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.ORDER_ACCESS_DENIED.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

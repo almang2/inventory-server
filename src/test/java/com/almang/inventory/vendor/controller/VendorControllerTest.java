@@ -2,6 +2,7 @@ package com.almang.inventory.vendor.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -549,7 +550,7 @@ class VendorControllerTest {
                 new OrderTemplateResponse(1L, vendorId, "비활성 템플릿", "본문", false)
         );
 
-        when(vendorService.getOrderTemplates(anyLong(), anyLong(), any()))
+        when(vendorService.getOrderTemplates(anyLong(), anyLong(), eq(false)))
                 .thenReturn(response);
 
         // when & then

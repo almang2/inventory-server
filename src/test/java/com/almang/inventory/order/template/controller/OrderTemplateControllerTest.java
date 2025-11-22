@@ -54,7 +54,6 @@ class OrderTemplateControllerTest {
         Long orderTemplateId = 1L;
 
         UpdateOrderTemplateRequest request = new UpdateOrderTemplateRequest(
-                10L,
                 "수정된 제목",
                 "수정된 본문 내용입니다.",
                 false
@@ -93,7 +92,6 @@ class OrderTemplateControllerTest {
         Long notExistOrderTemplateId = 9999L;
 
         UpdateOrderTemplateRequest request = new UpdateOrderTemplateRequest(
-                10L,
                 "수정 제목",
                 "수정 본문",
                 true
@@ -116,35 +114,11 @@ class OrderTemplateControllerTest {
     }
 
     @Test
-    void 발주_템플릿_수정_요청값_검증에_실패하면_예외가_발생한다() throws Exception {
-        // given
-        UpdateOrderTemplateRequest invalidRequest = new UpdateOrderTemplateRequest(
-                null,
-                "",
-                "",
-                true
-        );
-
-        // when & then
-        mockMvc.perform(patch("/api/v1/order-template/{orderTemplateId}", 1L)
-                        .with(authentication(auth()))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidRequest)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status")
-                        .value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
-                .andExpect(jsonPath("$.message")
-                        .value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
-                .andExpect(jsonPath("$.data").doesNotExist());
-    }
-
-    @Test
     void 발주_템플릿_수정_시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
         // given
         Long orderTemplateId = 1L;
 
         UpdateOrderTemplateRequest request = new UpdateOrderTemplateRequest(
-                10L,
                 "제목",
                 "본문",
                 true

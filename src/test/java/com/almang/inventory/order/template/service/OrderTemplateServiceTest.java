@@ -5,10 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
-import com.almang.inventory.order.template.repository.OrderTemplateRepository;
 import com.almang.inventory.order.template.domain.OrderTemplate;
 import com.almang.inventory.order.template.dto.request.UpdateOrderTemplateRequest;
 import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;
+import com.almang.inventory.order.template.repository.OrderTemplateRepository;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.store.repository.StoreRepository;
 import com.almang.inventory.user.domain.User;
@@ -90,7 +90,6 @@ class OrderTemplateServiceTest {
         OrderTemplate template = newOrderTemplate(vendor);
 
         UpdateOrderTemplateRequest request = new UpdateOrderTemplateRequest(
-                vendor.getId(),
                 "수정된 제목",
                 "수정된 본문",
                 false
@@ -120,7 +119,6 @@ class OrderTemplateServiceTest {
         Long notExistUserId = 9999L;
 
         UpdateOrderTemplateRequest request = new UpdateOrderTemplateRequest(
-                1L,
                 "제목",
                 "본문",
                 true
@@ -135,13 +133,12 @@ class OrderTemplateServiceTest {
     }
 
     @Test
-    void 발주처가_없으면_발주_템플릿_수정시_예외가_발생한다() {
+    void 템플릿이_존재하지_않으면_발주_템플릿_수정시_예외가_발생한다() {
         // given
         Store store = newStore();
         User user = newUser(store);
 
         UpdateOrderTemplateRequest request = new UpdateOrderTemplateRequest(
-                9999L,
                 "제목",
                 "본문",
                 true
@@ -149,14 +146,14 @@ class OrderTemplateServiceTest {
 
         // when & then
         assertThatThrownBy(() ->
-                orderTemplateService.updateOrderTemplate(1L, request, user.getId())
+                orderTemplateService.updateOrderTemplate(9999L, request, user.getId())
         )
                 .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.VENDOR_NOT_FOUND.getMessage());
+                .hasMessageContaining(ErrorCode.ORDER_TEMPLATE_NOT_FOUND.getMessage());
     }
 
     @Test
-    void 다른_상점_발주처면_발주_템플릿_수정시_접근이_거부된다() {
+    void 다른_상점의_발주_템플릿이면_수정시_접근이_거부된다() {
         // given
         Store store1 = newStore();
         Store store2 = newStore();
@@ -173,9 +170,9 @@ class OrderTemplateServiceTest {
         );
 
         Vendor store2Vendor = newVendor(store2);
+        OrderTemplate templateOfStore2 = newOrderTemplate(store2Vendor);
 
         UpdateOrderTemplateRequest request = new UpdateOrderTemplateRequest(
-                store2Vendor.getId(),
                 "제목",
                 "본문",
                 true
@@ -183,74 +180,7 @@ class OrderTemplateServiceTest {
 
         // when & then
         assertThatThrownBy(() ->
-                orderTemplateService.updateOrderTemplate(1L, request, store1User.getId())
-        )
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
-    }
-
-    @Test
-    void 템플릿이_존재하지_않으면_발주_템플릿_수정시_예외가_발생한다() {
-        // given
-        Store store = newStore();
-        User user = newUser(store);
-        Vendor vendor = newVendor(store);
-
-        UpdateOrderTemplateRequest request = new UpdateOrderTemplateRequest(
-                vendor.getId(),
-                "제목",
-                "본문",
-                true
-        );
-
-        // when & then
-        assertThatThrownBy(() ->
-                orderTemplateService.updateOrderTemplate(9999L, request, user.getId())
-        )
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.ORDER_TEMPLATE_NOT_FOUND.getMessage());
-    }
-
-    @Test
-    void 템플릿이_다른_발주처에_속하면_발주_템플릿_수정시_접근이_거부된다() {
-        // given
-        Store store = newStore();
-        User user = newUser(store);
-
-        Vendor vendor1 = vendorRepository.save(
-                Vendor.builder()
-                        .store(store)
-                        .name("발주처1")
-                        .channel(VendorChannel.KAKAO)
-                        .contactPoint("010-1111-1111")
-                        .note("메모1")
-                        .activated(true)
-                        .build()
-        );
-
-        Vendor vendor2 = vendorRepository.save(
-                Vendor.builder()
-                        .store(store)
-                        .name("발주처2")
-                        .channel(VendorChannel.EMAIL)
-                        .contactPoint("010-2222-2222")
-                        .note("메모2")
-                        .activated(true)
-                        .build()
-        );
-
-        OrderTemplate templateOfVendor2 = newOrderTemplate(vendor2);
-
-        UpdateOrderTemplateRequest request = new UpdateOrderTemplateRequest(
-                vendor1.getId(),
-                "제목",
-                "본문",
-                true
-        );
-
-        // when & then
-        assertThatThrownBy(() ->
-                orderTemplateService.updateOrderTemplate(templateOfVendor2.getId(), request, user.getId())
+                orderTemplateService.updateOrderTemplate(templateOfStore2.getId(), request, store1User.getId())
         )
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.ORDER_TEMPLATE_ACCESS_DENIED.getMessage());

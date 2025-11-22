@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
-import com.almang.inventory.order.template.OrderTemplateRepository;
+import com.almang.inventory.order.template.repository.OrderTemplateRepository;
 import com.almang.inventory.order.template.domain.OrderTemplate;
 import com.almang.inventory.order.template.dto.request.UpdateOrderTemplateRequest;
 import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;

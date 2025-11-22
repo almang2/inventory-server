@@ -2,7 +2,7 @@ package com.almang.inventory.order.template.service;
 
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
-import com.almang.inventory.order.template.OrderTemplateRepository;
+import com.almang.inventory.order.template.repository.OrderTemplateRepository;
 import com.almang.inventory.order.template.domain.OrderTemplate;
 import com.almang.inventory.order.template.dto.request.UpdateOrderTemplateRequest;
 import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;
@@ -13,6 +13,7 @@ import com.almang.inventory.vendor.repository.VendorRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -23,6 +24,7 @@ public class OrderTemplateService {
     private final UserRepository userRepository;
     private final VendorRepository vendorRepository;
 
+    @Transactional
     public OrderTemplateResponse updateOrderTemplate(
             Long orderTemplateId, UpdateOrderTemplateRequest request, Long userId
     ) {

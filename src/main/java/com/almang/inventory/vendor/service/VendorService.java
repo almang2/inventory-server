@@ -4,7 +4,7 @@ import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.util.PaginationUtil;
-import com.almang.inventory.order.template.OrderTemplateRepository;
+import com.almang.inventory.order.template.repository.OrderTemplateRepository;
 import com.almang.inventory.order.template.domain.OrderTemplate;
 import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;
 import com.almang.inventory.store.domain.Store;

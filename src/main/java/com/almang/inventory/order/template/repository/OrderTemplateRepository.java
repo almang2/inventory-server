@@ -1,4 +1,4 @@
-package com.almang.inventory.order.template;
+package com.almang.inventory.order.template.repository;
 
 import com.almang.inventory.order.template.domain.OrderTemplate;
 import org.springframework.data.jpa.repository.JpaRepository;

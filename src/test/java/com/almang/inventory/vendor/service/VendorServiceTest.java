@@ -460,6 +460,84 @@ class VendorServiceTest {
     }
 
     @Test
+    void 비활성된_발주처만_조회된다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+
+        vendorRepository.save(
+                Vendor.builder()
+                        .store(store)
+                        .name("활성 발주처")
+                        .channel(VendorChannel.KAKAO)
+                        .contactPoint("010-1111-1111")
+                        .note("메모")
+                        .activated(true)
+                        .build()
+        );
+
+        vendorRepository.save(
+                Vendor.builder()
+                        .store(store)
+                        .name("비활성 발주처")
+                        .channel(VendorChannel.EMAIL)
+                        .contactPoint("email@test.com")
+                        .note("메모2")
+                        .activated(false)
+                        .build()
+        );
+
+        // when
+        PageResponse<VendorResponse> response =
+                vendorService.getVendorList(user.getId(), 1, 20, false, null);
+
+        // then
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.totalElements()).isEqualTo(1);
+        assertThat(response.content().get(0).name()).isEqualTo("비활성 발주처");
+        assertThat(response.content().get(0).activated()).isFalse();
+    }
+
+    @Test
+    void 비활성여부와_이름_검색이_둘다_적용되어_조회된다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+
+        vendorRepository.save(
+                Vendor.builder()
+                        .store(store)
+                        .name("사과 활성 공장")
+                        .channel(VendorChannel.KAKAO)
+                        .contactPoint("010-1111-1111")
+                        .note("메모1")
+                        .activated(true)
+                        .build()
+        );
+
+        vendorRepository.save(
+                Vendor.builder()
+                        .store(store)
+                        .name("사과 비활성 공장")
+                        .channel(VendorChannel.EMAIL)
+                        .contactPoint("010-2222-2222")
+                        .note("메모2")
+                        .activated(false)
+                        .build()
+        );
+
+        // when
+        PageResponse<VendorResponse> response =
+                vendorService.getVendorList(user.getId(), 1, 20, false, "사과");
+
+        // then
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.totalElements()).isEqualTo(1);
+        assertThat(response.content().get(0).name()).isEqualTo("사과 비활성 공장");
+        assertThat(response.content().get(0).activated()).isFalse();
+    }
+
+    @Test
     void 발주_템플릿_생성에_성공한다() {
         // given
         Store store = newStore();

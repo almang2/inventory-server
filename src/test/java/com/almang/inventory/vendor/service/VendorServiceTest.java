@@ -22,6 +22,7 @@ import com.almang.inventory.vendor.dto.request.UpdateVendorRequest;
 import com.almang.inventory.vendor.dto.response.VendorResponse;
 import com.almang.inventory.vendor.repository.VendorRepository;
 import java.math.BigDecimal;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -307,9 +308,7 @@ class VendorServiceTest {
         );
 
         // when & then
-        assertThatThrownBy(() ->
-                vendorService.getVendorDetail(vendorOfStore2.getId(), userOfStore1.getId())
-        )
+        assertThatThrownBy(() -> vendorService.getVendorDetail(vendorOfStore2.getId(), userOfStore1.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
     }
@@ -581,9 +580,7 @@ class VendorServiceTest {
         );
 
         // when & then
-        assertThatThrownBy(() ->
-                vendorService.createOrderTemplate(vendor.getId(), request, notExistUserId)
-        )
+        assertThatThrownBy(() -> vendorService.createOrderTemplate(vendor.getId(), request, notExistUserId))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
     }
@@ -601,9 +598,7 @@ class VendorServiceTest {
         );
 
         // when & then
-        assertThatThrownBy(() ->
-                vendorService.createOrderTemplate(notExistVendorId, request, user.getId())
-        )
+        assertThatThrownBy(() -> vendorService.createOrderTemplate(notExistVendorId, request, user.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.VENDOR_NOT_FOUND.getMessage());
     }
@@ -642,9 +637,204 @@ class VendorServiceTest {
         );
 
         // when & then
-        assertThatThrownBy(() ->
-                vendorService.createOrderTemplate(vendorOfStore2.getId(), request, userOfStore1.getId())
-        )
+        assertThatThrownBy(() -> vendorService.createOrderTemplate(vendorOfStore2.getId(), request, userOfStore1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 발주_템플릿_전체_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Vendor vendor = newVendor(store);
+
+        orderTemplateRepository.save(
+                OrderTemplate.builder()
+                        .vendor(vendor)
+                        .title("템플릿1")
+                        .body("본문1")
+                        .activated(true)
+                        .build()
+        );
+        orderTemplateRepository.save(
+                OrderTemplate.builder()
+                        .vendor(vendor)
+                        .title("템플릿2")
+                        .body("본문2")
+                        .activated(false)
+                        .build()
+        );
+        orderTemplateRepository.save(
+                OrderTemplate.builder()
+                        .vendor(vendor)
+                        .title("템플릿3")
+                        .body("본문3")
+                        .activated(true)
+                        .build()
+        );
+
+        // when
+        List<OrderTemplateResponse> templates =
+                vendorService.getOrderTemplates(vendor.getId(), user.getId(), null);
+
+        // then
+        assertThat(templates).hasSize(3);
+        assertThat(templates).extracting(OrderTemplateResponse::title)
+                .containsExactlyInAnyOrder("템플릿1", "템플릿2", "템플릿3");
+    }
+
+    @Test
+    void 발주_템플릿_활성만_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Vendor vendor = newVendor(store);
+
+        orderTemplateRepository.save(
+                OrderTemplate.builder()
+                        .vendor(vendor)
+                        .title("활성1")
+                        .body("본문1")
+                        .activated(true)
+                        .build()
+        );
+        orderTemplateRepository.save(
+                OrderTemplate.builder()
+                        .vendor(vendor)
+                        .title("비활성1")
+                        .body("본문2")
+                        .activated(false)
+                        .build()
+        );
+        orderTemplateRepository.save(
+                OrderTemplate.builder()
+                        .vendor(vendor)
+                        .title("활성2")
+                        .body("본문3")
+                        .activated(true)
+                        .build()
+        );
+
+        // when
+        List<OrderTemplateResponse> templates =
+                vendorService.getOrderTemplates(vendor.getId(), user.getId(), true);
+
+        // then
+        assertThat(templates).hasSize(2);
+        assertThat(templates).extracting(OrderTemplateResponse::title)
+                .containsExactlyInAnyOrder("활성1", "활성2");
+        assertThat(templates).allMatch(OrderTemplateResponse::activated);
+    }
+
+    @Test
+    void 발주_템플릿_비활성만_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Vendor vendor = newVendor(store);
+
+        orderTemplateRepository.save(
+                OrderTemplate.builder()
+                        .vendor(vendor)
+                        .title("활성1")
+                        .body("본문1")
+                        .activated(true)
+                        .build()
+        );
+        orderTemplateRepository.save(
+                OrderTemplate.builder()
+                        .vendor(vendor)
+                        .title("비활성1")
+                        .body("본문2")
+                        .activated(false)
+                        .build()
+        );
+        orderTemplateRepository.save(
+                OrderTemplate.builder()
+                        .vendor(vendor)
+                        .title("비활성2")
+                        .body("본문3")
+                        .activated(false)
+                        .build()
+        );
+
+        // when
+        List<OrderTemplateResponse> templates =
+                vendorService.getOrderTemplates(vendor.getId(), user.getId(), false);
+
+        // then
+        assertThat(templates).hasSize(2);
+        assertThat(templates).extracting(OrderTemplateResponse::title)
+                .containsExactlyInAnyOrder("비활성1", "비활성2");
+        assertThat(templates).allMatch(t -> !t.activated());
+    }
+
+    @Test
+    void 존재하지_않는_사용자로_발주_템플릿_조회시_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor = newVendor(store);
+        Long notExistUserId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> vendorService.getOrderTemplates(vendor.getId(), notExistUserId, null))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 존재하지_않는_발주처로_발주_템플릿_조회시_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Long notExistVendorId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> vendorService.getOrderTemplates(notExistVendorId, user.getId(), null))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 다른_상점_발주처의_템플릿_조회시_예외가_발생한다() {
+        // given
+        Store store1 = newStore();
+        Store store2 = newStore();
+
+        User userOfStore1 = newUser(store1);
+        User userOfStore2 = userRepository.save(
+                User.builder()
+                        .store(store2)
+                        .username("template_viewer_store2")
+                        .password("password")
+                        .name("상점2 관리자")
+                        .role(UserRole.ADMIN)
+                        .build()
+        );
+
+        Vendor vendorOfStore2 = vendorRepository.save(
+                Vendor.builder()
+                        .store(store2)
+                        .name("상점2 발주처")
+                        .channel(VendorChannel.KAKAO)
+                        .contactPoint("010-2222-2222")
+                        .note("상점2 메모")
+                        .activated(true)
+                        .build()
+        );
+
+        orderTemplateRepository.save(
+                OrderTemplate.builder()
+                        .vendor(vendorOfStore2)
+                        .title("상점2 템플릿")
+                        .body("본문")
+                        .activated(true)
+                        .build()
+        );
+
+        // when & then
+        assertThatThrownBy(() -> vendorService.getOrderTemplates(vendorOfStore2.getId(), userOfStore1.getId(), null))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
     }

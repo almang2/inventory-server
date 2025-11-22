@@ -69,7 +69,7 @@ class OrderControllerTest {
         OrderResponse response = new OrderResponse(
                 100L,
                 10L,
-                1000L,
+                10L,
                 "메시지입니다.",
                 OrderStatus.REQUEST,
                 3,
@@ -94,7 +94,7 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.message")
                         .value(SuccessMessage.CREATE_ORDER_SUCCESS.getMessage()))
                 .andExpect(jsonPath("$.data.orderId").value(100L))
-                .andExpect(jsonPath("$.data.vendorId").value(1000L))
+                .andExpect(jsonPath("$.data.vendorId").value(10L))
                 .andExpect(jsonPath("$.data.totalPrice").value(50000))
                 .andExpect(jsonPath("$.data.orderMessage").value("메시지입니다."))
                 .andExpect(jsonPath("$.data.leadTime").value(3))

@@ -30,7 +30,7 @@ public class OrderTemplateService {
     ) {
         User user = findUserById(userId);
         Vendor vendor = findVendorByIdAndValidateAccess(request.vendorId(), user);
-        OrderTemplate orderTemplate = findOrderTemplateById(orderTemplateId, vendor);
+        OrderTemplate orderTemplate = findOrderTemplateByIdAndValidateAccess(orderTemplateId, vendor);
 
         log.info("[OrderTemplateService] 발주처 양식 수정 요청 - userId: {}, orderTemplateId: {}", userId, orderTemplateId);
         orderTemplate.updateTemplate(request.title(), request.body(), request.activated());
@@ -55,7 +55,7 @@ public class OrderTemplateService {
         return vendor;
     }
 
-    private OrderTemplate findOrderTemplateById(Long orderTemplateId, Vendor vendor) {
+    private OrderTemplate findOrderTemplateByIdAndValidateAccess(Long orderTemplateId, Vendor vendor) {
         OrderTemplate orderTemplate =  orderTemplateRepository.findById(orderTemplateId)
                 .orElseThrow(() -> new BaseException(ErrorCode.ORDER_TEMPLATE_NOT_FOUND));
 

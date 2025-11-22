@@ -1,8 +1,10 @@
 package com.almang.inventory.order.dto.request;
 
+import jakarta.validation.constraints.NotNull;
+
 public record CreateOrderItemRequest(
-        Long productId,
-        int quantity,
-        int unitPrice,
+        @NotNull Long productId,
+        @NotNull int quantity,
+        @NotNull int unitPrice,
         String note
 ) {}

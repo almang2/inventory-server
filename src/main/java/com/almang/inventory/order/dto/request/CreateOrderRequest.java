@@ -1,10 +1,11 @@
 package com.almang.inventory.order.dto.request;
 
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 public record CreateOrderRequest(
-        Long vendorId,
-        String orderMessage,
+        @NotNull Long vendorId,
+        @NotNull String orderMessage,
         Integer leadTime,
-        List<CreateOrderItemRequest> orderItems
+        @NotNull List<CreateOrderItemRequest> orderItems
 ) {}

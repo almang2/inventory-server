@@ -16,6 +16,7 @@ import com.almang.inventory.vendor.dto.request.CreateVendorRequest;
 import com.almang.inventory.vendor.dto.request.UpdateVendorRequest;
 import com.almang.inventory.vendor.dto.response.VendorResponse;
 import com.almang.inventory.vendor.repository.VendorRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -96,6 +97,20 @@ public class VendorService {
         return OrderTemplateResponse.from(saved);
     }
 
+    @Transactional(readOnly = true)
+    public List<OrderTemplateResponse> getOrderTemplates(Long vendorId, Long userId, Boolean activated) {
+        User user = findUserById(userId);
+        Vendor vendor = findVendorByIdAndValidateAccess(vendorId, user);
+
+        log.info("[VendorService] 발주처 발주처 템플릿 조회 요청 - userId: {}, vendorId: {}", userId, vendorId);
+        List<OrderTemplate> templates = findOrderTemplatesByFilter(vendor.getId(), activated);
+
+        log.info("[VendorService] 발주처 발주처 템플릿 조회 성공 - userId: {}, vendorId: {}", userId, vendorId);
+        return templates.stream()
+                .map(OrderTemplateResponse::from)
+                .toList();
+    }
+
     private Vendor toVendorEntity(CreateVendorRequest request, User user) {
         return Vendor.builder()
                 .store(user.getStore())
@@ -158,5 +173,17 @@ public class VendorService {
         return vendorRepository.findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
                 storeId, nameKeyword, pageable
         );
+    }
+
+    private List<OrderTemplate> findOrderTemplatesByFilter(Long vendorId, Boolean activated) {
+        if (activated == null) {
+            return orderTemplateRepository.findAllByVendorId(vendorId);
+        }
+
+        if (Boolean.TRUE.equals(activated)) {
+            return orderTemplateRepository.findAllByVendorIdAndActivatedTrue(vendorId);
+        }
+
+        return orderTemplateRepository.findAllByVendorIdAndActivatedFalse(vendorId);
     }
 }

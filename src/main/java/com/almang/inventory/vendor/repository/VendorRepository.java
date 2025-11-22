@@ -9,15 +9,17 @@ public interface VendorRepository extends JpaRepository<Vendor, Long> {
 
     Page<Vendor> findAllByStoreId(Long storeId, Pageable pageable);
 
-    Page<Vendor> findAllByStoreIdAndActivatedTrue(
-            Long storeId, Pageable pageable
-    );
+    Page<Vendor> findAllByStoreIdAndActivatedTrue(Long storeId, Pageable pageable);
 
-    Page<Vendor> findAllByStoreIdAndNameContainingIgnoreCase(
+    Page<Vendor> findAllByStoreIdAndActivatedFalse(Long storeId, Pageable pageable);
+
+    Page<Vendor> findAllByStoreIdAndNameContainingIgnoreCase(Long storeId, String name, Pageable pageable);
+
+    Page<Vendor> findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
             Long storeId, String name, Pageable pageable
     );
 
-    Page<Vendor> findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
+    Page<Vendor> findAllByStoreIdAndActivatedFalseAndNameContainingIgnoreCase(
             Long storeId, String name, Pageable pageable
     );
 }

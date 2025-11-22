@@ -151,26 +151,35 @@ public class VendorService {
             Long storeId, Boolean isActivate, String nameKeyword, PageRequest pageable
     ) {
         boolean hasName = nameKeyword != null && !nameKeyword.isBlank();
+        boolean filterActivate = isActivate != null;
 
-        // 필터 없음
-        if (isActivate == null && !hasName) {
+        // 1) 필터 없음
+        if (!filterActivate && !hasName) {
             return vendorRepository.findAllByStoreId(storeId, pageable);
         }
 
-        // 활성 여부
-        if (isActivate != null && !hasName) {
-            return vendorRepository.findAllByStoreIdAndActivatedTrue(storeId, pageable);
+        // 2) 활성/비활성 필터
+        if (filterActivate && !hasName) {
+            if (isActivate) {
+                return vendorRepository.findAllByStoreIdAndActivatedTrue(storeId, pageable);
+            }
+            return vendorRepository.findAllByStoreIdAndActivatedFalse(storeId, pageable);
         }
 
-        // 이름 검색
-        if (isActivate == null) {
+        // 3) 이름 필터
+        if (!filterActivate) {
             return vendorRepository.findAllByStoreIdAndNameContainingIgnoreCase(
                     storeId, nameKeyword, pageable
             );
         }
 
-        // 활성 여부 + 이름 검색
-        return vendorRepository.findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
+        // 4) 활성 여부 + 이름 필터 둘 다 적용
+        if (isActivate) {
+            return vendorRepository.findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
+                    storeId, nameKeyword, pageable
+            );
+        }
+        return vendorRepository.findAllByStoreIdAndActivatedFalseAndNameContainingIgnoreCase(
                 storeId, nameKeyword, pageable
         );
     }

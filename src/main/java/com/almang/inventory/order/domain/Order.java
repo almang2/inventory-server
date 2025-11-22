@@ -61,15 +61,9 @@ public class Order extends BaseTimeEntity {
     @Column(name = "is_activate", nullable = false)
     private boolean activated;
 
-    // 원가 / 판매가 / 도매가 (단위: 원, 필요시 BigDecimal로 변경)
-    @Column(name = "cost_price")
-    private Integer costPrice;
-
-    @Column(name = "retail_price")
-    private Integer retailPrice;
-
-    @Column(name = "wholesale_price")
-    private Integer wholesalePrice;
+    // 총액 (단위: 원, 필요시 BigDecimal로 변경)
+    @Column(name = "total_price")
+    private Integer totalPrice;
 
     // 발주 상세 목록
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)

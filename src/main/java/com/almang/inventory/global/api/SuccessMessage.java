@@ -39,6 +39,7 @@ public enum SuccessMessage {
     CREATE_ORDER_TEMPLATE_SUCCESS("발주 템플릿 등록 성공"),
     UPDATE_ORDER_TEMPLATE_SUCCESS("발주 템플릿 수정 성공"),
     GET_ORDER_TEMPLATE_DETAIL("발주 템플릿 상세 조회 성공"),
+    CREATE_ORDER_SUCCESS("발주 생성 성공"),
     ;
 
     private final String message;

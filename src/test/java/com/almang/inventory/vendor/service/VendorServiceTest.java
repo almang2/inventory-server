@@ -6,6 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.order.template.OrderTemplateRepository;
+import com.almang.inventory.order.template.domain.OrderTemplate;
+import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.store.repository.StoreRepository;
 import com.almang.inventory.user.domain.User;
@@ -13,6 +16,7 @@ import com.almang.inventory.user.domain.UserRole;
 import com.almang.inventory.user.repository.UserRepository;
 import com.almang.inventory.vendor.domain.Vendor;
 import com.almang.inventory.vendor.domain.VendorChannel;
+import com.almang.inventory.vendor.dto.request.CreateOrderTemplateRequest;
 import com.almang.inventory.vendor.dto.request.CreateVendorRequest;
 import com.almang.inventory.vendor.dto.request.UpdateVendorRequest;
 import com.almang.inventory.vendor.dto.response.VendorResponse;
@@ -33,6 +37,7 @@ class VendorServiceTest {
     @Autowired private VendorRepository vendorRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private StoreRepository storeRepository;
+    @Autowired private OrderTemplateRepository orderTemplateRepository;
 
     private Store newStore() {
         return storeRepository.save(
@@ -452,5 +457,117 @@ class VendorServiceTest {
         assertThat(response.totalElements()).isEqualTo(1);
         assertThat(response.content().get(0).name()).isEqualTo("사과 공장");
         assertThat(response.content().get(0).activated()).isTrue();
+    }
+
+    @Test
+    void 발주_템플릿_생성에_성공한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Vendor vendor = newVendor(store);
+
+        CreateOrderTemplateRequest request = new CreateOrderTemplateRequest(
+                "발주 제목",
+                "발주 본문 내용입니다."
+        );
+
+        // when
+        OrderTemplateResponse response =
+                vendorService.createOrderTemplate(vendor.getId(), request, user.getId());
+
+        // then
+        assertThat(response.orderTemplateId()).isNotNull();
+        assertThat(response.title()).isEqualTo("발주 제목");
+        assertThat(response.body()).isEqualTo("발주 본문 내용입니다.");
+        assertThat(response.activated()).isTrue();
+        assertThat(response.vendorId()).isEqualTo(vendor.getId());
+
+        OrderTemplate saved = orderTemplateRepository.findById(response.orderTemplateId())
+                .orElseThrow();
+        assertThat(saved.getVendor().getId()).isEqualTo(vendor.getId());
+        assertThat(saved.getTitle()).isEqualTo("발주 제목");
+        assertThat(saved.getBody()).isEqualTo("발주 본문 내용입니다.");
+        assertThat(saved.isActivated()).isTrue();
+    }
+
+    @Test
+    void 존재하지_않는_사용자로_발주_템플릿_생성시_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor = newVendor(store);
+        Long notExistUserId = 9999L;
+
+        CreateOrderTemplateRequest request = new CreateOrderTemplateRequest(
+                "발주 제목",
+                "발주 본문"
+        );
+
+        // when & then
+        assertThatThrownBy(() ->
+                vendorService.createOrderTemplate(vendor.getId(), request, notExistUserId)
+        )
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 존재하지_않는_발주처로_발주_템플릿_생성시_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Long notExistVendorId = 9999L;
+
+        CreateOrderTemplateRequest request = new CreateOrderTemplateRequest(
+                "발주 제목",
+                "발주 본문"
+        );
+
+        // when & then
+        assertThatThrownBy(() ->
+                vendorService.createOrderTemplate(notExistVendorId, request, user.getId())
+        )
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 다른_상점_발주처로_발주_템플릿_생성시_예외가_발생한다() {
+        // given
+        Store store1 = newStore();
+        Store store2 = newStore();
+
+        User userOfStore1 = newUser(store1);
+        User userOfStore2 = userRepository.save(
+                User.builder()
+                        .store(store2)
+                        .username("template_tester_store2")
+                        .password("password")
+                        .name("상점2 관리자")
+                        .role(UserRole.ADMIN)
+                        .build()
+        );
+
+        Vendor vendorOfStore2 = vendorRepository.save(
+                Vendor.builder()
+                        .store(store2)
+                        .name("상점2 발주처")
+                        .channel(VendorChannel.KAKAO)
+                        .contactPoint("010-2222-2222")
+                        .note("상점2 메모")
+                        .activated(true)
+                        .build()
+        );
+
+        CreateOrderTemplateRequest request = new CreateOrderTemplateRequest(
+                "불법 템플릿",
+                "해킹 시도"
+        );
+
+        // when & then
+        assertThatThrownBy(() ->
+                vendorService.createOrderTemplate(vendorOfStore2.getId(), request, userOfStore1.getId())
+        )
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
     }
 }

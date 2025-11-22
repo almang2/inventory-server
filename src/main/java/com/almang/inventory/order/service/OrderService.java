@@ -130,7 +130,6 @@ public class OrderService {
         return product;
     }
 
-
     private void validateOrderItemsNotEmpty(List<CreateOrderItemRequest> orderItems) {
         if (orderItems == null || orderItems.isEmpty()) {
             throw new BaseException(ErrorCode.ORDER_ITEM_EMPTY);

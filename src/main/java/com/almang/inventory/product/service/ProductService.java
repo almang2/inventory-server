@@ -139,26 +139,35 @@ public class ProductService {
             Long storeId, Boolean isActivate, String nameKeyword, PageRequest pageable
     ) {
         boolean hasName = nameKeyword != null && !nameKeyword.isBlank();
+        boolean filterActivate = isActivate != null;
 
-        // 필터 없음
-        if (isActivate == null && !hasName) {
+        // 1) 필터 없음
+        if (!filterActivate && !hasName) {
             return productRepository.findAllByStoreId(storeId, pageable);
         }
 
-        // 활성 여부
-        if (isActivate != null && !hasName) {
-            return productRepository.findAllByStoreIdAndActivatedTrue(storeId, pageable);
+        // 2) 활성/비활성 필터
+        if (filterActivate && !hasName) {
+            if (isActivate) {
+                return productRepository.findAllByStoreIdAndActivatedTrue(storeId, pageable);
+            }
+            return productRepository.findAllByStoreIdAndActivatedFalse(storeId, pageable);
         }
 
-        // 이름 검색
-        if (isActivate == null) {
+        // 3) 이름 검색
+        if (!filterActivate) {
             return productRepository.findAllByStoreIdAndNameContainingIgnoreCase(
                     storeId, nameKeyword, pageable
             );
         }
 
-        // 활성 여부 + 이름 검색
-        return productRepository.findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
+        // 4) 활성 + 이름 검색
+        if (isActivate) {
+            return productRepository.findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
+                    storeId, nameKeyword, pageable
+            );
+        }
+        return productRepository.findAllByStoreIdAndActivatedFalseAndNameContainingIgnoreCase(
                 storeId, nameKeyword, pageable
         );
     }

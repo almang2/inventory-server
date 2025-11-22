@@ -9,6 +9,7 @@ public enum SuccessMessage {
     // STORE
     CREATE_STORE_SUCCESS("상점 등록 성공"),
     UPDATE_STORE_SUCCESS("상점 정보 수정 성공"),
+    GET_STORE_ORDER_TEMPLATE_SUCCESS("상점의 모든 발주 템플릿 조회 성공"),
 
     // USER
     SIGNUP_SUCCESS("회원가입 성공"),

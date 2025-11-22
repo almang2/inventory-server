@@ -1,7 +1,12 @@
 package com.almang.inventory.store.service;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.global.util.PaginationUtil;
+import com.almang.inventory.order.template.domain.OrderTemplate;
+import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;
+import com.almang.inventory.order.template.repository.OrderTemplateRepository;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.store.dto.request.UpdateStoreRequest;
 import com.almang.inventory.store.dto.response.UpdateStoreResponse;
@@ -10,6 +15,8 @@ import com.almang.inventory.user.repository.UserRepository;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class StoreService {
 
     private final UserRepository userRepository;
+    private final OrderTemplateRepository orderTemplateRepository;
 
     @Transactional
     public UpdateStoreResponse updateStore(UpdateStoreRequest request, Long userId) {
@@ -45,6 +53,22 @@ public class StoreService {
         return UpdateStoreResponse.from(store);
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<OrderTemplateResponse> getStoreOrderTemplateList(
+            Long userId, Integer page, Integer size, Boolean activated
+    ) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[StoreService] 상점 발주 템플릿 목록 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
+        PageRequest pageable = PaginationUtil.createPageRequest(page, size, "title");
+        Page<OrderTemplate> orderTemplatePage = findStoreOrderTemplatesByFilter(store.getId(), activated, pageable);
+        Page<OrderTemplateResponse> mapped = orderTemplatePage.map(OrderTemplateResponse::from);
+
+        log.info("[StoreService] 상점 발주 템플릿 목록 조회 성공 - userId: {}, storeId: {}", userId, store.getId());
+        return PageResponse.from(mapped);
+    }
+
     private User findUserById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new BaseException(ErrorCode.USER_NOT_FOUND));
@@ -61,5 +85,20 @@ public class StoreService {
                 || defaultCountCheckThreshold.compareTo(BigDecimal.ONE) > 0) {
             throw new BaseException(ErrorCode.DEFAULT_COUNT_CHECK_THRESHOLD_NOT_IN_RANGE);
         }
+    }
+
+    private Page<OrderTemplate> findStoreOrderTemplatesByFilter(
+            Long storeId, Boolean activated, PageRequest pageable
+    ) {
+        // 활성 필터 없음
+        if (activated == null) {
+            return orderTemplateRepository.findAllByVendorStoreId(storeId, pageable);
+        }
+
+        // 활성 / 비활성 필터
+        if (Boolean.TRUE.equals(activated)) {
+            return orderTemplateRepository.findAllByVendorStoreIdAndActivatedTrue(storeId, pageable);
+        }
+        return orderTemplateRepository.findAllByVendorStoreIdAndActivatedFalse(storeId, pageable);
     }
 }

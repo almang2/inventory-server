@@ -39,6 +39,8 @@ public enum ErrorCode {
     ORDER_TEMPLATE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 상점의 발주 템플릿이 아닙니다."),
     ORDER_ITEM_EMPTY(HttpStatus.BAD_REQUEST, "주문 목록이 비어있습니다."),
     ORDER_ITEM_MUST_HAVE_ORDER_AND_PRODUCT(HttpStatus.BAD_REQUEST, "발주 상세는 발주와 품목 모두 가져야 합니다."),
+    ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "발주를 찾을 수 없습니다."),
+    ORDER_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 상점의 발주가 아닙니다."),
     ;
 
     private final HttpStatus httpStatus;

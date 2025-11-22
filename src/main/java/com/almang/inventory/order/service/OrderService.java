@@ -57,6 +57,18 @@ public class OrderService {
         return OrderResponse.of(saved, items);
     }
 
+    @Transactional(readOnly = true)
+    public OrderResponse getOrder(Long orderId, Long userId) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[OrderService] 발주 조회 요청 - userId: {}, storeId: {}", user.getId(), store.getId());
+        Order order = findOrderByIdAndValidateAccess(orderId, store);
+
+        log.info("[OrderService] 발주 조회 성공 - orderId: {}", order.getId());
+        return OrderResponse.of(order, order.getItems());
+    }
+
     private List<OrderItem> createOrderItems(List<CreateOrderItemRequest> requests, Store store) {
         List<OrderItem> items = new ArrayList<>();
 
@@ -134,5 +146,15 @@ public class OrderService {
         if (orderItems == null || orderItems.isEmpty()) {
             throw new BaseException(ErrorCode.ORDER_ITEM_EMPTY);
         }
+    }
+
+    private Order findOrderByIdAndValidateAccess(Long orderId, Store store) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new BaseException(ErrorCode.ORDER_NOT_FOUND));
+
+        if (!order.getStore().getId().equals(store.getId())) {
+            throw new BaseException(ErrorCode.ORDER_ACCESS_DENIED);
+        }
+        return order;
     }
 }

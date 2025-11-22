@@ -317,4 +317,99 @@ class OrderServiceTest {
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.PRODUCT_ACCESS_DENIED.getMessage());
     }
+
+    @Test
+    void 발주_조회에_성공한다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_reader");
+        Vendor vendor = newVendor(store, "발주처1");
+
+        Product product1 = newProduct(store, vendor, "상품1", "P001");
+        Product product2 = newProduct(store, vendor, "상품2", "P002");
+
+        CreateOrderItemRequest itemReq1 = new CreateOrderItemRequest(
+                product1.getId(),
+                10,
+                1000,
+                "비고1"
+        );
+        CreateOrderItemRequest itemReq2 = new CreateOrderItemRequest(
+                product2.getId(),
+                5,
+                2000,
+                "비고2"
+        );
+
+        CreateOrderRequest createRequest = new CreateOrderRequest(
+                vendor.getId(),
+                "카톡 발주 메시지입니다.",
+                3,
+                List.of(itemReq1, itemReq2)
+        );
+
+        OrderResponse created = orderService.createOrder(createRequest, user.getId());
+        Long orderId = created.orderId();
+
+        // when
+        OrderResponse response = orderService.getOrder(orderId, user.getId());
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.orderId()).isEqualTo(orderId);
+        assertThat(response.vendorId()).isEqualTo(vendor.getId());
+        assertThat(response.orderMessage()).isEqualTo("카톡 발주 메시지입니다.");
+        assertThat(response.leadTime()).isEqualTo(3);
+        assertThat(response.totalPrice()).isEqualTo(created.totalPrice());
+        assertThat(response.activated()).isTrue();
+        assertThat(response.orderItems()).hasSize(2);
+    }
+
+    @Test
+    void 발주_조회시_발주가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_reader");
+        Long notExistOrderId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> orderService.getOrder(notExistOrderId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.ORDER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 발주_조회시_다른_상점의_발주라면_예외가_발생한다() {
+        // given
+        Store store1 = newStore("상점1");
+        Store store2 = newStore("상점2");
+
+        User userOfStore1 = newUser(store1, "user1");
+        User userOfStore2 = newUser(store2, "user2");
+
+        Vendor vendorOfStore2 = newVendor(store2, "상점2 발주처");
+        Product productOfStore2 = newProduct(store2, vendorOfStore2, "상점2 상품", "P999");
+
+        CreateOrderItemRequest itemReq = new CreateOrderItemRequest(
+                productOfStore2.getId(),
+                3,
+                1000,
+                "비고"
+        );
+
+        CreateOrderRequest request = new CreateOrderRequest(
+                vendorOfStore2.getId(),
+                "상점2의 발주",
+                2,
+                List.of(itemReq)
+        );
+
+        OrderResponse created = orderService.createOrder(request, userOfStore2.getId());
+        Long orderId = created.orderId();
+
+        // when & then
+        assertThatThrownBy(() -> orderService.getOrder(orderId, userOfStore1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.ORDER_ACCESS_DENIED.getMessage());
+    }
 }

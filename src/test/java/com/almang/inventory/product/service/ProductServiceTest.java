@@ -892,4 +892,184 @@ public class ProductServiceTest {
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
     }
+
+    @Test
+    void 품목_목록_비활성_필터_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor = newVendor(store);
+        User user = newUser(store);
+
+        // 활성 품목
+        ProductResponse active = productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                user.getId()
+        );
+
+        // 비활성로 바꿀 품목
+        ProductResponse willBeInactive = productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고무장갑",
+                        "P-002",
+                        ProductUnit.EA,
+                        null,
+                        1,
+                        null,
+                        500,
+                        800,
+                        600
+                ),
+                user.getId()
+        );
+
+        // 고무장갑 비활성 처리
+        productService.updateProduct(
+                willBeInactive.productId(),
+                new UpdateProductRequest(
+                        vendor.getId(),
+                        willBeInactive.name(),
+                        willBeInactive.code(),
+                        willBeInactive.unit(),
+                        willBeInactive.boxWeightG(),
+                        willBeInactive.unitPerBox(),
+                        willBeInactive.unitWeightG(),
+                        false,
+                        willBeInactive.costPrice(),
+                        willBeInactive.retailPrice(),
+                        willBeInactive.wholesalePrice()
+                ),
+                user.getId()
+        );
+
+        // when
+        PageResponse<ProductResponse> page =
+                productService.getProductList(user.getId(), 1, 10, false, null);
+
+        // then
+        assertThat(page.totalElements()).isEqualTo(1);
+        assertThat(page.content()).hasSize(1);
+        ProductResponse only = page.content().get(0);
+        assertThat(only.productId()).isEqualTo(willBeInactive.productId());
+        assertThat(only.isActivated()).isFalse();
+    }
+
+    @Test
+    void 품목_목록_비활성_및_이름검색_동시_필터링_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor = newVendor(store);
+        User user = newUser(store);
+
+        // 활성 + 이름 매칭
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                user.getId()
+        );
+
+        // 비활성 + 이름 매칭
+        ProductResponse inactiveMatch = productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고무장갑",
+                        "P-002",
+                        ProductUnit.EA,
+                        null,
+                        1,
+                        null,
+                        500,
+                        800,
+                        600
+                ),
+                user.getId()
+        );
+
+        // 비활성 + 이름 미매칭
+        ProductResponse inactiveNonMatch = productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "세제",
+                        "P-003",
+                        ProductUnit.ML,
+                        BigDecimal.valueOf(1000.0),
+                        5,
+                        BigDecimal.valueOf(200.0),
+                        3000,
+                        4000,
+                        3500
+                ),
+                user.getId()
+        );
+
+        // 고무장갑, 세제 둘 다 비활성 처리
+        productService.updateProduct(
+                inactiveMatch.productId(),
+                new UpdateProductRequest(
+                        vendor.getId(),
+                        inactiveMatch.name(),
+                        inactiveMatch.code(),
+                        inactiveMatch.unit(),
+                        inactiveMatch.boxWeightG(),
+                        inactiveMatch.unitPerBox(),
+                        inactiveMatch.unitWeightG(),
+                        false,
+                        inactiveMatch.costPrice(),
+                        inactiveMatch.retailPrice(),
+                        inactiveMatch.wholesalePrice()
+                ),
+                user.getId()
+        );
+
+        productService.updateProduct(
+                inactiveNonMatch.productId(),
+                new UpdateProductRequest(
+                        vendor.getId(),
+                        inactiveNonMatch.name(),
+                        inactiveNonMatch.code(),
+                        inactiveNonMatch.unit(),
+                        inactiveNonMatch.boxWeightG(),
+                        inactiveNonMatch.unitPerBox(),
+                        inactiveNonMatch.unitWeightG(),
+                        false,
+                        inactiveNonMatch.costPrice(),
+                        inactiveNonMatch.retailPrice(),
+                        inactiveNonMatch.wholesalePrice()
+                ),
+                user.getId()
+        );
+
+        // when
+        PageResponse<ProductResponse> page =
+                productService.getProductList(user.getId(), 1, 10, false, "고");
+
+        // then
+        assertThat(page.totalElements()).isEqualTo(1);
+        assertThat(page.content()).hasSize(1);
+        ProductResponse only = page.content().get(0);
+        assertThat(only.productId()).isEqualTo(inactiveMatch.productId());
+        assertThat(only.name()).isEqualTo("고무장갑");
+        assertThat(only.isActivated()).isFalse();
+    }
 }

@@ -507,4 +507,102 @@ class VendorControllerTest {
                         .value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
+
+    @Test
+    void 발주_템플릿_목록_조회에_성공한다() throws Exception {
+        // given
+        Long vendorId = 1L;
+
+        List<OrderTemplateResponse> response = List.of(
+                new OrderTemplateResponse(1L, vendorId, "템플릿1", "본문1", true),
+                new OrderTemplateResponse(2L, vendorId, "템플릿2", "본문2", false)
+        );
+
+        when(vendorService.getOrderTemplates(anyLong(), anyLong(), any()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/vendor/{vendorId}/order-templates", vendorId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.GET_VENDOR_ORDER_TEMPLATE_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].orderTemplateId").value(1L))
+                .andExpect(jsonPath("$.data[0].vendorId").value(vendorId))
+                .andExpect(jsonPath("$.data[0].title").value("템플릿1"))
+                .andExpect(jsonPath("$.data[0].body").value("본문1"))
+                .andExpect(jsonPath("$.data[0].activated").value(true))
+                .andExpect(jsonPath("$.data[1].orderTemplateId").value(2L))
+                .andExpect(jsonPath("$.data[1].activated").value(false));
+    }
+
+    @Test
+    void 발주_템플릿_목록_조회_시_비활성_필터가_적용된다() throws Exception {
+        // given
+        Long vendorId = 1L;
+
+        List<OrderTemplateResponse> response = List.of(
+                new OrderTemplateResponse(1L, vendorId, "비활성 템플릿", "본문", false)
+        );
+
+        when(vendorService.getOrderTemplates(anyLong(), anyLong(), any()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/vendor/{vendorId}/order-templates", vendorId)
+                        .with(authentication(auth()))
+                        .param("activated", "false")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.GET_VENDOR_ORDER_TEMPLATE_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].activated").value(false))
+                .andExpect(jsonPath("$.data[0].title").value("비활성 템플릿"));
+    }
+
+    @Test
+    void 발주_템플릿_목록_조회_시_존재하지_않는_발주처면_예외가_발생한다() throws Exception {
+        // given
+        Long vendorId = 9999L;
+
+        when(vendorService.getOrderTemplates(anyLong(), anyLong(), any()))
+                .thenThrow(new BaseException(ErrorCode.VENDOR_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/vendor/{vendorId}/order-templates", vendorId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.VENDOR_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.VENDOR_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_템플릿_목록_조회_시_다른_상점_발주처면_예외가_발생한다() throws Exception {
+        // given
+        Long vendorId = 2L;
+
+        when(vendorService.getOrderTemplates(anyLong(), anyLong(), any()))
+                .thenThrow(new BaseException(ErrorCode.VENDOR_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/vendor/{vendorId}/order-templates", vendorId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.VENDOR_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.VENDOR_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
 }

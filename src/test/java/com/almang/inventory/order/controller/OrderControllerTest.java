@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -17,6 +18,8 @@ import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.order.domain.OrderStatus;
 import com.almang.inventory.order.dto.request.CreateOrderItemRequest;
 import com.almang.inventory.order.dto.request.CreateOrderRequest;
+import com.almang.inventory.order.dto.request.UpdateOrderItemRequest;
+import com.almang.inventory.order.dto.request.UpdateOrderRequest;
 import com.almang.inventory.order.dto.response.OrderResponse;
 import com.almang.inventory.order.service.OrderService;
 
@@ -410,6 +413,154 @@ class OrderControllerTest {
                         .value(ErrorCode.ORDER_ACCESS_DENIED.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message")
                         .value(ErrorCode.ORDER_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_수정에_성공한다() throws Exception {
+        // given
+        Long orderId = 100L;
+
+        UpdateOrderItemRequest itemReq = new UpdateOrderItemRequest(
+                1L,
+                1L,
+                20,
+                1500,
+                "수정된 비고"
+        );
+
+        UpdateOrderRequest request = new UpdateOrderRequest(
+                10L,
+                OrderStatus.IN_PRODUCTION,
+                "수정된 메시지",
+                5,
+                LocalDate.now(),
+                null,
+                false,
+                List.of(itemReq)
+        );
+
+        OrderResponse response = new OrderResponse(
+                orderId,
+                10L,
+                10L,
+                "수정된 메시지",
+                OrderStatus.IN_PRODUCTION,
+                5,
+                LocalDate.now().plusDays(5),
+                LocalDate.now(),
+                null,
+                false,
+                30000,
+                List.of()
+        );
+
+        when(orderService.updateOrder(anyLong(), any(UpdateOrderRequest.class), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/order/{orderId}", orderId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.UPDATE_ORDER_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.orderId").value(orderId))
+                .andExpect(jsonPath("$.data.vendorId").value(10L))
+                .andExpect(jsonPath("$.data.activated").value(false));
+    }
+
+    @Test
+    void 발주_수정시_발주가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long notExistOrderId = 9999L;
+
+        UpdateOrderRequest request = new UpdateOrderRequest(
+                10L,
+                OrderStatus.IN_PRODUCTION,
+                "수정 메시지",
+                5,
+                LocalDate.now(),
+                null,
+                true,
+                List.of()
+        );
+
+        when(orderService.updateOrder(anyLong(), any(UpdateOrderRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.ORDER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/order/{orderId}", notExistOrderId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.ORDER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.ORDER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_수정시_다른_상점의_발주면_접근_거부_예외가_발생한다() throws Exception {
+        // given
+        Long orderId = 100L;
+
+        UpdateOrderRequest request = new UpdateOrderRequest(
+                10L,
+                OrderStatus.IN_PRODUCTION,
+                "수정 메시지",
+                5,
+                LocalDate.now(),
+                null,
+                true,
+                List.of()
+        );
+
+        when(orderService.updateOrder(anyLong(), any(UpdateOrderRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.ORDER_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/order/{orderId}", orderId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(ErrorCode.ORDER_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.ORDER_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_수정시_발주처를_변경하려_하면_예외가_발생한다() throws Exception {
+        // given
+        Long orderId = 100L;
+
+        UpdateOrderRequest request = new UpdateOrderRequest(
+                999L,
+                OrderStatus.IN_PRODUCTION,
+                "수정 메시지",
+                5,
+                LocalDate.now(),
+                null,
+                true,
+                List.of()
+        );
+
+        when(orderService.updateOrder(anyLong(), any(UpdateOrderRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.VENDOR_CHANGE_NOT_ALLOWED));
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/order/{orderId}", orderId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.VENDOR_CHANGE_NOT_ALLOWED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.VENDOR_CHANGE_NOT_ALLOWED.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

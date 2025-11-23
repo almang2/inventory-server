@@ -45,6 +45,7 @@ public enum SuccessMessage {
     UPDATE_ORDER_SUCCESS("발주 수정 성공"),
     GET_ORDER_ITEM_SUCCESS("발주 아이템 조회 성공"),
     UPDATE_ORDER_ITEM_SUCCESS("발주 아이템 수정 성공"),
+    DELETE_ORDER_SUCCESS("발주 삭제 성공"),
     ;
 
     private final String message;

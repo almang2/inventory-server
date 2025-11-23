@@ -7,6 +7,7 @@ import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.order.domain.OrderStatus;
 import com.almang.inventory.order.dto.request.CreateOrderRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderRequest;
+import com.almang.inventory.order.dto.response.OrderItemResponse;
 import com.almang.inventory.order.dto.response.OrderResponse;
 import com.almang.inventory.order.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -100,6 +101,21 @@ public class OrderController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.UPDATE_ORDER_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @GetMapping("/{orderItemId}")
+    @Operation(summary = "발주 아이템 조회", description = "발주 아이템 조회합니다.")
+    public ResponseEntity<ApiResponse<OrderItemResponse>> getOrderItem(
+            @PathVariable Long orderItemId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[OrderController] 발주 아이템 조회 요청 - orderItemId: {}, userId: {}", orderItemId, userId);
+        OrderItemResponse response = orderService.getOrderItem(orderItemId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.GET_ORDER_ITEM_SUCCESS.getMessage(), response)
         );
     }
 }

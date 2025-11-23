@@ -13,6 +13,7 @@ import com.almang.inventory.order.dto.request.CreateOrderItemRequest;
 import com.almang.inventory.order.dto.request.CreateOrderRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderItemRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderRequest;
+import com.almang.inventory.order.dto.response.DeleteOrderResponse;
 import com.almang.inventory.order.dto.response.OrderItemResponse;
 import com.almang.inventory.order.dto.response.OrderResponse;
 import com.almang.inventory.order.repository.OrderRepository;
@@ -1110,5 +1111,91 @@ class OrderServiceTest {
         assertThatThrownBy(() -> orderService.updateOrderItem(orderItemId, updateRequest, userOfStore1.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.ORDER_ITEM_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 발주_삭제에_성공한다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_deleter");
+        Vendor vendor = newVendor(store, "발주처1");
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        CreateOrderRequest createRequest = new CreateOrderRequest(
+                vendor.getId(),
+                "삭제 대상 발주",
+                2,
+                List.of(new CreateOrderItemRequest(product.getId(), 3, 1000, "비고"))
+        );
+
+        OrderResponse created = orderService.createOrder(createRequest, user.getId());
+        Long orderId = created.orderId();
+
+        // when
+        DeleteOrderResponse response = orderService.deleteOrder(orderId, user.getId());
+
+        // then
+        assertThat(response).isNotNull();
+
+        Order deletedOrder = orderRepository.findById(orderId)
+                .orElseThrow();
+
+        assertThat(deletedOrder.getStatus()).isEqualTo(OrderStatus.CANCELED);
+        assertThat(deletedOrder.isActivated()).isFalse();
+    }
+
+    @Test
+    void 발주_삭제시_사용자가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Long notExistUserId = 9999L;
+        Long anyOrderId = 1L;
+
+        // when & then
+        assertThatThrownBy(() -> orderService.deleteOrder(anyOrderId, notExistUserId))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 발주_삭제시_발주가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_deleter");
+        Long notExistOrderId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> orderService.deleteOrder(notExistOrderId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.ORDER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 발주_삭제시_다른_상점의_발주라면_예외가_발생한다() {
+        // given
+        Store store1 = newStore("상점1");
+        Store store2 = newStore("상점2");
+
+        User userOfStore1 = newUser(store1, "user1");
+        User userOfStore2 = newUser(store2, "user2");
+
+        Vendor vendorOfStore2 = newVendor(store2, "상점2 발주처");
+        Product productOfStore2 = newProduct(store2, vendorOfStore2, "상점2 상품", "P999");
+
+        OrderResponse created = orderService.createOrder(
+                new CreateOrderRequest(
+                        vendorOfStore2.getId(),
+                        "상점2 발주",
+                        2,
+                        List.of(new CreateOrderItemRequest(productOfStore2.getId(), 3, 1000, "비고"))
+                ),
+                userOfStore2.getId()
+        );
+
+        Long orderId = created.orderId();
+
+        // when & then
+        assertThatThrownBy(() -> orderService.deleteOrder(orderId, userOfStore1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.ORDER_ACCESS_DENIED.getMessage());
     }
 }

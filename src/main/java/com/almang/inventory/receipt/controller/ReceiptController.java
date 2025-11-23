@@ -52,4 +52,19 @@ public class ReceiptController {
                 ApiResponse.success(SuccessMessage.GET_RECEIPT_FROM_ORDER_SUCCESS.getMessage(), response)
         );
     }
+
+    @GetMapping("/{receiptId}")
+    public ResponseEntity<ApiResponse<ReceiptResponse>> getReceipt(
+            @PathVariable Long receiptId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[ReceiptController] 입고 조회 요청 - userId: {}, receiptId: {}", userId, receiptId);
+        ReceiptResponse response = receiptService.getReceipt(receiptId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.GET_RECEIPT_SUCCESS.getMessage(), response)
+        );
+    }
+
 }

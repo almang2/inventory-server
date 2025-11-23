@@ -128,7 +128,7 @@ public class OrderController {
             @AuthenticationPrincipal CustomUserPrincipal userPrincipal
     ) {
         Long userId = userPrincipal.getId();
-        log.info("[OrderController] 발주 수정 요청 - orderId: {}, userId: {}", orderItemId, userId);
+        log.info("[OrderController] 발주 아이템 수정 요청 - orderId: {}, userId: {}", orderItemId, userId);
         OrderItemResponse response = orderService.updateOrderItem(orderItemId, request, userId);
 
         return ResponseEntity.ok(

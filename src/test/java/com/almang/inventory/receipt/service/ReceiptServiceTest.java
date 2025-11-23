@@ -266,7 +266,7 @@ class ReceiptServiceTest {
     }
 
     @Test
-    void 입고_조회시_입고가_존재하지_않으면_예외가_발생한다() {
+    void 발주기반_입고_조회시_입고가_존재하지_않으면_예외가_발생한다() {
         // given
         Store store = newStore("상점B");
         User user = newUser(store, "testerB");
@@ -282,7 +282,7 @@ class ReceiptServiceTest {
     }
 
     @Test
-    void 입고_조회시_다른_상점의_발주면_접근_거부_예외가_발생한다() {
+    void 발주기반_입고_조회시_다른_상점의_발주면_접근_거부_예외가_발생한다() {
         // given
         Store store1 = newStore("상점1");
         Store store2 = newStore("상점2");
@@ -309,13 +309,82 @@ class ReceiptServiceTest {
     }
 
     @Test
-    void 입고_조회시_사용자가_존재하지_않으면_예외가_발생한다() {
+    void 발주기반_입고_조회시_사용자가_존재하지_않으면_예외가_발생한다() {
         // given
         Long notExistUserId = 9999L;
         Long anyOrderId = 1L;
 
         // when & then
         assertThatThrownBy(() -> receiptService.getReceiptFromOrder(anyOrderId, notExistUserId))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 입고_조회에_성공한다() {
+        // given
+        Store store = newStore("상점C");
+        User user = newUser(store, "testerC");
+        Vendor vendor = newVendor(store, "발주처C");
+
+        Order order = newOrderWithItems(store, vendor);
+
+        Receipt receipt = Receipt.builder()
+                .store(store)
+                .order(order)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(0)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+
+        for (OrderItem orderItem : order.getItems()) {
+            ReceiptItem item = ReceiptItem.builder()
+                    .product(orderItem.getProduct())
+                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .amount(orderItem.getAmount())
+                    .unitPrice(orderItem.getUnitPrice())
+                    .build();
+            receipt.addItem(item);
+        }
+
+        Receipt saved = receiptRepository.save(receipt);
+
+        // when
+        ReceiptResponse response = receiptService.getReceipt(saved.getId(), user.getId());
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.receiptId()).isEqualTo(saved.getId());
+        assertThat(response.storeId()).isEqualTo(store.getId());
+        assertThat(response.orderId()).isEqualTo(order.getId());
+        assertThat(response.status()).isEqualTo(ReceiptStatus.PENDING);
+        assertThat(response.activated()).isTrue();
+        assertThat(response.receiptItems()).hasSize(2);
+    }
+
+    @Test
+    void 입고_조회시_입고가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Store store = newStore("상점D");
+        User user = newUser(store, "testerD");
+        Long notExistReceiptId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.getReceipt(notExistReceiptId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 입고_조회시_사용자가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Long notExistUserId = 9999L;
+        Long anyReceiptId = 1L;
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.getReceipt(anyReceiptId, notExistUserId))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
     }

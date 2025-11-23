@@ -140,6 +140,9 @@ public class OrderService {
 
         orderItem.update(request.quantity(), request.unitPrice(), request.note());
 
+        Order order = orderItem.getOrder();
+        order.updateTotalPrice(calculateTotalPrice(order.getItems()));
+
         log.info("[OrderService] 발주 아이템 수정 성공 - orderItemId: {}", orderItem.getId());
         return OrderItemResponse.from(orderItem);
     }

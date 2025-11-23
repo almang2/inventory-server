@@ -184,10 +184,10 @@ public class OrderService {
     private Page<Order> findOrdersByFilter(
             Long storeId, Long vendorId, OrderStatus status, LocalDate fromDate, LocalDate toDate, Pageable pageable
     ) {
-        LocalDate startDate = fromDate != null ? fromDate : LocalDate.MIN;
-        LocalDate endDate = toDate != null ? toDate : LocalDate.MAX;
-
+        LocalDate startDate = fromDate != null ? fromDate : LocalDate.of(1970, 1, 1);
         LocalDateTime start = startDate.atStartOfDay();
+
+        LocalDate endDate = toDate != null ? toDate : LocalDate.now();
         LocalDateTime end = endDate.plusDays(1).atStartOfDay().minusNanos(1);
 
         boolean hasVendor = vendorId != null;

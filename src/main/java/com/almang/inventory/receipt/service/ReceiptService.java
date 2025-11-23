@@ -53,6 +53,21 @@ public class ReceiptService {
         return ReceiptResponse.from(saved);
     }
 
+    @Transactional(readOnly = true)
+    public ReceiptResponse getReceiptFromOrder(Long orderId, Long userId) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[ReceiptService] 발주 기반 입고 조회 요청 - userId: {}, storeId: {}, orderId: {}",
+                user.getId(), store.getId(), orderId);
+
+        Order order = findOrderByIdAndValidateAccess(orderId, store);
+        Receipt receipt = findReceiptByOrderId(orderId);
+
+        log.info("[ReceiptService] 발주 기반 입고 조회 성공 - receiptId: {}", receipt.getId());
+        return ReceiptResponse.from(receipt);
+    }
+
     private List<ReceiptItem> createReceiptItemsFromOrder(Order order) {
         List<ReceiptItem> items = new ArrayList<>();
 
@@ -108,5 +123,10 @@ public class ReceiptService {
         if (order.getStatus() == OrderStatus.CANCELED) {
             throw new BaseException(ErrorCode.RECEIPT_CREATION_NOT_ALLOWED_FROM_ORDER);
         }
+    }
+
+    private Receipt findReceiptByOrderId(Long orderId) {
+        return receiptRepository.findByOrder_Id(orderId)
+                .orElseThrow(() -> new BaseException(ErrorCode.RECEIPT_NOT_FOUND));
     }
 }

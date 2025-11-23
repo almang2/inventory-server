@@ -68,6 +68,18 @@ public class ReceiptService {
         return ReceiptResponse.from(receipt);
     }
 
+    @Transactional
+    public ReceiptResponse getReceipt(Long receiptId, Long userId) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[ReceiptService] 입고 조회 요청 - userId: {}, storeId: {}", user.getId(), store.getId());
+        Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
+
+        log.info("[ReceiptService] 입고 조회 성공 - receiptId: {}", receipt.getId());
+        return ReceiptResponse.from(receipt);
+    }
+
     private List<ReceiptItem> createReceiptItemsFromOrder(Order order) {
         List<ReceiptItem> items = new ArrayList<>();
 
@@ -128,5 +140,15 @@ public class ReceiptService {
     private Receipt findReceiptByOrderId(Long orderId) {
         return receiptRepository.findByOrder_Id(orderId)
                 .orElseThrow(() -> new BaseException(ErrorCode.RECEIPT_NOT_FOUND));
+    }
+
+    private Receipt findReceiptByIdAndValidateAccess(Long receiptId, Store store) {
+        Receipt receipt =  receiptRepository.findById(receiptId)
+                .orElseThrow(() -> new BaseException(ErrorCode.RECEIPT_NOT_FOUND));
+
+        if (!receipt.getStore().getId().equals(store.getId())) {
+            throw new BaseException(ErrorCode.RECEIPT_ACCESS_DENIED);
+        }
+        return receipt;
     }
 }

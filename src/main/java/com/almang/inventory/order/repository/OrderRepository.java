@@ -9,14 +9,23 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-    // 상점 기준 발주 목록
-    Page<Order> findAllByStoreId(Long storeId, Pageable pageable);
-
-    // 상점 + 상태 기준
-    Page<Order> findAllByStoreIdAndStatus(Long storeId, OrderStatus status, Pageable pageable);
-
-    // 기간 + 상점 기준
+    // 필터 없음
     Page<Order> findAllByStoreIdAndCreatedAtBetween(
             Long storeId, LocalDateTime start, LocalDateTime end, Pageable pageable
+    );
+
+    // 상태 필터
+    Page<Order> findAllByStoreIdAndStatusAndCreatedAtBetween(
+            Long storeId, OrderStatus status, LocalDateTime start, LocalDateTime end, Pageable pageable
+    );
+
+    // 발주처 필터
+    Page<Order> findAllByStoreIdAndVendorIdAndCreatedAtBetween(
+            Long storeId, Long vendorId, LocalDateTime start, LocalDateTime end, Pageable pageable
+    );
+
+    // 발주처 + 상태 필터
+    Page<Order> findAllByStoreIdAndVendorIdAndStatusAndCreatedAtBetween(
+            Long storeId, Long vendorId, OrderStatus status, LocalDateTime start, LocalDateTime end, Pageable pageable
     );
 }

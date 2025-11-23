@@ -1,7 +1,9 @@
 package com.almang.inventory.order.service;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.global.util.PaginationUtil;
 import com.almang.inventory.order.domain.Order;
 import com.almang.inventory.order.domain.OrderItem;
 import com.almang.inventory.order.domain.OrderStatus;
@@ -19,10 +21,14 @@ import com.almang.inventory.user.repository.UserRepository;
 import com.almang.inventory.vendor.domain.Vendor;
 import com.almang.inventory.vendor.repository.VendorRepository;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,6 +73,23 @@ public class OrderService {
 
         log.info("[OrderService] 발주 조회 성공 - orderId: {}", order.getId());
         return OrderResponse.of(order, order.getItems());
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<OrderResponse> getOrderList(
+            Long userId, Long vendorId, Integer page, Integer size,
+            OrderStatus status, LocalDate fromDate, LocalDate toDate
+    ) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[OrderService] 발주 목록 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
+        PageRequest pageable = PaginationUtil.createPageRequest(page, size, "createdAt");
+        Page<Order> orderPage = findOrdersByFilter(store.getId(), vendorId, status, fromDate, toDate, pageable);
+        Page<OrderResponse> mapped = orderPage.map(order -> OrderResponse.of(order, order.getItems()));
+
+        log.info("[OrderService] 발주 목록 조회 성공 - userId: {}, storeId: {}", userId, store.getId());
+        return PageResponse.from(mapped);
     }
 
     private List<OrderItem> createOrderItems(List<CreateOrderItemRequest> requests, Store store) {
@@ -156,5 +179,44 @@ public class OrderService {
             throw new BaseException(ErrorCode.ORDER_ACCESS_DENIED);
         }
         return order;
+    }
+
+    private Page<Order> findOrdersByFilter(
+            Long storeId, Long vendorId, OrderStatus status, LocalDate fromDate, LocalDate toDate, Pageable pageable
+    ) {
+        LocalDate startDate = fromDate != null ? fromDate : LocalDate.of(1970, 1, 1);
+        LocalDateTime start = startDate.atStartOfDay();
+
+        LocalDate endDate = toDate != null ? toDate : LocalDate.now();
+        LocalDateTime end = endDate.plusDays(1).atStartOfDay().minusNanos(1);
+
+        boolean hasVendor = vendorId != null;
+        boolean hasStatus = status != null;
+
+        // 1) 필터 없음
+        if (!hasVendor && !hasStatus) {
+            return orderRepository.findAllByStoreIdAndCreatedAtBetween(
+                    storeId, start, end, pageable
+            );
+        }
+
+        // 2) 상태 필터
+        if (!hasVendor) {
+            return orderRepository.findAllByStoreIdAndStatusAndCreatedAtBetween(
+                    storeId, status, start, end, pageable
+            );
+        }
+
+        // 3) 발주처 필터
+        if (!hasStatus) {
+            return orderRepository.findAllByStoreIdAndVendorIdAndCreatedAtBetween(
+                    storeId, vendorId, start, end, pageable
+            );
+        }
+
+        // 4) 발주처 + 상태 필터
+        return orderRepository.findAllByStoreIdAndVendorIdAndStatusAndCreatedAtBetween(
+                storeId, vendorId, status, start, end, pageable
+        );
     }
 }

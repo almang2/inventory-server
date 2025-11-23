@@ -104,7 +104,7 @@ public class OrderController {
         );
     }
 
-    @GetMapping("/{orderItemId}")
+    @GetMapping("/item/{orderItemId}")
     @Operation(summary = "발주 아이템 조회", description = "발주 아이템 조회합니다.")
     public ResponseEntity<ApiResponse<OrderItemResponse>> getOrderItem(
             @PathVariable Long orderItemId,

@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.config.TestSecurityConfig;
 import com.almang.inventory.global.exception.BaseException;
@@ -312,6 +313,103 @@ class OrderControllerTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value(ErrorCode.ORDER_ACCESS_DENIED.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message").value(ErrorCode.ORDER_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_목록_조회에_성공한다() throws Exception {
+        // given
+        OrderResponse r1 = new OrderResponse(
+                1L,
+                10L,
+                10L,
+                "메시지1",
+                OrderStatus.REQUEST,
+                1,
+                LocalDate.now().plusDays(1),
+                null,
+                null,
+                true,
+                5000,
+                List.of()
+        );
+
+        OrderResponse r2 = new OrderResponse(
+                2L,
+                10L,
+                10L,
+                "메시지2",
+                OrderStatus.REQUEST,
+                2,
+                LocalDate.now().plusDays(2),
+                null,
+                null,
+                true,
+                9000,
+                List.of()
+        );
+
+        PageResponse<OrderResponse> pageResponse = new PageResponse<>(
+                List.of(r1, r2),
+                1,
+                20,
+                2L,
+                1,
+                true
+        );
+
+        when(orderService.getOrderList(anyLong(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(pageResponse);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/order")
+                        .param("page", "1")
+                        .param("size", "20")
+                        .with(authentication(auth())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.GET_ORDER_LIST_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.totalElements").value(2))
+                .andExpect(jsonPath("$.data.content[0].orderId").value(1))
+                .andExpect(jsonPath("$.data.content[1].orderId").value(2));
+    }
+
+    @Test
+    void 발주_목록_조회시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        when(orderService.getOrderList(anyLong(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/order")
+                        .param("page", "1")
+                        .param("size", "20")
+                        .with(authentication(auth())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_목록_조회시_상점_접근_권한이_없으면_예외가_발생한다() throws Exception {
+        // given
+        when(orderService.getOrderList(anyLong(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new BaseException(ErrorCode.ORDER_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/order")
+                        .param("page", "1")
+                        .param("size", "20")
+                        .with(authentication(auth())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.ORDER_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.ORDER_ACCESS_DENIED.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

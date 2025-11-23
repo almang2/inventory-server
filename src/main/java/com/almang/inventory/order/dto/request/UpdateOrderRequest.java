@@ -1,6 +1,7 @@
 package com.almang.inventory.order.dto.request;
 
 import com.almang.inventory.order.domain.OrderStatus;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.util.List;
@@ -13,5 +14,5 @@ public record UpdateOrderRequest(
         LocalDate quoteReceivedAt,
         LocalDate depositConfirmedAt,
         Boolean activated,
-        List<UpdateOrderItemRequest> orderItems
+        @Valid List<UpdateOrderItemRequest> orderItems
 ) {}

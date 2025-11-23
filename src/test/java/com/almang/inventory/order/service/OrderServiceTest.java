@@ -11,6 +11,8 @@ import com.almang.inventory.order.domain.OrderItem;
 import com.almang.inventory.order.domain.OrderStatus;
 import com.almang.inventory.order.dto.request.CreateOrderItemRequest;
 import com.almang.inventory.order.dto.request.CreateOrderRequest;
+import com.almang.inventory.order.dto.request.UpdateOrderItemRequest;
+import com.almang.inventory.order.dto.request.UpdateOrderRequest;
 import com.almang.inventory.order.dto.response.OrderResponse;
 import com.almang.inventory.order.repository.OrderRepository;
 import com.almang.inventory.product.domain.Product;
@@ -604,5 +606,286 @@ class OrderServiceTest {
                 notExistUserId, null, 1, 20, null, null, null))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 발주_수정에_성공한다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_updater");
+        Vendor vendor = newVendor(store, "발주처1");
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        CreateOrderRequest createRequest = new CreateOrderRequest(
+                vendor.getId(),
+                "원본 메시지",
+                3,
+                List.of(new CreateOrderItemRequest(product.getId(), 2, 1000, "원본 비고"))
+        );
+        OrderResponse created = orderService.createOrder(createRequest, user.getId());
+        Long orderId = created.orderId();
+
+        Order savedOrder = orderRepository.findById(orderId)
+                .orElseThrow();
+
+        OrderItem originalItem = savedOrder.getItems().get(0);
+        Long orderItemId = originalItem.getId();
+
+        int newQuantity = 5;
+        int newUnitPrice = 2000;
+        String newNote = "수정된 비고";
+        int expectedTotalPrice = newQuantity * newUnitPrice;
+        int newLeadTime = 5;
+        LocalDate newQuoteDate = LocalDate.now();
+
+        UpdateOrderItemRequest updateItemRequest = new UpdateOrderItemRequest(
+                orderItemId,
+                product.getId(),
+                newQuantity,
+                newUnitPrice,
+                newNote
+        );
+
+        UpdateOrderRequest updateRequest = new UpdateOrderRequest(
+                vendor.getId(),
+                OrderStatus.IN_PRODUCTION,
+                "수정된 메시지",
+                newLeadTime,
+                newQuoteDate,
+                null,
+                false,
+                List.of(updateItemRequest)
+        );
+
+        // when
+        OrderResponse updated = orderService.updateOrder(orderId, updateRequest, user.getId());
+
+        // then
+        assertThat(updated.orderId()).isEqualTo(orderId);
+        assertThat(updated.orderStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+        assertThat(updated.orderMessage()).isEqualTo("수정된 메시지");
+        assertThat(updated.leadTime()).isEqualTo(newLeadTime);
+        assertThat(updated.expectedArrival()).isEqualTo(LocalDate.now().plusDays(newLeadTime));
+        assertThat(updated.activated()).isFalse();
+        assertThat(updated.totalPrice()).isEqualTo(expectedTotalPrice);
+        assertThat(updated.orderItems()).hasSize(1);
+
+        OrderItem updatedItem = orderRepository.findById(orderId)
+                .orElseThrow()
+                .getItems()
+                .get(0);
+
+        assertThat(updatedItem.getQuantity()).isEqualTo(newQuantity);
+        assertThat(updatedItem.getUnitPrice()).isEqualTo(newUnitPrice);
+        assertThat(updatedItem.getAmount()).isEqualTo(newQuantity * newUnitPrice);
+        assertThat(updatedItem.getNote()).isEqualTo(newNote);
+    }
+
+    @Test
+    void 발주_수정시_발주가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_updater");
+        Long notExistOrderId = 9999L;
+
+        UpdateOrderRequest updateRequest = new UpdateOrderRequest(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        // when & then
+        assertThatThrownBy(() -> orderService.updateOrder(notExistOrderId, updateRequest, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.ORDER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 발주_수정시_다른_상점의_발주라면_예외가_발생한다() {
+        // given
+        Store store1 = newStore("상점1");
+        Store store2 = newStore("상점2");
+
+        User userOfStore1 = newUser(store1, "user1");
+        User userOfStore2 = newUser(store2, "user2");
+
+        Vendor vendorOfStore2 = newVendor(store2, "상점2 발주처");
+        Product productOfStore2 = newProduct(store2, vendorOfStore2, "상점2 상품", "P999");
+
+        // 상점2 유저가 발주 생성
+        OrderResponse created = orderService.createOrder(
+                new CreateOrderRequest(
+                        vendorOfStore2.getId(),
+                        "상점2 발주",
+                        2,
+                        List.of(new CreateOrderItemRequest(productOfStore2.getId(), 3, 1000, null))
+                ),
+                userOfStore2.getId()
+        );
+
+        Long orderId = created.orderId();
+
+        UpdateOrderRequest updateRequest = new UpdateOrderRequest(
+                vendorOfStore2.getId(),
+                OrderStatus.IN_PRODUCTION,
+                "수정 시도",
+                3,
+                null,
+                null,
+                true,
+                null
+        );
+
+        // when & then
+        assertThatThrownBy(() -> orderService.updateOrder(orderId, updateRequest, userOfStore1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.ORDER_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 발주_수정시_발주처를_변경하려_하면_예외가_발생한다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_updater");
+        Vendor vendorA = newVendor(store, "A발주처");
+        Vendor vendorB = newVendor(store, "B발주처");
+
+        Product product = newProduct(store, vendorA, "상품1", "P001");
+
+        OrderResponse created = orderService.createOrder(
+                new CreateOrderRequest(
+                        vendorA.getId(),
+                        "원본 메시지",
+                        2,
+                        List.of(new CreateOrderItemRequest(product.getId(), 2, 1000, null))
+                ),
+                user.getId()
+        );
+
+        Long orderId = created.orderId();
+
+        UpdateOrderRequest updateRequest = new UpdateOrderRequest(
+                vendorB.getId(),
+                OrderStatus.IN_PRODUCTION,
+                "변경 시도",
+                3,
+                null,
+                null,
+                true,
+                null
+        );
+
+        // when & then
+        assertThatThrownBy(() -> orderService.updateOrder(orderId, updateRequest, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_CHANGE_NOT_ALLOWED.getMessage());
+    }
+
+    @Test
+    void 발주_수정시_존재하지_않는_발주_항목이면_예외가_발생한다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_updater");
+        Vendor vendor = newVendor(store, "발주처1");
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        OrderResponse created = orderService.createOrder(
+                new CreateOrderRequest(
+                        vendor.getId(),
+                        "원본 메시지",
+                        2,
+                        List.of(new CreateOrderItemRequest(product.getId(), 2, 1000, null))
+                ),
+                user.getId()
+        );
+
+        Long orderId = created.orderId();
+
+        Long notExistOrderItemId = 9999L;
+        UpdateOrderItemRequest updateItemRequest = new UpdateOrderItemRequest(
+                notExistOrderItemId,
+                product.getId(),
+                5,
+                2000,
+                "수정 비고"
+        );
+
+        UpdateOrderRequest updateRequest = new UpdateOrderRequest(
+                vendor.getId(),
+                OrderStatus.IN_PRODUCTION,
+                "수정 메시지",
+                3,
+                null,
+                null,
+                true,
+                List.of(updateItemRequest)
+        );
+
+        // when & then
+        assertThatThrownBy(() -> orderService.updateOrder(orderId, updateRequest, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.ORDER_ITEM_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 발주_수정시_다른_발주의_항목이면_예외가_발생한다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_updater");
+        Vendor vendor = newVendor(store, "발주처1");
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        OrderResponse order1 = orderService.createOrder(
+                new CreateOrderRequest(
+                        vendor.getId(),
+                        "발주1",
+                        2,
+                        List.of(new CreateOrderItemRequest(product.getId(), 2, 1000, null))
+                ),
+                user.getId()
+        );
+
+        OrderResponse order2 = orderService.createOrder(
+                new CreateOrderRequest(
+                        vendor.getId(),
+                        "발주2",
+                        2,
+                        List.of(new CreateOrderItemRequest(product.getId(), 3, 1500, null))
+                ),
+                user.getId()
+        );
+
+        Order order2Entity = orderRepository.findById(order2.orderId())
+                .orElseThrow();
+        Long otherOrderItemId = order2Entity.getItems().get(0).getId();
+
+        UpdateOrderItemRequest updateItemRequest = new UpdateOrderItemRequest(
+                otherOrderItemId,
+                product.getId(),
+                10,
+                2000,
+                "수정 비고"
+        );
+
+        UpdateOrderRequest updateRequest = new UpdateOrderRequest(
+                vendor.getId(),
+                OrderStatus.IN_PRODUCTION,
+                "발주1 수정",
+                3,
+                null,
+                null,
+                true,
+                List.of(updateItemRequest)
+        );
+
+        // when & then
+        assertThatThrownBy(() -> orderService.updateOrder(order1.orderId(), updateRequest, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.ORDER_ITEM_ACCESS_DENIED.getMessage());
     }
 }

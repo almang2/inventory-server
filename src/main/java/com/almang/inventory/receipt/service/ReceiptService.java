@@ -177,15 +177,10 @@ public class ReceiptService {
     }
 
     private Page<Receipt> findReceiptsByFilter(
-            Long storeId, Long vendorId, ReceiptStatus status,
-            LocalDate fromDate, LocalDate toDate, Pageable pageable
+            Long storeId, Long vendorId, ReceiptStatus status, LocalDate fromDate, LocalDate toDate, Pageable pageable
     ) {
-
         LocalDate startDate = fromDate != null ? fromDate : LocalDate.of(1970, 1, 1);
-        LocalDateTime start = startDate.atStartOfDay();
-
         LocalDate endDate = toDate != null ? toDate : LocalDate.now();
-        LocalDateTime end = endDate.plusDays(1).atStartOfDay().minusNanos(1);
 
         boolean hasVendor = vendorId != null;
         boolean hasStatus = status != null;
@@ -193,27 +188,27 @@ public class ReceiptService {
         // 1) 필터 없음
         if (!hasVendor && !hasStatus) {
             return receiptRepository.findAllByStoreIdAndReceiptDateBetween(
-                    storeId, start, end, pageable
+                    storeId, startDate, endDate, pageable
             );
         }
 
         // 2) 상태 필터
         if (!hasVendor) {
             return receiptRepository.findAllByStoreIdAndStatusAndReceiptDateBetween(
-                    storeId, status, start, end, pageable
+                    storeId, status, startDate, endDate, pageable
             );
         }
 
         // 3) 발주처 필터
         if (!hasStatus) {
             return receiptRepository.findAllByStoreIdAndOrderVendorIdAndReceiptDateBetween(
-                    storeId, vendorId, start, end, pageable
+                    storeId, vendorId, startDate, endDate, pageable
             );
         }
 
         // 4) 발주처 + 상태 필터
         return receiptRepository.findAllByStoreIdAndOrderVendorIdAndStatusAndReceiptDateBetween(
-                storeId, vendorId, status, start, end, pageable
+                storeId, vendorId, status, startDate, endDate, pageable
         );
     }
 }

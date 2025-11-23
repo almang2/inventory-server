@@ -15,8 +15,8 @@ public record OrderResponse(
         OrderStatus orderStatus,
         Integer leadTime,
         LocalDate expectedArrival,
-        LocalDateTime quoteReceivedAt,
-        LocalDateTime depositConfirmedAt,
+        LocalDate quoteReceivedAt,
+        LocalDate depositConfirmedAt,
         boolean activated,
         Integer totalPrice,
         List<OrderItemResponse> orderItems

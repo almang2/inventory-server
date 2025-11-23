@@ -6,6 +6,7 @@ import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.order.domain.OrderStatus;
 import com.almang.inventory.order.dto.request.CreateOrderRequest;
+import com.almang.inventory.order.dto.request.UpdateOrderRequest;
 import com.almang.inventory.order.dto.response.OrderResponse;
 import com.almang.inventory.order.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -82,6 +84,22 @@ public class OrderController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.GET_ORDER_LIST_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @PatchMapping("/{orderId}")
+    @Operation(summary = "발주 수정", description = "발주를 수정합니다.")
+    public ResponseEntity<ApiResponse<OrderResponse>> updateOrder(
+            @PathVariable Long orderId,
+            @Valid @RequestBody UpdateOrderRequest request,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[OrderController] 발주 수정 요청 - orderId: {}, userId: {}", orderId, userId);
+        OrderResponse response = orderService.updateOrder(orderId, request, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.UPDATE_ORDER_SUCCESS.getMessage(), response)
         );
     }
 }

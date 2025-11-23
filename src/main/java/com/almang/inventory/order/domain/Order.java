@@ -1,6 +1,8 @@
 package com.almang.inventory.order.domain;
 
 import com.almang.inventory.global.entity.BaseTimeEntity;
+import com.almang.inventory.global.exception.BaseException;
+import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.vendor.domain.Vendor;
 import jakarta.persistence.*;
@@ -51,11 +53,11 @@ public class Order extends BaseTimeEntity {
 
     // 견적 수신일
     @Column(name = "quote_received_at")
-    private LocalDateTime quoteReceivedAt;
+    private LocalDate quoteReceivedAt;
 
     // 입금 확인일
     @Column(name = "deposit_confirmed_at")
-    private LocalDateTime depositConfirmedAt;
+    private LocalDate depositConfirmedAt;
 
     // 활성 여부
     @Column(name = "is_activate", nullable = false)
@@ -73,5 +75,48 @@ public class Order extends BaseTimeEntity {
     public void addItem(OrderItem item) {
         items.add(item);
         item.setOrder(this);
+    }
+
+    public void validateVendorNotChanged(Long requestVendorId) {
+        if (requestVendorId == null) {
+            return;
+        }
+        if (!this.vendor.getId().equals(requestVendorId)) {
+            throw new BaseException(ErrorCode.VENDOR_CHANGE_NOT_ALLOWED);
+        }
+    }
+
+    public void updateStatus(OrderStatus status) {
+        if (status != null) {
+            this.status = status;
+        }
+    }
+
+    public void updateMessageAndActivated(String orderMessage, Boolean activated) {
+        if (orderMessage != null) {
+            this.orderMessage = orderMessage;
+        }
+        if (activated != null) {
+            this.activated = activated;
+        }
+    }
+
+    public void updateSchedule(Integer leadTime, LocalDate quoteReceivedAt, LocalDate depositConfirmedAt) {
+        if (leadTime != null) {
+            this.leadTime = leadTime;
+            this.expectedArrival = LocalDate.now().plusDays(leadTime);
+        }
+
+        if (quoteReceivedAt != null) {
+            this.quoteReceivedAt = quoteReceivedAt;
+        }
+
+        if (depositConfirmedAt != null) {
+            this.depositConfirmedAt = depositConfirmedAt;
+        }
+    }
+
+    public void updateTotalPrice(int totalPrice) {
+        this.totalPrice = totalPrice;
     }
 }

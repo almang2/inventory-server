@@ -42,6 +42,7 @@ public enum SuccessMessage {
     CREATE_ORDER_SUCCESS("발주 생성 성공"),
     GET_ORDER_SUCCESS("발주 조회 성공"),
     GET_ORDER_LIST_SUCCESS("발주 목록 조회 성공"),
+    UPDATE_ORDER_SUCCESS("발주 수정 성공"),
     ;
 
     private final String message;

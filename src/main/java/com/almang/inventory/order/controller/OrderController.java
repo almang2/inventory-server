@@ -1,14 +1,17 @@
 package com.almang.inventory.order.controller;
 
 import com.almang.inventory.global.api.ApiResponse;
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
+import com.almang.inventory.order.domain.OrderStatus;
 import com.almang.inventory.order.dto.request.CreateOrderRequest;
 import com.almang.inventory.order.dto.response.OrderResponse;
 import com.almang.inventory.order.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
@@ -56,6 +60,28 @@ public class OrderController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.GET_ORDER_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @GetMapping
+    @Operation(summary = "발주 목록 조회", description = "발주 목록을 페이지네이션, 발주처, 상태, 날짜 검색 조건과 함께 조회합니다.")
+    public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getOrderList(
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size,
+            @RequestParam(value = "vendorId", required = false) Long vendorId,
+            @RequestParam(value = "orderStatus", required = false) OrderStatus status,
+            @RequestParam(value = "fromDate", required = false) LocalDate fromDate,
+            @RequestParam(value = "endDate", required = false) LocalDate endDate
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[OrderController] 발주 목록 조회 요청 - userId: {}, page: {}, size: {}, vendorId: {}, status: {}, fromDate: {}, endDate: {}",
+                userId, page, size, vendorId, status, fromDate, endDate);
+        PageResponse<OrderResponse> response =
+                orderService.getOrderList(userId, vendorId, page, size, status, fromDate, endDate);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.GET_ORDER_LIST_SUCCESS.getMessage(), response)
         );
     }
 }

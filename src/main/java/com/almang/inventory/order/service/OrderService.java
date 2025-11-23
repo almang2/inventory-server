@@ -11,6 +11,7 @@ import com.almang.inventory.order.dto.request.CreateOrderItemRequest;
 import com.almang.inventory.order.dto.request.CreateOrderRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderItemRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderRequest;
+import com.almang.inventory.order.dto.response.OrderItemResponse;
 import com.almang.inventory.order.dto.response.OrderResponse;
 import com.almang.inventory.order.repository.OrderItemRepository;
 import com.almang.inventory.order.repository.OrderRepository;
@@ -113,6 +114,19 @@ public class OrderService {
 
         log.info("[OrderService] 발주 수정 성공 - orderId: {}", order.getId());
         return OrderResponse.of(order, order.getItems());
+    }
+
+    @Transactional(readOnly = true)
+    public OrderItemResponse getOrderItem(Long orderItemId, Long userId) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[OrderService] 발주 상세 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
+        OrderItem orderItem = findOrderItemById(orderItemId);
+        validateOrderItemAccess(orderItem, store);
+
+        log.info("[OrderService] 발주 상세 조회 성공 - orderItemId: {}", orderItem.getId());
+        return OrderItemResponse.from(orderItem);
     }
 
     private List<OrderItem> createOrderItems(List<CreateOrderItemRequest> requests, Store store) {
@@ -269,5 +283,16 @@ public class OrderService {
             orderItem.update(orderItemRequest.quantity(), orderItemRequest.unitPrice(), orderItemRequest.note());
         }
         order.updateTotalPrice(calculateTotalPrice(order.getItems()));
+    }
+
+    private OrderItem findOrderItemById(Long orderItemId) {
+        return orderItemRepository.findById(orderItemId)
+                .orElseThrow(() -> new BaseException(ErrorCode.ORDER_ITEM_NOT_FOUND));
+    }
+
+    private void validateOrderItemAccess(OrderItem orderItem, Store store) {
+        if (!orderItem.getOrder().getStore().getId().equals(store.getId())) {
+            throw new BaseException(ErrorCode.ORDER_ITEM_ACCESS_DENIED);
+        }
     }
 }

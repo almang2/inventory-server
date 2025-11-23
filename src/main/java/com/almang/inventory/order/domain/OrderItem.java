@@ -42,17 +42,16 @@ public class OrderItem extends BaseTimeEntity {
         this.order = order;
     }
 
-    public void updateQuantity(Integer quantity) {
-        this.quantity = quantity;
-        this.amount = this.unitPrice * this.quantity;
-    }
-
-    public void updatePrice(Integer unitPrice) {
-        this.unitPrice = unitPrice;
-        this.amount = this.unitPrice * this.quantity;
-    }
-
-    public void updateNote(String note) {
-        this.note = note;
+    public void update(Integer quantity, Integer unitPrice, String note) {
+        if (quantity != null) {
+            this.quantity = quantity;
+        }
+        if (unitPrice != null) {
+            this.unitPrice = unitPrice;
+        }
+        if (note != null) {
+            this.note = note;
+        }
+        this.amount = this.quantity * this.unitPrice;
     }
 }

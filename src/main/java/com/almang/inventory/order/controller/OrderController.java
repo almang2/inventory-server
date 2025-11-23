@@ -6,6 +6,7 @@ import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.order.domain.OrderStatus;
 import com.almang.inventory.order.dto.request.CreateOrderRequest;
+import com.almang.inventory.order.dto.request.UpdateOrderItemRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderRequest;
 import com.almang.inventory.order.dto.response.OrderItemResponse;
 import com.almang.inventory.order.dto.response.OrderResponse;
@@ -116,6 +117,22 @@ public class OrderController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.GET_ORDER_ITEM_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @PatchMapping("/item/{orderItemId}")
+    @Operation(summary = "발주 아이템 수정", description = "발주 아이템을 수정합니다.")
+    public ResponseEntity<ApiResponse<OrderItemResponse>> updateOrderItem(
+            @PathVariable Long orderItemId,
+            @Valid @RequestBody UpdateOrderItemRequest request,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[OrderController] 발주 아이템 수정 요청 - orderId: {}, userId: {}", orderItemId, userId);
+        OrderItemResponse response = orderService.updateOrderItem(orderItemId, request, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.UPDATE_ORDER_ITEM_SUCCESS.getMessage(), response)
         );
     }
 }

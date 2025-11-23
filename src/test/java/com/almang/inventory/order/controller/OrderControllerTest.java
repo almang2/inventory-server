@@ -20,6 +20,7 @@ import com.almang.inventory.order.dto.request.CreateOrderItemRequest;
 import com.almang.inventory.order.dto.request.CreateOrderRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderItemRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderRequest;
+import com.almang.inventory.order.dto.response.OrderItemResponse;
 import com.almang.inventory.order.dto.response.OrderResponse;
 import com.almang.inventory.order.service.OrderService;
 
@@ -561,6 +562,74 @@ class OrderControllerTest {
                         .value(ErrorCode.VENDOR_CHANGE_NOT_ALLOWED.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message")
                         .value(ErrorCode.VENDOR_CHANGE_NOT_ALLOWED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_아이템_조회에_성공한다() throws Exception {
+        // given
+        Long orderItemId = 1L;
+
+        OrderItemResponse response = new OrderItemResponse(
+                orderItemId,
+                100L,
+                10L,
+                5,
+                1000,
+                5000,
+                "비고입니다"
+        );
+
+        when(orderService.getOrderItem(anyLong(), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/order/item/{orderItemId}", orderItemId)
+                        .with(authentication(auth())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.GET_ORDER_ITEM_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.orderItemId").value(orderItemId))
+                .andExpect(jsonPath("$.data.orderId").value(100L))
+                .andExpect(jsonPath("$.data.productId").value(10L));
+    }
+
+    @Test
+    void 발주_아이템_조회시_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long notExistOrderItemId = 9999L;
+
+        when(orderService.getOrderItem(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.ORDER_ITEM_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/order/item/{orderItemId}", notExistOrderItemId)
+                        .with(authentication(auth())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.ORDER_ITEM_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.ORDER_ITEM_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_아이템_조회시_다른_상점의_아이템이면_접근_거부_예외가_발생한다() throws Exception {
+        // given
+        Long orderItemId = 1L;
+
+        when(orderService.getOrderItem(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.ORDER_ITEM_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/order/item/{orderItemId}", orderItemId)
+                        .with(authentication(auth())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.ORDER_ITEM_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.ORDER_ITEM_ACCESS_DENIED.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

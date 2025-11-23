@@ -10,7 +10,8 @@ public record OrderItemResponse(
         Long productId,
         Integer quantity,
         Integer unitPrice,
-        Integer amount
+        Integer amount,
+        String note
 ) {
     public static OrderItemResponse from(OrderItem orderItem) {
         if (orderItem.getOrder() == null || orderItem.getProduct() == null) {
@@ -22,7 +23,8 @@ public record OrderItemResponse(
                 orderItem.getProduct().getId(),
                 orderItem.getQuantity(),
                 orderItem.getUnitPrice(),
-                orderItem.getAmount()
+                orderItem.getAmount(),
+                orderItem.getNote()
         );
     }
 }

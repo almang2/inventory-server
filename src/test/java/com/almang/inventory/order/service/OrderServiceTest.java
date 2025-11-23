@@ -13,6 +13,7 @@ import com.almang.inventory.order.dto.request.CreateOrderItemRequest;
 import com.almang.inventory.order.dto.request.CreateOrderRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderItemRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderRequest;
+import com.almang.inventory.order.dto.response.OrderItemResponse;
 import com.almang.inventory.order.dto.response.OrderResponse;
 import com.almang.inventory.order.repository.OrderRepository;
 import com.almang.inventory.product.domain.Product;
@@ -885,6 +886,88 @@ class OrderServiceTest {
 
         // when & then
         assertThatThrownBy(() -> orderService.updateOrder(order1.orderId(), updateRequest, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.ORDER_ITEM_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 발주_상세_조회에_성공한다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_item_reader");
+        Vendor vendor = newVendor(store, "발주처1");
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        CreateOrderRequest createRequest = new CreateOrderRequest(
+                vendor.getId(),
+                "발주 메시지",
+                3,
+                List.of(new CreateOrderItemRequest(product.getId(), 2, 1000, "비고"))
+        );
+
+        OrderResponse created = orderService.createOrder(createRequest, user.getId());
+        Long orderId = created.orderId();
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow();
+        OrderItem orderItem = order.getItems().get(0);
+        Long orderItemId = orderItem.getId();
+
+        // when
+        OrderItemResponse response = orderService.getOrderItem(orderItemId, user.getId());
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.orderItemId()).isEqualTo(orderItemId);
+        assertThat(response.productId()).isEqualTo(product.getId());
+        assertThat(response.quantity()).isEqualTo(2);
+        assertThat(response.unitPrice()).isEqualTo(1000);
+        assertThat(response.amount()).isEqualTo(2 * 1000);
+        assertThat(response.note()).isEqualTo("비고");
+    }
+
+    @Test
+    void 발주_상세_조회시_발주_항목이_존재하지_않으면_예외가_발생한다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_item_reader");
+        Long notExistOrderItemId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> orderService.getOrderItem(notExistOrderItemId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.ORDER_ITEM_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 발주_상세_조회시_다른_상점의_발주_항목이면_접근_거부_예외가_발생한다() {
+        // given
+        Store store1 = newStore("상점1");
+        Store store2 = newStore("상점2");
+
+        User userOfStore1 = newUser(store1, "user1");
+        User userOfStore2 = newUser(store2, "user2");
+
+        Vendor vendorOfStore2 = newVendor(store2, "상점2 발주처");
+        Product productOfStore2 = newProduct(store2, vendorOfStore2, "상점2 상품", "P999");
+
+        OrderResponse created = orderService.createOrder(
+                new CreateOrderRequest(
+                        vendorOfStore2.getId(),
+                        "상점2 발주",
+                        2,
+                        List.of(new CreateOrderItemRequest(productOfStore2.getId(), 3, 1000, "비고"))
+                ),
+                userOfStore2.getId()
+        );
+
+        Long orderId = created.orderId();
+        Order order2 = orderRepository.findById(orderId)
+                .orElseThrow();
+        Long orderItemId = order2.getItems().get(0).getId();
+
+        // when & then
+        assertThatThrownBy(() -> orderService.getOrderItem(orderItemId, userOfStore1.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.ORDER_ITEM_ACCESS_DENIED.getMessage());
     }

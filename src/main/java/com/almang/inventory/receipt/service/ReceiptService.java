@@ -1,7 +1,9 @@
 package com.almang.inventory.receipt.service;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.global.util.PaginationUtil;
 import com.almang.inventory.order.domain.Order;
 import com.almang.inventory.order.domain.OrderItem;
 import com.almang.inventory.order.domain.OrderStatus;
@@ -16,10 +18,14 @@ import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -78,6 +84,24 @@ public class ReceiptService {
 
         log.info("[ReceiptService] 입고 조회 성공 - receiptId: {}", receipt.getId());
         return ReceiptResponse.from(receipt);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<ReceiptResponse> getReceiptList(
+            Long userId, Long vendorId, Integer page, Integer size,
+            ReceiptStatus status, LocalDate fromDate, LocalDate toDate
+    ) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[ReceiptService] 입고 목록 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
+
+        PageRequest pageable = PaginationUtil.createPageRequest(page, size, "createdAt");
+        Page<Receipt> receiptPage = findReceiptsByFilter(store.getId(), vendorId, status, fromDate, toDate, pageable);
+        Page<ReceiptResponse> mapped = receiptPage.map(ReceiptResponse::from);
+
+        log.info("[ReceiptService] 입고 목록 조회 성공 - userId: {}, storeId: {}", userId, store.getId());
+        return PageResponse.from(mapped);
     }
 
     private List<ReceiptItem> createReceiptItemsFromOrder(Order order) {
@@ -150,5 +174,46 @@ public class ReceiptService {
             throw new BaseException(ErrorCode.RECEIPT_ACCESS_DENIED);
         }
         return receipt;
+    }
+
+    private Page<Receipt> findReceiptsByFilter(
+            Long storeId, Long vendorId, ReceiptStatus status,
+            LocalDate fromDate, LocalDate toDate, Pageable pageable
+    ) {
+
+        LocalDate startDate = fromDate != null ? fromDate : LocalDate.of(1970, 1, 1);
+        LocalDateTime start = startDate.atStartOfDay();
+
+        LocalDate endDate = toDate != null ? toDate : LocalDate.now();
+        LocalDateTime end = endDate.plusDays(1).atStartOfDay().minusNanos(1);
+
+        boolean hasVendor = vendorId != null;
+        boolean hasStatus = status != null;
+
+        // 1) 필터 없음
+        if (!hasVendor && !hasStatus) {
+            return receiptRepository.findAllByStoreIdAndReceiptDateBetween(
+                    storeId, start, end, pageable
+            );
+        }
+
+        // 2) 상태 필터
+        if (!hasVendor) {
+            return receiptRepository.findAllByStoreIdAndStatusAndReceiptDateBetween(
+                    storeId, status, start, end, pageable
+            );
+        }
+
+        // 3) 발주처 필터
+        if (!hasStatus) {
+            return receiptRepository.findAllByStoreIdAndOrderVendorIdAndReceiptDateBetween(
+                    storeId, vendorId, start, end, pageable
+            );
+        }
+
+        // 4) 발주처 + 상태 필터
+        return receiptRepository.findAllByStoreIdAndOrderVendorIdAndStatusAndReceiptDateBetween(
+                storeId, vendorId, status, start, end, pageable
+        );
     }
 }

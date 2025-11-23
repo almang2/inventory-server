@@ -1,5 +1,6 @@
 package com.almang.inventory.receipt.controller;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -7,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.config.TestSecurityConfig;
 import com.almang.inventory.global.exception.BaseException;
@@ -393,6 +395,104 @@ class ReceiptControllerTest {
         mockMvc.perform(get("/api/v1/receipt/{receiptId}", receiptId)
                         .with(authentication(auth()))
                         .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_목록_조회에_성공한다() throws Exception {
+        // given
+        ReceiptItemResponse item1 = new ReceiptItemResponse(
+                1001L, 1L, 101L,
+                null, null,
+                BigDecimal.valueOf(5),
+                null, 5000, null,
+                "비고1"
+        );
+
+        ReceiptItemResponse item2 = new ReceiptItemResponse(
+                1002L, 1L, 102L,
+                null, null,
+                BigDecimal.valueOf(3),
+                null, 3000, null,
+                "비고2"
+        );
+
+        ReceiptResponse r1 = new ReceiptResponse(
+                1L, 10L, 100L,
+                LocalDate.now(),
+                0,
+                null,
+                ReceiptStatus.PENDING,
+                true,
+                List.of(item1)
+        );
+
+        ReceiptResponse r2 = new ReceiptResponse(
+                2L, 10L, 101L,
+                LocalDate.now(),
+                0,
+                null,
+                ReceiptStatus.PENDING,
+                true,
+                List.of(item2)
+        );
+
+        PageResponse<ReceiptResponse> pageResponse = new PageResponse<>(
+                List.of(r1, r2),
+                1,
+                20,
+                2L,
+                1,
+                true
+        );
+
+        when(receiptService.getReceiptList(anyLong(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(pageResponse);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/receipt")
+                        .param("page", "1")
+                        .param("size", "20")
+                        .with(authentication(auth())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.GET_RECEIPT_LIST_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.totalElements").value(2))
+                .andExpect(jsonPath("$.data.content[0].receiptId").value(1))
+                .andExpect(jsonPath("$.data.content[1].receiptId").value(2));
+    }
+
+    @Test
+    void 입고_목록_조회시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        when(receiptService.getReceiptList(anyLong(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/receipt")
+                        .param("page", "1")
+                        .param("size", "20")
+                        .with(authentication(auth())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_목록_조회시_상점_접근_권한이_없으면_예외가_발생한다() throws Exception {
+        // given
+        when(receiptService.getReceiptList(anyLong(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new BaseException(ErrorCode.RECEIPT_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/receipt")
+                        .param("page", "1")
+                        .param("size", "20")
+                        .with(authentication(auth())))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_ACCESS_DENIED.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ACCESS_DENIED.getMessage()))

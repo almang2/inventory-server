@@ -1,11 +1,15 @@
 package com.almang.inventory.receipt.controller;
 
 import com.almang.inventory.global.api.ApiResponse;
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
+import com.almang.inventory.receipt.domain.ReceiptStatus;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
 import com.almang.inventory.receipt.service.ReceiptService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
@@ -67,4 +72,25 @@ public class ReceiptController {
         );
     }
 
+    @GetMapping
+    @Operation(summary = "입고 목록 조회", description = "입고 목록을 페이지네이션, 발주처, 상태, 날짜 검색 조건과 함께 조회합니다.")
+    public ResponseEntity<ApiResponse<PageResponse<ReceiptResponse>>> getOrderList(
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size,
+            @RequestParam(value = "vendorId", required = false) Long vendorId,
+            @RequestParam(value = "receiptStatus", required = false) ReceiptStatus status,
+            @RequestParam(value = "fromDate", required = false) LocalDate fromDate,
+            @RequestParam(value = "endDate", required = false) LocalDate toDate
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[ReceiptController] 입고 목록 조회 요청 - userId: {}, page: {}, size: {}, vendorId: {}, status: {}, fromDate: {}, endDate: {}",
+                userId, page, size, vendorId, status, fromDate, toDate);
+        PageResponse<ReceiptResponse> response =
+                receiptService.getReceiptList(userId, page, size, vendorId, status, fromDate, toDate);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.GET_RECEIPT_LIST_SUCCESS.getMessage(), response)
+        );
+    }
 }

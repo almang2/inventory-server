@@ -88,7 +88,7 @@ public class ReceiptService {
 
     @Transactional(readOnly = true)
     public PageResponse<ReceiptResponse> getReceiptList(
-            Long userId, Long vendorId, Integer page, Integer size,
+            Long userId, Integer page, Integer size, Long vendorId,
             ReceiptStatus status, LocalDate fromDate, LocalDate toDate
     ) {
         User user = findUserById(userId);

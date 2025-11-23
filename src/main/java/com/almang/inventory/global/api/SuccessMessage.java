@@ -51,6 +51,7 @@ public enum SuccessMessage {
     CREATE_RECEIPT_FROM_ORDER_SUCCESS("발주 기반 입고 생성 성공"),
     GET_RECEIPT_FROM_ORDER_SUCCESS("발주 기반 입고 조회 성공"),
     GET_RECEIPT_SUCCESS("입고 조회 성공"),
+    GET_RECEIPT_LIST_SUCCESS("입고 목록 조회 성공"),
     ;
 
     private final String message;

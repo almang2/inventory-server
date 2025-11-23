@@ -272,7 +272,6 @@ class ReceiptServiceTest {
         User user = newUser(store, "testerB");
         Vendor vendor = newVendor(store, "발주처B");
 
-        // 발주만 존재 (입고는 생성하지 않음)
         Order order = newOrderWithItems(store, vendor);
 
         // when & then
@@ -387,5 +386,44 @@ class ReceiptServiceTest {
         assertThatThrownBy(() -> receiptService.getReceipt(anyReceiptId, notExistUserId))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 입고_조회시_다른_상점의_입고면_접근_거부_예외가_발생한다() {
+        // given
+        Store store1 = newStore("상점1");
+        Store store2 = newStore("상점2");
+
+        User user1 = newUser(store1, "user1");
+        Vendor vendor2 = newVendor(store2, "발주처2");
+
+        Order orderOfStore2 = newOrderWithItems(store2, vendor2);
+
+        Receipt receiptOfStore2 = Receipt.builder()
+                .store(store2)
+                .order(orderOfStore2)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(0)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+
+        for (OrderItem orderItem : orderOfStore2.getItems()) {
+            ReceiptItem item = ReceiptItem.builder()
+                    .product(orderItem.getProduct())
+                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .amount(orderItem.getAmount())
+                    .unitPrice(orderItem.getUnitPrice())
+                    .build();
+            receiptOfStore2.addItem(item);
+        }
+
+        receiptRepository.save(receiptOfStore2);
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.getReceipt(receiptOfStore2.getId(), user1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_ACCESS_DENIED.getMessage());
     }
 }

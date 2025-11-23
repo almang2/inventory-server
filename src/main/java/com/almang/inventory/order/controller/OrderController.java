@@ -8,6 +8,7 @@ import com.almang.inventory.order.domain.OrderStatus;
 import com.almang.inventory.order.dto.request.CreateOrderRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderItemRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderRequest;
+import com.almang.inventory.order.dto.response.DeleteOrderResponse;
 import com.almang.inventory.order.dto.response.OrderItemResponse;
 import com.almang.inventory.order.dto.response.OrderResponse;
 import com.almang.inventory.order.service.OrderService;
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -102,6 +104,21 @@ public class OrderController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.UPDATE_ORDER_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @DeleteMapping("/{orderId}")
+    @Operation(summary = "발주 삭제", description = "발주를 삭제합니다.")
+    public ResponseEntity<ApiResponse<DeleteOrderResponse>> deleteOrder(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[OrderController] 발주 삭제 요청 - orderId: {}, userId: {}", orderId, userId);
+        DeleteOrderResponse response = orderService.deleteOrder(orderId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.DELETE_ORDER_SUCCESS.getMessage(), response)
         );
     }
 

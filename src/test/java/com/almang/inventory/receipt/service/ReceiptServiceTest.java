@@ -13,6 +13,7 @@ import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.domain.ProductUnit;
 import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.receipt.domain.Receipt;
+import com.almang.inventory.receipt.domain.ReceiptItem;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
 import com.almang.inventory.receipt.repository.ReceiptRepository;
@@ -25,6 +26,7 @@ import com.almang.inventory.vendor.domain.Vendor;
 import com.almang.inventory.vendor.domain.VendorChannel;
 import com.almang.inventory.vendor.repository.VendorRepository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -220,5 +222,101 @@ class ReceiptServiceTest {
         assertThatThrownBy(() -> receiptService.createReceiptFromOrder(order.getId(), user.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.RECEIPT_CREATION_NOT_ALLOWED_FROM_ORDER.getMessage());
+    }
+
+    @Test
+    void 발주기반_입고_조회에_성공한다() {
+        // given
+        Store store = newStore("상점A");
+        User user = newUser(store, "testerA");
+        Vendor vendor = newVendor(store, "발주처A");
+
+        Order order = newOrderWithItems(store, vendor);
+
+        Receipt receipt = Receipt.builder()
+                .store(store)
+                .order(order)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(0)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+
+        for (OrderItem orderItem : order.getItems()) {
+            ReceiptItem item = ReceiptItem.builder()
+                    .product(orderItem.getProduct())
+                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .amount(orderItem.getAmount())
+                    .unitPrice(orderItem.getUnitPrice())
+                    .build();
+            receipt.addItem(item);
+        }
+
+        receiptRepository.save(receipt);
+
+        // when
+        ReceiptResponse response = receiptService.getReceiptFromOrder(order.getId(), user.getId());
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.orderId()).isEqualTo(order.getId());
+        assertThat(response.storeId()).isEqualTo(store.getId());
+        assertThat(response.receiptItems()).hasSize(2);
+    }
+
+    @Test
+    void 입고_조회시_입고가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Store store = newStore("상점B");
+        User user = newUser(store, "testerB");
+        Vendor vendor = newVendor(store, "발주처B");
+
+        // 발주만 존재 (입고는 생성하지 않음)
+        Order order = newOrderWithItems(store, vendor);
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.getReceiptFromOrder(order.getId(), user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 입고_조회시_다른_상점의_발주면_접근_거부_예외가_발생한다() {
+        // given
+        Store store1 = newStore("상점1");
+        Store store2 = newStore("상점2");
+
+        User user1 = newUser(store1, "user1");
+        Vendor vendor2 = newVendor(store2, "발주처2");
+
+        Order orderOfStore2 = newOrderWithItems(store2, vendor2);
+
+        Receipt receipt = Receipt.builder()
+                .store(store2)
+                .order(orderOfStore2)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(0)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        receiptRepository.save(receipt);
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.getReceiptFromOrder(orderOfStore2.getId(), user1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.ORDER_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 입고_조회시_사용자가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Long notExistUserId = 9999L;
+        Long anyOrderId = 1L;
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.getReceiptFromOrder(anyOrderId, notExistUserId))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
     }
 }

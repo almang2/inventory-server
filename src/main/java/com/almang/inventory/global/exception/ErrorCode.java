@@ -47,6 +47,7 @@ public enum ErrorCode {
 
     // RECEIPT
     RECEIPT_CREATION_NOT_ALLOWED_FROM_ORDER(HttpStatus.BAD_REQUEST, "해당 발주 상태에서는 입고를 생성할 수 없습니다."),
+    RECEIPT_NOT_FOUND(HttpStatus.NOT_FOUND, "입고를 찾을 수 없습니다."),
     ;
 
     private final HttpStatus httpStatus;

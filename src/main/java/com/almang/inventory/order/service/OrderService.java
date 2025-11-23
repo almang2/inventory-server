@@ -129,6 +129,21 @@ public class OrderService {
         return OrderItemResponse.from(orderItem);
     }
 
+    @Transactional
+    public OrderItemResponse updateOrderItem(Long orderItemId, UpdateOrderItemRequest request, Long userId) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[OrderService] 발주 아이템 수정 요청 - userId: {}, storeId: {}", userId, store.getId());
+        OrderItem orderItem = findOrderItemById(orderItemId);
+        validateOrderItemAccess(orderItem, store);
+
+        orderItem.update(request.quantity(), request.unitPrice(), request.note());
+
+        log.info("[OrderService] 발주 아이템 수정 성공 - orderItemId: {}", orderItem.getId());
+        return OrderItemResponse.from(orderItem);
+    }
+
     private List<OrderItem> createOrderItems(List<CreateOrderItemRequest> requests, Store store) {
         List<OrderItem> items = new ArrayList<>();
 

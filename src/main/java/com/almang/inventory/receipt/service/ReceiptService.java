@@ -74,7 +74,7 @@ public class ReceiptService {
         Store store = user.getStore();
 
         log.info("[ReceiptService] 입고 조회 요청 - userId: {}, storeId: {}", user.getId(), store.getId());
-        Receipt receipt = findReceiptById(receiptId);
+        Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
 
         log.info("[ReceiptService] 입고 조회 성공 - receiptId: {}", receipt.getId());
         return ReceiptResponse.from(receipt);
@@ -142,8 +142,13 @@ public class ReceiptService {
                 .orElseThrow(() -> new BaseException(ErrorCode.RECEIPT_NOT_FOUND));
     }
 
-    private Receipt findReceiptById(Long receiptId) {
-        return receiptRepository.findById(receiptId)
+    private Receipt findReceiptByIdAndValidateAccess(Long receiptId, Store store) {
+        Receipt receipt =  receiptRepository.findById(receiptId)
                 .orElseThrow(() -> new BaseException(ErrorCode.RECEIPT_NOT_FOUND));
+
+        if (!receipt.getStore().getId().equals(store.getId())) {
+            throw new BaseException(ErrorCode.RECEIPT_ACCESS_DENIED);
+        }
+        return receipt;
     }
 }

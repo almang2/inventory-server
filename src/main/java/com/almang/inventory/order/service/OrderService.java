@@ -9,13 +9,14 @@ import com.almang.inventory.order.domain.OrderItem;
 import com.almang.inventory.order.domain.OrderStatus;
 import com.almang.inventory.order.dto.request.CreateOrderItemRequest;
 import com.almang.inventory.order.dto.request.CreateOrderRequest;
+import com.almang.inventory.order.dto.request.UpdateOrderItemRequest;
+import com.almang.inventory.order.dto.request.UpdateOrderRequest;
 import com.almang.inventory.order.dto.response.OrderResponse;
 import com.almang.inventory.order.repository.OrderItemRepository;
 import com.almang.inventory.order.repository.OrderRepository;
 import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.store.domain.Store;
-import com.almang.inventory.store.repository.StoreRepository;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
 import com.almang.inventory.vendor.domain.Vendor;
@@ -41,6 +42,7 @@ public class OrderService {
     private final UserRepository userRepository;
     private final VendorRepository vendorRepository;
     private final ProductRepository productRepository;
+    private final OrderItemRepository orderItemRepository;
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request, Long userId) {
@@ -90,6 +92,27 @@ public class OrderService {
 
         log.info("[OrderService] 발주 목록 조회 성공 - userId: {}, storeId: {}", userId, store.getId());
         return PageResponse.from(mapped);
+    }
+
+    @Transactional
+    public OrderResponse updateOrder(Long orderId, UpdateOrderRequest request, Long userId) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[OrderService] 발주 수정 요청 - userId: {}, storeId: {}", userId, store.getId());
+        Order order = findOrderByIdAndValidateAccess(orderId, store);
+
+        // 발주 업데이트 유효성 검증
+        order.validateVendorNotChanged(request.vendorId());
+
+        // 발주 정보 업데이트
+        updateOrderBasicInfo(order, request);
+
+        // 발주 상세 항목 업데이트
+        updateOrderItems(order, request);
+
+        log.info("[OrderService] 발주 수정 성공 - orderId: {}", order.getId());
+        return OrderResponse.of(order, order.getItems());
     }
 
     private List<OrderItem> createOrderItems(List<CreateOrderItemRequest> requests, Store store) {
@@ -181,6 +204,16 @@ public class OrderService {
         return order;
     }
 
+    private OrderItem findOrderItemByIdAndValidateAccess(Long orderItemId, Order order) {
+        OrderItem orderItem = orderItemRepository.findById(orderItemId)
+                .orElseThrow(() -> new BaseException(ErrorCode.ORDER_ITEM_NOT_FOUND));
+
+        if (!orderItem.getOrder().getId().equals(order.getId())) {
+            throw new BaseException(ErrorCode.ORDER_ITEM_ACCESS_DENIED);
+        }
+        return orderItem;
+    }
+
     private Page<Order> findOrdersByFilter(
             Long storeId, Long vendorId, OrderStatus status, LocalDate fromDate, LocalDate toDate, Pageable pageable
     ) {
@@ -218,5 +251,23 @@ public class OrderService {
         return orderRepository.findAllByStoreIdAndVendorIdAndStatusAndCreatedAtBetween(
                 storeId, vendorId, status, start, end, pageable
         );
+    }
+
+    private void updateOrderBasicInfo(Order order, UpdateOrderRequest request) {
+        order.updateStatus(request.orderStatus());
+        order.updateMessageAndActivated(request.orderMessage(), request.activated());
+        order.updateSchedule(request.leadTime(), request.quoteReceivedAt(), request.depositConfirmedAt());
+    }
+
+    private void updateOrderItems(Order order, UpdateOrderRequest request) {
+        if (request.orderItems() == null) {
+            return;
+        }
+
+        for (UpdateOrderItemRequest orderItemRequest : request.orderItems()) {
+            OrderItem orderItem = findOrderItemByIdAndValidateAccess(orderItemRequest.orderItemId(), order);
+            orderItem.update(orderItemRequest.quantity(), orderItemRequest.unitPrice(), orderItemRequest.note());
+        }
+        order.updateTotalPrice(calculateTotalPrice(order.getItems()));
     }
 }

@@ -558,10 +558,8 @@ class OrderControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.status")
-                        .value(ErrorCode.VENDOR_CHANGE_NOT_ALLOWED.getHttpStatus().value()))
-                .andExpect(jsonPath("$.message")
-                        .value(ErrorCode.VENDOR_CHANGE_NOT_ALLOWED.getMessage()))
+                .andExpect(jsonPath("$.status").value(ErrorCode.VENDOR_CHANGE_NOT_ALLOWED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.VENDOR_CHANGE_NOT_ALLOWED.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 
@@ -588,8 +586,7 @@ class OrderControllerTest {
                         .with(authentication(auth())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
-                .andExpect(jsonPath("$.message")
-                        .value(SuccessMessage.GET_ORDER_ITEM_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.GET_ORDER_ITEM_SUCCESS.getMessage()))
                 .andExpect(jsonPath("$.data.orderItemId").value(orderItemId))
                 .andExpect(jsonPath("$.data.orderId").value(100L))
                 .andExpect(jsonPath("$.data.productId").value(10L));
@@ -607,10 +604,8 @@ class OrderControllerTest {
         mockMvc.perform(get("/api/v1/order/item/{orderItemId}", notExistOrderItemId)
                         .with(authentication(auth())))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.status")
-                        .value(ErrorCode.ORDER_ITEM_NOT_FOUND.getHttpStatus().value()))
-                .andExpect(jsonPath("$.message")
-                        .value(ErrorCode.ORDER_ITEM_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.status").value(ErrorCode.ORDER_ITEM_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.ORDER_ITEM_NOT_FOUND.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 
@@ -626,10 +621,105 @@ class OrderControllerTest {
         mockMvc.perform(get("/api/v1/order/item/{orderItemId}", orderItemId)
                         .with(authentication(auth())))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.status")
-                        .value(ErrorCode.ORDER_ITEM_ACCESS_DENIED.getHttpStatus().value()))
-                .andExpect(jsonPath("$.message")
-                        .value(ErrorCode.ORDER_ITEM_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.status").value(ErrorCode.ORDER_ITEM_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.ORDER_ITEM_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_아이템_수정에_성공한다() throws Exception {
+        // given
+        Long orderItemId = 1L;
+
+        UpdateOrderItemRequest request = new UpdateOrderItemRequest(
+                orderItemId,
+                10L,
+                5,
+                1000,
+                "수정된 비고"
+        );
+
+        OrderItemResponse response = new OrderItemResponse(
+                orderItemId,
+                100L,
+                10L,
+                5,
+                1000,
+                5000,
+                "수정된 비고"
+        );
+
+        when(orderService.updateOrderItem(anyLong(), any(UpdateOrderItemRequest.class), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/order/item/{orderItemId}", orderItemId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.UPDATE_ORDER_ITEM_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.orderItemId").value(orderItemId))
+                .andExpect(jsonPath("$.data.orderId").value(100L))
+                .andExpect(jsonPath("$.data.productId").value(10L))
+                .andExpect(jsonPath("$.data.quantity").value(5))
+                .andExpect(jsonPath("$.data.unitPrice").value(1000))
+                .andExpect(jsonPath("$.data.amount").value(5000))
+                .andExpect(jsonPath("$.data.note").value("수정된 비고"));
+    }
+
+    @Test
+    void 발주_아이템_수정시_발주_항목이_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long notExistOrderItemId = 9999L;
+
+        UpdateOrderItemRequest request = new UpdateOrderItemRequest(
+                notExistOrderItemId,
+                10L,
+                5,
+                1000,
+                "수정된 비고"
+        );
+
+        when(orderService.updateOrderItem(anyLong(), any(UpdateOrderItemRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.ORDER_ITEM_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/order/item/{orderItemId}", notExistOrderItemId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.ORDER_ITEM_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.ORDER_ITEM_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_아이템_수정시_다른_상점의_아이템이면_접근_거부_예외가_발생한다() throws Exception {
+        // given
+        Long orderItemId = 1L;
+
+        UpdateOrderItemRequest request = new UpdateOrderItemRequest(
+                orderItemId,
+                10L,
+                5,
+                1000,
+                "수정된 비고"
+        );
+
+        when(orderService.updateOrderItem(anyLong(), any(UpdateOrderItemRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.ORDER_ITEM_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/order/item/{orderItemId}", orderItemId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(ErrorCode.ORDER_ITEM_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.ORDER_ITEM_ACCESS_DENIED.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

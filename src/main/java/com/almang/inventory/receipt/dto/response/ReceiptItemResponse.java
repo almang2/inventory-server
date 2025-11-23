@@ -10,7 +10,7 @@ public record ReceiptItemResponse(
         Integer boxCount,
         BigDecimal measuredWeight,
         BigDecimal expectedQuantity,
-        BigDecimal actualQuantity,
+        Integer actualQuantity,
         Integer amount,
         BigDecimal errorRate,
         String note
@@ -23,7 +23,7 @@ public record ReceiptItemResponse(
                 receiptItem.getBoxCount(),
                 receiptItem.getMeasuredWeight(),
                 receiptItem.getExpectedQuantity(),
-                receiptItem.getExpectedQuantity(),
+                receiptItem.getActualQuantity(),
                 receiptItem.getAmount(),
                 receiptItem.getErrorRate(),
                 receiptItem.getNote()

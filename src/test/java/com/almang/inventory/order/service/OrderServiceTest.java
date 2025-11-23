@@ -3,6 +3,7 @@ package com.almang.inventory.order.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.order.domain.Order;
@@ -411,5 +412,197 @@ class OrderServiceTest {
         assertThatThrownBy(() -> orderService.getOrder(orderId, userOfStore1.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.ORDER_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 발주_목록_조회_기본_조회에_성공한다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_list_user");
+        Vendor vendor = newVendor(store, "발주처1");
+
+        Product p1 = newProduct(store, vendor, "상품1", "P001");
+        Product p2 = newProduct(store, vendor, "상품2", "P002");
+
+        CreateOrderRequest req1 = new CreateOrderRequest(
+                vendor.getId(),
+                "메시지1",
+                1,
+                List.of(new CreateOrderItemRequest(p1.getId(), 5, 1000, null))
+        );
+        orderService.createOrder(req1, user.getId());
+
+        CreateOrderRequest req2 = new CreateOrderRequest(
+                vendor.getId(),
+                "메시지2",
+                2,
+                List.of(new CreateOrderItemRequest(p2.getId(), 3, 2000, null))
+        );
+        orderService.createOrder(req2, user.getId());
+
+        // when
+        PageResponse<OrderResponse> page = orderService.getOrderList(
+                user.getId(),
+                null,
+                1,
+                20,
+                null,
+                null,
+                null
+        );
+
+        // then
+        assertThat(page.totalElements()).isEqualTo(2);
+        assertThat(page.content()).hasSize(2);
+
+        OrderResponse first = page.content().get(0);
+        OrderResponse second = page.content().get(1);
+
+        assertThat(first.orderMessage()).isEqualTo("메시지1");
+        assertThat(second.orderMessage()).isEqualTo("메시지2");
+    }
+
+    @Test
+    void 발주_목록_조회시_발주처로_필터링된다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_list_user");
+        Vendor vendorA = newVendor(store, "A발주처");
+        Vendor vendorB = newVendor(store, "B발주처");
+
+        Product p1 = newProduct(store, vendorA, "상품1", "P001");
+        Product p2 = newProduct(store, vendorB, "상품2", "P002");
+
+        orderService.createOrder(
+                new CreateOrderRequest(
+                        vendorA.getId(), "A 요청", 1,
+                        List.of(new CreateOrderItemRequest(p1.getId(), 5, 1000, null))
+                ),
+                user.getId()
+        );
+        orderService.createOrder(
+                new CreateOrderRequest(
+                        vendorB.getId(), "B 요청", 1,
+                        List.of(new CreateOrderItemRequest(p2.getId(), 3, 2000, null))
+                ),
+                user.getId()
+        );
+
+        // when
+        PageResponse<OrderResponse> page = orderService.getOrderList(
+                user.getId(),
+                vendorA.getId(),
+                1,
+                20,
+                null,
+                null,
+                null
+        );
+
+        // then
+        assertThat(page.totalElements()).isEqualTo(1);
+        assertThat(page.content()).hasSize(1);
+
+        OrderResponse first = page.content().get(0);
+        assertThat(first.vendorId()).isEqualTo(vendorA.getId());
+        assertThat(first.orderMessage()).isEqualTo("A 요청");
+    }
+
+    @Test
+    void 발주_목록_조회시_상태로_필터링된다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_list_user");
+        Vendor vendor = newVendor(store, "발주처1");
+
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        orderService.createOrder(
+                new CreateOrderRequest(
+                        vendor.getId(), "REQUEST 메시지", 1,
+                        List.of(new CreateOrderItemRequest(product.getId(), 1, 1000, null))
+                ),
+                user.getId()
+        );
+        Order saved = orderRepository.save(
+                Order.builder()
+                        .store(store)
+                        .vendor(vendor)
+                        .status(OrderStatus.IN_PRODUCTION)
+                        .orderMessage("IN PRODUCTION 메시지")
+                        .leadTime(1)
+                        .expectedArrival(LocalDate.now().plusDays(1))
+                        .activated(true)
+                        .totalPrice(3000)
+                        .build()
+        );
+
+        // when
+        PageResponse<OrderResponse> page = orderService.getOrderList(
+                user.getId(),
+                null,
+                1,
+                20,
+                OrderStatus.REQUEST,
+                null,
+                null
+        );
+
+        // then
+        assertThat(page.totalElements()).isEqualTo(1);
+        assertThat(page.content()).hasSize(1);
+
+        OrderResponse first = page.content().get(0);
+        assertThat(first.orderStatus()).isEqualTo(OrderStatus.REQUEST);
+        assertThat(first.orderMessage()).isEqualTo("REQUEST 메시지");
+    }
+
+    @Test
+    void 발주_목록_조회시_날짜_필터링_적용된다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_list_user");
+        Vendor vendor = newVendor(store, "발주처1");
+        Product product = newProduct(store, vendor, "상품", "P001");
+
+        orderService.createOrder(
+                new CreateOrderRequest(
+                        vendor.getId(), "오늘 발주", 1,
+                        List.of(new CreateOrderItemRequest(product.getId(), 1, 1000, null))
+                ),
+                user.getId()
+        );
+
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+
+        // when
+        PageResponse<OrderResponse> page = orderService.getOrderList(
+                user.getId(),
+                null,
+                1,
+                20,
+                null,
+                yesterday,
+                null
+        );
+
+        // then
+        assertThat(page.totalElements()).isEqualTo(1);
+        assertThat(page.content()).hasSize(1);
+
+        OrderResponse first = page.content().get(0);
+        assertThat(first.orderMessage()).isEqualTo("오늘 발주");
+    }
+
+    @Test
+    void 발주_목록_조회시_사용자가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Long notExistUserId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> orderService.getOrderList(
+                notExistUserId, null, 1, 20, null, null, null))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
     }
 }

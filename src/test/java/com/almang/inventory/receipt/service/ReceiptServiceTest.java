@@ -3,6 +3,7 @@ package com.almang.inventory.receipt.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.order.domain.Order;
@@ -425,5 +426,212 @@ class ReceiptServiceTest {
         assertThatThrownBy(() -> receiptService.getReceipt(receiptOfStore2.getId(), user1.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.RECEIPT_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 입고_목록_조회시_필터없이_해당_상점_입고만_반환한다() {
+        // given
+        Store store = newStore("상점_리스트");
+        User user = newUser(store, "listUser");
+        Vendor vendor1 = newVendor(store, "발주처1");
+        Vendor vendor2 = newVendor(store, "발주처2");
+
+        Order order1 = newOrderWithItems(store, vendor1);
+        Receipt receipt1 = Receipt.builder()
+                .store(store)
+                .order(order1)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(1)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        for (OrderItem orderItem : order1.getItems()) {
+            ReceiptItem item = ReceiptItem.builder()
+                    .product(orderItem.getProduct())
+                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .amount(orderItem.getAmount())
+                    .unitPrice(orderItem.getUnitPrice())
+                    .build();
+            receipt1.addItem(item);
+        }
+        receiptRepository.save(receipt1);
+
+        Order order2 = newOrderWithItems(store, vendor2);
+        Receipt receipt2 = Receipt.builder()
+                .store(store)
+                .order(order2)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(2)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        for (OrderItem orderItem : order2.getItems()) {
+            ReceiptItem item = ReceiptItem.builder()
+                    .product(orderItem.getProduct())
+                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .amount(orderItem.getAmount())
+                    .unitPrice(orderItem.getUnitPrice())
+                    .build();
+            receipt2.addItem(item);
+        }
+        receiptRepository.save(receipt2);
+
+        Store otherStore = newStore("다른상점");
+        Vendor otherVendor = newVendor(otherStore, "다른발주처");
+        Order otherOrder = newOrderWithItems(otherStore, otherVendor);
+        Receipt otherReceipt = Receipt.builder()
+                .store(otherStore)
+                .order(otherOrder)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(1)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        receiptRepository.save(otherReceipt);
+
+        // when
+        PageResponse<ReceiptResponse> response = receiptService.getReceiptList(
+                user.getId(),
+                0,
+                10,
+                null,
+                null,
+                null,
+                null
+        );
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.content()).hasSize(2);
+        assertThat(response.content())
+                .extracting(ReceiptResponse::storeId)
+                .containsOnly(store.getId());
+        assertThat(response.content())
+                .extracting(ReceiptResponse::receiptId)
+                .containsExactlyInAnyOrder(receipt1.getId(), receipt2.getId());
+    }
+
+    @Test
+    void 입고_목록_조회시_발주처_필터를_적용할_수_있다() {
+        // given
+        Store store = newStore("상점_발주처필터");
+        User user = newUser(store, "vendorFilterUser");
+        Vendor vendor1 = newVendor(store, "필터발주처");
+        Vendor vendor2 = newVendor(store, "다른발주처");
+
+        Order order1 = newOrderWithItems(store, vendor1);
+        Receipt receipt1 = Receipt.builder()
+                .store(store)
+                .order(order1)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(1)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        for (OrderItem orderItem : order1.getItems()) {
+            ReceiptItem item = ReceiptItem.builder()
+                    .product(orderItem.getProduct())
+                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .amount(orderItem.getAmount())
+                    .unitPrice(orderItem.getUnitPrice())
+                    .build();
+            receipt1.addItem(item);
+        }
+        receiptRepository.save(receipt1);
+
+        Order order2 = newOrderWithItems(store, vendor2);
+        Receipt receipt2 = Receipt.builder()
+                .store(store)
+                .order(order2)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(1)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        for (OrderItem orderItem : order2.getItems()) {
+            ReceiptItem item = ReceiptItem.builder()
+                    .product(orderItem.getProduct())
+                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .amount(orderItem.getAmount())
+                    .unitPrice(orderItem.getUnitPrice())
+                    .build();
+            receipt2.addItem(item);
+        }
+        receiptRepository.save(receipt2);
+
+        // when
+        PageResponse<ReceiptResponse> response = receiptService.getReceiptList(
+                user.getId(),
+                0,
+                10,
+                vendor1.getId(),
+                null,
+                null,
+                null
+        );
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.content()).hasSize(1);
+        ReceiptResponse only = response.content().get(0);
+        assertThat(only.receiptId()).isEqualTo(receipt1.getId());
+        assertThat(only.orderId()).isEqualTo(order1.getId());
+    }
+
+    @Test
+    void 입고_목록_조회시_기간_필터를_적용할_수_있다() {
+        // given
+        Store store = newStore("상점_기간필터");
+        User user = newUser(store, "dateFilterUser");
+        Vendor vendor = newVendor(store, "발주처");
+
+        Order oldOrder = newOrderWithItems(store, vendor);
+        Receipt oldReceipt = Receipt.builder()
+                .store(store)
+                .order(oldOrder)
+                .receiptDate(LocalDate.now().minusDays(7))
+                .totalBoxCount(1)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        receiptRepository.save(oldReceipt);
+
+        Order recentOrder = newOrderWithItems(store, vendor);
+        Receipt recentReceipt = Receipt.builder()
+                .store(store)
+                .order(recentOrder)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(1)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        receiptRepository.save(recentReceipt);
+
+        LocalDate fromDate = LocalDate.now().minusDays(1);
+        LocalDate toDate = LocalDate.now();
+
+        // when
+        PageResponse<ReceiptResponse> response = receiptService.getReceiptList(
+                user.getId(),
+                0,
+                10,
+                null,
+                null,
+                fromDate,
+                toDate
+        );
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.content()).hasSize(1);
+        ReceiptResponse only = response.content().get(0);
+        assertThat(only.receiptId()).isEqualTo(recentReceipt.getId());
     }
 }

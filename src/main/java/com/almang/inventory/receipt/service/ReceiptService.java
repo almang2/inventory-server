@@ -248,11 +248,11 @@ public class ReceiptService {
     }
 
     private void updateReceiptItems(Receipt receipt, UpdateReceiptRequest request) {
-        if (request.orderItems() == null) {
+        if (request.receiptItems() == null) {
             return;
         }
 
-        for (UpdateReceiptItemRequest receiptItemRequest : request.orderItems()) {
+        for (UpdateReceiptItemRequest receiptItemRequest : request.receiptItems()) {
             ReceiptItem receiptItem = findReceiptItemByIdAndValidateAccess(receiptItemRequest.receiptItemId(), receipt);
             receiptItem.update(
                     receiptItemRequest.boxCount(), receiptItemRequest.measuredWeight(),

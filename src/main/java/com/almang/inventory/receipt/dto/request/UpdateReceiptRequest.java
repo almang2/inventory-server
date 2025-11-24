@@ -12,5 +12,5 @@ public record UpdateReceiptRequest(
         BigDecimal totalWeightG,
         ReceiptStatus status,
         Boolean activated,
-        @Valid List<UpdateReceiptItemRequest> orderItems
+        @Valid List<UpdateReceiptItemRequest> receiptItems
 ) {}

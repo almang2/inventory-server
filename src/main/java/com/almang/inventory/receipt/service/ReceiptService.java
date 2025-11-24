@@ -13,6 +13,7 @@ import com.almang.inventory.receipt.domain.ReceiptItem;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
+import com.almang.inventory.receipt.dto.response.DeleteReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.DeleteReceiptResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
@@ -81,7 +82,7 @@ public class ReceiptService {
         return ReceiptResponse.from(receipt);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public ReceiptResponse getReceipt(Long receiptId, Long userId) {
         User user = findUserById(userId);
         Store store = user.getStore();
@@ -153,7 +154,7 @@ public class ReceiptService {
         log.info("[ReceiptService] 입고 아이템 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
         ReceiptItem receiptItem = findReceiptItemByIdAndValidateStoreAccess(receiptItemId, store);
 
-        log.info("[ReceiptService] 입고 아이템 조회 요청 - receiptId: {}", receiptItem.getId());
+        log.info("[ReceiptService] 입고 아이템 조회 요청 - receiptItemId: {}", receiptItem.getId());
         return ReceiptItemResponse.from(receiptItem);
     }
 
@@ -175,6 +176,22 @@ public class ReceiptService {
 
         log.info("[ReceiptService] 입고 아이템 수정 성공 - receiptItemId: {}", receiptItem.getId());
         return ReceiptItemResponse.from(receiptItem);
+    }
+
+    @Transactional
+    public DeleteReceiptItemResponse deleteReceiptItem(Long receiptItemId, Long userId) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[ReceiptService] 입고 아이템 삭제 요청 - userId: {}, storeId: {}", userId, store.getId());
+        ReceiptItem receiptItem = findReceiptItemByIdAndValidateStoreAccess(receiptItemId, store);
+        Receipt receipt = receiptItem.getReceipt();
+
+        receipt.getItems().remove(receiptItem);
+        receipt.updateTotalBoxCount(calculateTotalBoxCount(receipt.getItems()));
+
+        log.info("[ReceiptService] 입고 아이템 삭제 성공 - receiptItemId: {}", receiptItemId);
+        return new DeleteReceiptItemResponse(true);
     }
 
     private List<ReceiptItem> createReceiptItemsFromOrder(Order order) {

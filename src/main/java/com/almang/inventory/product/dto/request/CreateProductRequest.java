@@ -13,9 +13,9 @@ public record CreateProductRequest(
         @NotBlank String code,
         @NotNull ProductUnit unit,
         BigDecimal boxWeightG,
-        @Positive int unitPerBox,
+        @Positive Integer unitPerBox,
         BigDecimal unitWeightG,
-        @Min(0) int costPrice,
-        @Min(0) int retailPrice,
-        @Min(0) int wholesalePrice
+        @Min(0) Integer costPrice,
+        @Min(0) Integer retailPrice,
+        @Min(0) Integer wholesalePrice
 ) {}

@@ -13,6 +13,7 @@ import com.almang.inventory.receipt.domain.ReceiptItem;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
+import com.almang.inventory.receipt.dto.response.DeleteReceiptResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
 import com.almang.inventory.receipt.repository.ReceiptItemRepository;
 import com.almang.inventory.receipt.repository.ReceiptRepository;
@@ -128,6 +129,19 @@ public class ReceiptService {
 
         log.info("[ReceiptService] 입고 수정 성공 - receiptId: {}", receipt.getId());
         return ReceiptResponse.from(receipt);
+    }
+
+    @Transactional
+    public DeleteReceiptResponse deleteReceipt(Long receiptId, Long userId) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[ReceiptService] 입고 삭제 요청 - userId: {}, storeId: {}", userId, store.getId());
+        Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
+        receipt.deactivate();
+
+        log.info("[ReceiptService] 입고 수정 성공 - receiptId: {}", receipt.getId());
+        return new DeleteReceiptResponse(true);
     }
 
     private List<ReceiptItem> createReceiptItemsFromOrder(Order order) {

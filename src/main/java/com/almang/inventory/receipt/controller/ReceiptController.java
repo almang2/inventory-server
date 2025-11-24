@@ -7,6 +7,7 @@ import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
+import com.almang.inventory.receipt.dto.response.ConfirmReceiptResponse;
 import com.almang.inventory.receipt.dto.response.DeleteReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.DeleteReceiptResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptItemResponse;
@@ -134,6 +135,21 @@ public class ReceiptController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.DELETE_RECEIPT_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @PatchMapping ("/{receiptId}/confirm")
+    @Operation(summary = "입고 확정", description = "입고를 확정합니다.")
+    public ResponseEntity<ApiResponse<ConfirmReceiptResponse>> confirmReceipt(
+            @PathVariable Long receiptId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[ReceiptController] 입고 확정 요청 - userId: {}, receiptId: {}", userId, receiptId);
+        ConfirmReceiptResponse response = receiptService.confirmReceipt(receiptId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.CONFIRM_RECEIPT_SUCCESS.getMessage(), response)
         );
     }
 

@@ -7,6 +7,7 @@ import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
+import com.almang.inventory.receipt.dto.response.DeleteReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.DeleteReceiptResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
@@ -164,6 +165,21 @@ public class ReceiptController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.UPDATE_RECEIPT_ITEM_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @DeleteMapping("/receipt/{receiptItemId}")
+    @Operation(summary = "입고 아이템 삭제", description = "입고 아이템을 삭제합니다.")
+    public ResponseEntity<ApiResponse<DeleteReceiptItemResponse>> deleteReceiptItem(
+            @PathVariable Long receiptItemId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[ReceiptController] 입고 아이템 삭제 요청 - userId: {}, receiptItemId: {}", userId, receiptItemId);
+        DeleteReceiptItemResponse response = receiptService.deleteReceiptItem(receiptItemId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.DELETE_RECEIPT_ITEM_SUCCESS.getMessage(), response)
         );
     }
 }

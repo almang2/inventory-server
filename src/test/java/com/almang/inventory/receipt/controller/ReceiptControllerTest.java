@@ -19,6 +19,7 @@ import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
+import com.almang.inventory.receipt.dto.response.DeleteReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.DeleteReceiptResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
@@ -1078,6 +1079,57 @@ class ReceiptControllerTest {
                         .with(authentication(auth()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_아이템_삭제에_성공한다() throws Exception {
+        // given
+        Long receiptItemId = 1000L;
+
+        when(receiptService.deleteReceiptItem(anyLong(), anyLong()))
+                .thenReturn(new DeleteReceiptItemResponse(true));
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/receipt/receipt/{receiptItemId}", receiptItemId)
+                        .with(authentication(auth())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.DELETE_RECEIPT_ITEM_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.success").value(true));
+    }
+
+    @Test
+    void 입고_아이템_삭제시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long receiptItemId = 1000L;
+
+        when(receiptService.deleteReceiptItem(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/receipt/receipt/{receiptItemId}", receiptItemId)
+                        .with(authentication(auth())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_아이템_삭제시_다른_상점의_아이템이면_접근_거부_예외가_발생한다() throws Exception {
+        // given
+        Long receiptItemId = 1000L;
+
+        when(receiptService.deleteReceiptItem(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/receipt/receipt/{receiptItemId}", receiptItemId)
+                        .with(authentication(auth())))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage()))

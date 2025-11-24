@@ -18,6 +18,7 @@ import com.almang.inventory.receipt.domain.ReceiptItem;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
+import com.almang.inventory.receipt.dto.response.DeleteReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
 import com.almang.inventory.receipt.repository.ReceiptItemRepository;
@@ -716,11 +717,9 @@ class ReceiptServiceTest {
         assertThat(response.orderId()).isEqualTo(order.getId());
         assertThat(response.status()).isEqualTo(ReceiptStatus.CONFIRMED);
         assertThat(response.totalWeightG()).isEqualTo(newTotalWeight);
-        // boxCount 2 + 3 = 5 로 재계산 되었는지
         assertThat(response.totalBoxCount()).isEqualTo(5);
         assertThat(response.receiptItems()).hasSize(2);
 
-        // 실제 엔티티까지 검증
         Receipt updated = receiptRepository.findById(saved.getId())
                 .orElseThrow();
 
@@ -1277,5 +1276,125 @@ class ReceiptServiceTest {
                 receiptService.updateReceiptItem(targetItem.getId(), wrongReq, user.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.RECEIPT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 입고_아이템_삭제에_성공한다() {
+        // given
+        Store store = newStore("아이템삭제상점");
+        User user = newUser(store, "deleteItemUser");
+        Vendor vendor = newVendor(store, "삭제발주처");
+
+        Order order = newOrderWithItems(store, vendor);
+
+        Receipt receipt = Receipt.builder()
+                .store(store)
+                .order(order)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(0)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+
+        ReceiptItem item1 = ReceiptItem.builder()
+                .product(order.getItems().get(0).getProduct())
+                .boxCount(2)
+                .expectedQuantity(BigDecimal.valueOf(order.getItems().get(0).getQuantity()))
+                .amount(order.getItems().get(0).getAmount())
+                .unitPrice(order.getItems().get(0).getUnitPrice())
+                .build();
+
+        ReceiptItem item2 = ReceiptItem.builder()
+                .product(order.getItems().get(1).getProduct())
+                .boxCount(3)
+                .expectedQuantity(BigDecimal.valueOf(order.getItems().get(1).getQuantity()))
+                .amount(order.getItems().get(1).getAmount())
+                .unitPrice(order.getItems().get(1).getUnitPrice())
+                .build();
+
+        receipt.addItem(item1);
+        receipt.addItem(item2);
+        receipt.updateTotalBoxCount(2 + 3);
+
+        Receipt saved = receiptRepository.save(receipt);
+        Long targetItemId = saved.getItems().get(0).getId();
+
+        // when
+        DeleteReceiptItemResponse response = receiptService.deleteReceiptItem(targetItemId, user.getId());
+
+        // then
+        Receipt updated = receiptRepository.findById(saved.getId())
+                .orElseThrow();
+
+        assertThat(updated.getItems())
+                .extracting(ReceiptItem::getId)
+                .doesNotContain(targetItemId);
+        assertThat(updated.getItems()).hasSize(1);
+        assertThat(updated.getTotalBoxCount()).isEqualTo(3);
+        assertThat(response.success()).isTrue();
+    }
+
+    @Test
+    void 입고_아이템_삭제시_사용자가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Long notExistUserId = 9999L;
+        Long anyReceiptItemId = 1L;
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.deleteReceiptItem(anyReceiptItemId, notExistUserId))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 입고_아이템_삭제시_아이템이_존재하지_않으면_예외가_발생한다() {
+        // given
+        Store store = newStore("아이템삭제_아이템없음상점");
+        User user = newUser(store, "noItemDeleteUser");
+        Long notExistReceiptItemId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.deleteReceiptItem(notExistReceiptItemId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_ITEM_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 입고_아이템_삭제시_다른_상점의_아이템이면_접근_거부_예외가_발생한다() {
+        // given
+        Store store1 = newStore("상점1");
+        Store store2 = newStore("상점2");
+
+        User user1 = newUser(store1, "user1");
+        Vendor vendor2 = newVendor(store2, "발주처2");
+
+        Order order2 = newOrderWithItems(store2, vendor2);
+
+        Receipt receiptOfStore2 = Receipt.builder()
+                .store(store2)
+                .order(order2)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(1)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+
+        ReceiptItem itemOfStore2 = ReceiptItem.builder()
+                .product(order2.getItems().get(0).getProduct())
+                .expectedQuantity(BigDecimal.valueOf(order2.getItems().get(0).getQuantity()))
+                .amount(order2.getItems().get(0).getAmount())
+                .unitPrice(order2.getItems().get(0).getUnitPrice())
+                .build();
+        receiptOfStore2.addItem(itemOfStore2);
+
+        Receipt savedReceipt2 = receiptRepository.save(receiptOfStore2);
+        Long targetItemId = savedReceipt2.getItems().get(0).getId();
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.deleteReceiptItem(targetItemId, user1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage());
     }
 }

@@ -4,6 +4,7 @@ import com.almang.inventory.global.entity.BaseTimeEntity;
 import com.almang.inventory.product.domain.Product;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import lombok.*;
 
 @Entity
@@ -16,7 +17,7 @@ public class ReceiptItem extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "receipt_item_id") // ERD 기준: PK 컬럼명 id
+    @Column(name = "receipt_item_id")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -56,13 +57,8 @@ public class ReceiptItem extends BaseTimeEntity {
     }
 
     public void update(
-            Integer boxCount,
-            BigDecimal measuredWeight,
-            BigDecimal expectedQuantity,
-            Integer actualQuantity,
-            Integer unitPrice,
-            BigDecimal errorRate,
-            String note
+            Integer boxCount, BigDecimal measuredWeight, BigDecimal expectedQuantity,
+            Integer actualQuantity, Integer unitPrice, String note
     ) {
         if (boxCount != null) {
             this.boxCount = boxCount;
@@ -79,14 +75,25 @@ public class ReceiptItem extends BaseTimeEntity {
         if (unitPrice != null) {
             this.unitPrice = unitPrice;
         }
-        if (errorRate != null) {
-            this.errorRate = errorRate;
-        }
         if (note != null) {
             this.note = note;
         }
+
         if (this.actualQuantity != null && this.unitPrice != null) {
             this.amount = this.actualQuantity * this.unitPrice;
         }
+        calculateErrorRate();
+    }
+
+    private void calculateErrorRate() {
+        if (expectedQuantity == null || actualQuantity == null || expectedQuantity.compareTo(BigDecimal.ZERO) == 0) {
+            this.errorRate = null;
+            return;
+        }
+
+        BigDecimal actualQuantityToBigDecimal = BigDecimal.valueOf(actualQuantity);
+        this.errorRate = actualQuantityToBigDecimal
+                .subtract(expectedQuantity)
+                .divide(expectedQuantity, 3, RoundingMode.HALF_UP);
     }
 }

@@ -6,6 +6,7 @@ import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
+import com.almang.inventory.receipt.dto.response.DeleteReceiptResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
 import com.almang.inventory.receipt.service.ReceiptService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -114,6 +116,21 @@ public class ReceiptController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.UPDATE_RECEIPT_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @DeleteMapping("/{receiptId}")
+    @Operation(summary = "입고 삭제", description = "입고를 삭제합니다.")
+    public ResponseEntity<ApiResponse<DeleteReceiptResponse>> deleteReceipt(
+            @PathVariable Long receiptId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[ReceiptController] 입고 삭제 요청 - userId: {}, receiptId: {}", userId, receiptId);
+        DeleteReceiptResponse response = receiptService.deleteReceipt(receiptId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.DELETE_RECEIPT_SUCCESS.getMessage(), response)
         );
     }
 }

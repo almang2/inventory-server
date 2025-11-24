@@ -13,6 +13,7 @@ import com.almang.inventory.receipt.domain.ReceiptItem;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
+import com.almang.inventory.receipt.dto.response.ConfirmReceiptResponse;
 import com.almang.inventory.receipt.dto.response.DeleteReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.DeleteReceiptResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptItemResponse;
@@ -144,6 +145,19 @@ public class ReceiptService {
 
         log.info("[ReceiptService] 입고 삭제 성공 - receiptId: {}", receipt.getId());
         return new DeleteReceiptResponse(true);
+    }
+
+    @Transactional
+    public ConfirmReceiptResponse confirmReceipt(Long receiptId, Long userId) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[ReceiptService] 입고 확정 요청 - userId: {}, storeId: {}", userId, store.getId());
+        Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
+        receipt.confirm();
+
+        log.info("[ReceiptService] 입고 확정 성공 - receiptId: {}", receipt.getId());
+        return new ConfirmReceiptResponse(true);
     }
 
     @Transactional(readOnly = true)

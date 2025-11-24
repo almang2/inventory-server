@@ -1,6 +1,8 @@
 package com.almang.inventory.receipt.domain;
 
 import com.almang.inventory.global.entity.BaseTimeEntity;
+import com.almang.inventory.global.exception.BaseException;
+import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.order.domain.Order;
 import com.almang.inventory.store.domain.Store;
 import jakarta.persistence.*;
@@ -9,6 +11,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.*;
+import org.springframework.security.core.parameters.P;
 
 @Entity
 @Table(name = "receipts")
@@ -80,7 +83,20 @@ public class Receipt extends BaseTimeEntity {
     }
 
     public void deactivate() {
+        if (this.status == ReceiptStatus.CANCELED) {
+            throw new BaseException(ErrorCode.RECEIPT_ALREADY_CANCELED);
+        }
         this.activated = false;
         this.status = ReceiptStatus.CANCELED;
+    }
+
+    public void confirm() {
+        if (!this.activated || this.status == ReceiptStatus.CANCELED) {
+            throw new BaseException(ErrorCode.RECEIPT_ALREADY_CANCELED);
+        }
+        if (this.status == ReceiptStatus.CONFIRMED) {
+            throw new BaseException(ErrorCode.RECEIPT_ALREADY_CONFIRMED);
+        }
+        this.status = ReceiptStatus.CONFIRMED;
     }
 }

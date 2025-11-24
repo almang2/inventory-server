@@ -18,6 +18,7 @@ import com.almang.inventory.receipt.domain.ReceiptItem;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
+import com.almang.inventory.receipt.dto.response.ConfirmReceiptResponse;
 import com.almang.inventory.receipt.dto.response.DeleteReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
@@ -1396,5 +1397,94 @@ class ReceiptServiceTest {
         assertThatThrownBy(() -> receiptService.deleteReceiptItem(targetItemId, user1.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 입고_확정에_성공한다() {
+        // given
+        Store store = newStore("확정상점");
+        User user = newUser(store, "confirmUser");
+        Vendor vendor = newVendor(store, "확정부발주처");
+
+        Order order = newOrderWithItems(store, vendor);
+
+        Receipt receipt = Receipt.builder()
+                .store(store)
+                .order(order)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(1)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+
+        Receipt saved = receiptRepository.save(receipt);
+
+        // when
+        ConfirmReceiptResponse response = receiptService.confirmReceipt(saved.getId(), user.getId());
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.success()).isTrue();
+
+        Receipt updated = receiptRepository.findById(saved.getId())
+                .orElseThrow();
+
+        assertThat(updated.getStatus()).isEqualTo(ReceiptStatus.CONFIRMED);
+        assertThat(updated.isActivated()).isTrue();
+    }
+
+    @Test
+    void 입고_확정시_사용자가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Long notExistUserId = 9999L;
+        Long anyReceiptId = 1L;
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.confirmReceipt(anyReceiptId, notExistUserId))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 입고_확정시_입고가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Store store = newStore("확정_입고없음상점");
+        User user = newUser(store, "noReceiptConfirmUser");
+        Long notExistReceiptId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.confirmReceipt(notExistReceiptId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 입고_확정시_다른_상점의_입고면_접근_거부_예외가_발생한다() {
+        // given
+        Store store1 = newStore("상점1");
+        Store store2 = newStore("상점2");
+
+        User user1 = newUser(store1, "user1");
+        Vendor vendor2 = newVendor(store2, "발주처2");
+
+        Order order2 = newOrderWithItems(store2, vendor2);
+
+        Receipt receiptOfStore2 = Receipt.builder()
+                .store(store2)
+                .order(order2)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(1)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+
+        Receipt savedReceipt2 = receiptRepository.save(receiptOfStore2);
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.confirmReceipt(savedReceipt2.getId(), user1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_ACCESS_DENIED.getMessage());
     }
 }

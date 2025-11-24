@@ -19,6 +19,7 @@ import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
+import com.almang.inventory.receipt.dto.response.ConfirmReceiptResponse;
 import com.almang.inventory.receipt.dto.response.DeleteReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.DeleteReceiptResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptItemResponse;
@@ -1133,6 +1134,80 @@ class ReceiptControllerTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_확정에_성공한다() throws Exception {
+        // given
+        Long receiptId = 1L;
+
+        ConfirmReceiptResponse response = new ConfirmReceiptResponse(true);
+
+        when(receiptService.confirmReceipt(anyLong(), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/receipt/{receiptId}/confirm", receiptId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.CONFIRM_RECEIPT_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.success").value(true));
+    }
+
+    @Test
+    void 입고_확정시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long receiptId = 1L;
+
+        when(receiptService.confirmReceipt(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/receipt/{receiptId}/confirm", receiptId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_확정시_입고가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long receiptId = 9999L;
+
+        when(receiptService.confirmReceipt(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.RECEIPT_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/receipt/{receiptId}/confirm", receiptId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_확정시_다른_상점의_입고면_접근_거부_예외가_발생한다() throws Exception {
+        // given
+        Long receiptId = 1L;
+
+        when(receiptService.confirmReceipt(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.RECEIPT_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/receipt/{receiptId}/confirm", receiptId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ACCESS_DENIED.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

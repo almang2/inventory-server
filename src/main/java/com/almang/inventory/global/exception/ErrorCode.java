@@ -52,6 +52,8 @@ public enum ErrorCode {
     RECEIPT_ORDER_MISMATCH(HttpStatus.FORBIDDEN, "해당 발주의 입고가 아닙니다."),
     RECEIPT_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "입고 아이템을 찾을 수 없습니다."),
     RECEIPT_ITEM_ACCESS_DENIED(HttpStatus.FORBIDDEN, "입고 아이템에 접근할 수 없습니다."),
+    RECEIPT_ALREADY_CANCELED(HttpStatus.BAD_REQUEST, "이미 취소된 입고입니다."),
+    RECEIPT_ALREADY_CONFIRMED(HttpStatus.BAD_REQUEST, "이미 확정된 입고입니다."),
     ;
 
     private final HttpStatus httpStatus;

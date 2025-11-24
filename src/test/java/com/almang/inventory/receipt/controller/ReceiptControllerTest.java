@@ -778,4 +778,93 @@ class ReceiptControllerTest {
                 .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ACCESS_DENIED.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
+
+    @Test
+    void 입고_아이템_조회에_성공한다() throws Exception {
+        // given
+        Long receiptItemId = 1000L;
+
+        ReceiptItemResponse response = new ReceiptItemResponse(
+                receiptItemId,
+                1L,
+                10L,
+                2,
+                BigDecimal.valueOf(1.234),
+                BigDecimal.valueOf(5),
+                10,
+                5000,
+                BigDecimal.valueOf(1.000),
+                "비고입니다."
+        );
+
+        when(receiptService.getReceiptItem(anyLong(), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/receipt/receipt/{receiptItemId}", receiptItemId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.GET_RECEIPT_ITEM_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.receiptItemId").value(receiptItemId))
+                .andExpect(jsonPath("$.data.receiptId").value(1L))
+                .andExpect(jsonPath("$.data.productId").value(10L))
+                .andExpect(jsonPath("$.data.boxCount").value(2))
+                .andExpect(jsonPath("$.data.amount").value(5000));
+    }
+
+    @Test
+    void 입고_아이템_조회시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long receiptItemId = 1000L;
+
+        when(receiptService.getReceiptItem(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/receipt/receipt/{receiptItemId}", receiptItemId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_아이템_조회시_아이템이_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long notExistReceiptItemId = 9999L;
+
+        when(receiptService.getReceiptItem(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.RECEIPT_ITEM_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/receipt/receipt/{receiptItemId}", notExistReceiptItemId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_ITEM_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ITEM_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_아이템_조회시_다른_상점의_아이템이면_접근_거부_예외가_발생한다() throws Exception {
+        // given
+        Long receiptItemId = 1000L;
+
+        when(receiptService.getReceiptItem(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/receipt/receipt/{receiptItemId}", receiptItemId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
 }

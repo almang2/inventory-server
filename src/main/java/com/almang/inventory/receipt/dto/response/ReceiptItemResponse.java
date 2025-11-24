@@ -11,6 +11,7 @@ public record ReceiptItemResponse(
         BigDecimal measuredWeight,
         BigDecimal expectedQuantity,
         Integer actualQuantity,
+        Integer unitPrice,
         Integer amount,
         BigDecimal errorRate,
         String note
@@ -25,6 +26,7 @@ public record ReceiptItemResponse(
                 receiptItem.getExpectedQuantity(),
                 receiptItem.getActualQuantity(),
                 receiptItem.getAmount(),
+                receiptItem.getUnitPrice(),
                 receiptItem.getErrorRate(),
                 receiptItem.getNote()
         );

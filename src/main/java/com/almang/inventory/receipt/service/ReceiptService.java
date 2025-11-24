@@ -11,7 +11,10 @@ import com.almang.inventory.order.repository.OrderRepository;
 import com.almang.inventory.receipt.domain.Receipt;
 import com.almang.inventory.receipt.domain.ReceiptItem;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
+import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
+import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
+import com.almang.inventory.receipt.repository.ReceiptItemRepository;
 import com.almang.inventory.receipt.repository.ReceiptRepository;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.user.domain.User;
@@ -21,6 +24,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -35,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReceiptService {
 
     private final ReceiptRepository receiptRepository;
+    private final ReceiptItemRepository receiptItemRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
 
@@ -102,6 +107,27 @@ public class ReceiptService {
 
         log.info("[ReceiptService] 입고 목록 조회 성공 - userId: {}, storeId: {}", userId, store.getId());
         return PageResponse.from(mapped);
+    }
+
+    @Transactional
+    public ReceiptResponse updateReceipt(Long receiptId, UpdateReceiptRequest request, Long userId) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[ReceiptService] 입고 수정 요청 - userId: {}, storeId: {}", userId, store.getId());
+        Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
+
+        // 입고 업데이트 유효성 검증
+        validateReceiptOrderNotChanged(receipt, request.orderId());
+
+        // 입고 정보 업데이트
+        receipt.update(request.totalBoxCount(), request.totalWeightG(), request.status(), request.activated());
+
+        // 입고 상세 항목 업데이트
+        updateReceiptItems(receipt, request);
+
+        log.info("[ReceiptService] 입고 수정 성공 - receiptId: {}", receipt.getId());
+        return ReceiptResponse.from(receipt);
     }
 
     private List<ReceiptItem> createReceiptItemsFromOrder(Order order) {
@@ -210,5 +236,48 @@ public class ReceiptService {
         return receiptRepository.findAllByStoreIdAndOrderVendorIdAndStatusAndReceiptDateBetween(
                 storeId, vendorId, status, startDate, endDate, pageable
         );
+    }
+
+    private void validateReceiptOrderNotChanged(Receipt receipt, Long requestOrderId) {
+        if (requestOrderId == null) {
+            return;
+        }
+        if (!receipt.getOrder().getId().equals(requestOrderId)) {
+            throw new BaseException(ErrorCode.RECEIPT_ORDER_MISMATCH);
+        }
+    }
+
+    private void updateReceiptItems(Receipt receipt, UpdateReceiptRequest request) {
+        if (request.orderItems() == null) {
+            return;
+        }
+
+        for (UpdateReceiptItemRequest receiptItemRequest : request.orderItems()) {
+            ReceiptItem receiptItem = findReceiptItemByIdAndValidateAccess(receiptItemRequest.receiptItemId(), receipt);
+            receiptItem.update(
+                    receiptItemRequest.boxCount(), receiptItemRequest.measuredWeight(),
+                    receiptItemRequest.expectedQuantity(), receiptItemRequest.actualQuantity(),
+                    receiptItemRequest.unitPrice(), receiptItemRequest.note()
+            );
+        }
+        receipt.updateTotalBoxCount(calculateTotalBoxCount(receipt.getItems()));
+    }
+
+    private ReceiptItem findReceiptItemByIdAndValidateAccess(Long receiptItemId, Receipt receipt) {
+        ReceiptItem receiptItem = receiptItemRepository.findById(receiptItemId)
+                .orElseThrow(() -> new BaseException(ErrorCode.RECEIPT_ITEM_NOT_FOUND));
+
+        if (!receiptItem.getReceipt().getId().equals(receipt.getId())) {
+            throw new BaseException(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED);
+        }
+        return receiptItem;
+    }
+
+    private int calculateTotalBoxCount(List<ReceiptItem> receiptItems) {
+        return receiptItems.stream()
+                .map(ReceiptItem::getBoxCount)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
     }
 }

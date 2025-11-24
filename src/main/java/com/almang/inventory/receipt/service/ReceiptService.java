@@ -14,6 +14,7 @@ import com.almang.inventory.receipt.domain.ReceiptStatus;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
 import com.almang.inventory.receipt.dto.response.DeleteReceiptResponse;
+import com.almang.inventory.receipt.dto.response.ReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
 import com.almang.inventory.receipt.repository.ReceiptItemRepository;
 import com.almang.inventory.receipt.repository.ReceiptRepository;
@@ -142,6 +143,18 @@ public class ReceiptService {
 
         log.info("[ReceiptService] 입고 삭제 성공 - receiptId: {}", receipt.getId());
         return new DeleteReceiptResponse(true);
+    }
+
+    @Transactional(readOnly = true)
+    public ReceiptItemResponse getReceiptItem(Long receiptItemId, Long userId) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[ReceiptService] 입고 아이템 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
+        ReceiptItem receiptItem = findReceiptItemByIdAndValidateStoreAccess(receiptItemId, store);
+
+        log.info("[ReceiptService] 입고 아이템 조회 요청 - receiptId: {}", receiptItem.getId());
+        return ReceiptItemResponse.from(receiptItem);
     }
 
     private List<ReceiptItem> createReceiptItemsFromOrder(Order order) {
@@ -293,5 +306,15 @@ public class ReceiptService {
                 .filter(Objects::nonNull)
                 .mapToInt(Integer::intValue)
                 .sum();
+    }
+
+    private ReceiptItem findReceiptItemByIdAndValidateStoreAccess(Long receiptItemId, Store store) {
+        ReceiptItem receiptItem = receiptItemRepository.findById(receiptItemId)
+                .orElseThrow(() -> new BaseException(ErrorCode.RECEIPT_ITEM_NOT_FOUND));
+
+        if (!receiptItem.getReceipt().getStore().getId().equals(store.getId())) {
+            throw new BaseException(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED);
+        }
+        return receiptItem;
     }
 }

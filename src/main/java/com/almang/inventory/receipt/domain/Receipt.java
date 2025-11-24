@@ -62,12 +62,21 @@ public class Receipt extends BaseTimeEntity {
         }
     }
 
-    public void updateTotalWeightG(BigDecimal totalWeightG) {
-        this.totalWeightG = totalWeightG;
-    }
-
-    public void updateReceiptStatus(ReceiptStatus status) {
-        this.status = status;
+    public void update(
+            Integer totalBoxCount, BigDecimal totalWeightG, ReceiptStatus status, Boolean activated
+    ) {
+        if (totalBoxCount != null) {
+            this.totalBoxCount = totalBoxCount;
+        }
+        if (totalWeightG != null) {
+            this.totalWeightG = totalWeightG;
+        }
+        if (status != null) {
+            this.status = status;
+        }
+        if (activated != null) {
+            this.activated = activated;
+        }
     }
 
     public void deactivate() {

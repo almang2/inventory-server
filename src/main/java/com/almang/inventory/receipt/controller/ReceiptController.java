@@ -7,6 +7,7 @@ import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
 import com.almang.inventory.receipt.dto.response.DeleteReceiptResponse;
+import com.almang.inventory.receipt.dto.response.ReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
 import com.almang.inventory.receipt.service.ReceiptService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -131,6 +132,21 @@ public class ReceiptController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.DELETE_RECEIPT_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @GetMapping("/receipt/{receiptItemId}")
+    @Operation(summary = "입고 아이템 조회", description = "입고 아이템을 조회합니다.")
+    public ResponseEntity<ApiResponse<ReceiptItemResponse>> getReceiptItem(
+            @PathVariable Long receiptItemId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[ReceiptController] 입고 아이템 조회 요청 - userId: {}, receiptItemId: {}", userId, receiptItemId);
+        ReceiptItemResponse response = receiptService.getReceiptItem(receiptItemId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.GET_RECEIPT_ITEM_SUCCESS.getMessage(), response)
         );
     }
 }

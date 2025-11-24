@@ -83,4 +83,8 @@ public class Receipt extends BaseTimeEntity {
         this.activated = false;
         this.status = ReceiptStatus.CANCELED;
     }
+
+    public void confirm() {
+        this.status = ReceiptStatus.CONFIRMED;
+    }
 }

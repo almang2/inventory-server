@@ -54,7 +54,6 @@ class ReceiptServiceTest {
     @Autowired private VendorRepository vendorRepository;
     @Autowired private ProductRepository productRepository;
 
-
     private Store newStore(String name) {
         return storeRepository.save(
                 Store.builder()
@@ -1015,7 +1014,7 @@ class ReceiptServiceTest {
 
         // when
         ReceiptItemResponse response =
-                receiptService.getReceiptItem(targetItem.getId(), user.getId());
+                receiptService.getReceiptItem(savedReceipt.getId(), targetItem.getId(), user.getId());
 
         // then
         assertThat(response).isNotNull();
@@ -1032,7 +1031,7 @@ class ReceiptServiceTest {
         Long anyReceiptItemId = 1L;
 
         // when & then
-        assertThatThrownBy(() -> receiptService.getReceiptItem(anyReceiptItemId, notExistUserId))
+        assertThatThrownBy(() -> receiptService.getReceiptItem(1L, anyReceiptItemId, notExistUserId))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
     }
@@ -1042,10 +1041,24 @@ class ReceiptServiceTest {
         // given
         Store store = newStore("아이템없음상점");
         User user = newUser(store, "noItemUser");
+        Vendor vendor = newVendor(store, "발주처");
+
+        Order order = newOrderWithItems(store, vendor);
+        Receipt receipt = Receipt.builder()
+                .store(store)
+                .order(order)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(0)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        Receipt savedReceipt = receiptRepository.save(receipt);
+
         Long notExistReceiptItemId = 9999L;
 
         // when & then
-        assertThatThrownBy(() -> receiptService.getReceiptItem(notExistReceiptItemId, user.getId()))
+        assertThatThrownBy(() -> receiptService.getReceiptItem(savedReceipt.getId(), notExistReceiptItemId, user.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.RECEIPT_ITEM_NOT_FOUND.getMessage());
     }
@@ -1085,9 +1098,9 @@ class ReceiptServiceTest {
         ReceiptItem itemOfStore2 = savedReceipt2.getItems().get(0);
 
         // when & then
-        assertThatThrownBy(() -> receiptService.getReceiptItem(itemOfStore2.getId(), user1.getId()))
+        assertThatThrownBy(() -> receiptService.getReceiptItem(savedReceipt2.getId(), itemOfStore2.getId(), user1.getId()))
                 .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage());
+                .hasMessageContaining(ErrorCode.RECEIPT_ACCESS_DENIED.getMessage());
     }
 
     @Test
@@ -1134,7 +1147,7 @@ class ReceiptServiceTest {
 
         // when
         ReceiptItemResponse response = receiptService.updateReceiptItem(
-                targetItem.getId(), req, user.getId());
+                saved.getId(), targetItem.getId(), req, user.getId());
 
         // then
         assertThat(response).isNotNull();
@@ -1161,7 +1174,7 @@ class ReceiptServiceTest {
         );
 
         // when & then
-        assertThatThrownBy(() -> receiptService.updateReceiptItem(anyItemId, request, notExistUserId))
+        assertThatThrownBy(() -> receiptService.updateReceiptItem(1L, anyItemId, request, notExistUserId))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
     }
@@ -1227,7 +1240,7 @@ class ReceiptServiceTest {
 
         // when & then
         assertThatThrownBy(() ->
-                receiptService.updateReceiptItem(otherReceiptItem.getId(), wrongRequest, user.getId()))
+                receiptService.updateReceiptItem(savedReceipt1.getId(), otherReceiptItem.getId(), wrongRequest, user.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage());
     }
@@ -1261,9 +1274,11 @@ class ReceiptServiceTest {
         Receipt saved = receiptRepository.save(receipt);
         ReceiptItem targetItem = saved.getItems().get(0);
 
+        Long wrongReceiptId = saved.getId() + 999;
+
         UpdateReceiptItemRequest wrongReq = new UpdateReceiptItemRequest(
                 targetItem.getId(),
-                saved.getId() + 999,
+                wrongReceiptId,
                 1,
                 null,
                 null,
@@ -1274,7 +1289,7 @@ class ReceiptServiceTest {
 
         // when & then
         assertThatThrownBy(() ->
-                receiptService.updateReceiptItem(targetItem.getId(), wrongReq, user.getId()))
+                receiptService.updateReceiptItem(wrongReceiptId, targetItem.getId(), wrongReq, user.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.RECEIPT_NOT_FOUND.getMessage());
     }
@@ -1322,7 +1337,7 @@ class ReceiptServiceTest {
         Long targetItemId = saved.getItems().get(0).getId();
 
         // when
-        DeleteReceiptItemResponse response = receiptService.deleteReceiptItem(targetItemId, user.getId());
+        DeleteReceiptItemResponse response = receiptService.deleteReceiptItem(saved.getId(), targetItemId, user.getId());
 
         // then
         Receipt updated = receiptRepository.findById(saved.getId())
@@ -1343,7 +1358,7 @@ class ReceiptServiceTest {
         Long anyReceiptItemId = 1L;
 
         // when & then
-        assertThatThrownBy(() -> receiptService.deleteReceiptItem(anyReceiptItemId, notExistUserId))
+        assertThatThrownBy(() -> receiptService.deleteReceiptItem(1L, anyReceiptItemId, notExistUserId))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
     }
@@ -1353,10 +1368,24 @@ class ReceiptServiceTest {
         // given
         Store store = newStore("아이템삭제_아이템없음상점");
         User user = newUser(store, "noItemDeleteUser");
+        Vendor vendor = newVendor(store, "발주처");
+
+        Order order = newOrderWithItems(store, vendor);
+        Receipt receipt = Receipt.builder()
+                .store(store)
+                .order(order)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(0)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        Receipt savedReceipt = receiptRepository.save(receipt);
+
         Long notExistReceiptItemId = 9999L;
 
         // when & then
-        assertThatThrownBy(() -> receiptService.deleteReceiptItem(notExistReceiptItemId, user.getId()))
+        assertThatThrownBy(() -> receiptService.deleteReceiptItem(savedReceipt.getId(), notExistReceiptItemId, user.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.RECEIPT_ITEM_NOT_FOUND.getMessage());
     }
@@ -1394,9 +1423,9 @@ class ReceiptServiceTest {
         Long targetItemId = savedReceipt2.getItems().get(0).getId();
 
         // when & then
-        assertThatThrownBy(() -> receiptService.deleteReceiptItem(targetItemId, user1.getId()))
+        assertThatThrownBy(() -> receiptService.deleteReceiptItem(savedReceipt2.getId(), targetItemId, user1.getId()))
                 .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage());
+                .hasMessageContaining(ErrorCode.RECEIPT_ACCESS_DENIED.getMessage());
     }
 
     @Test

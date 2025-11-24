@@ -138,7 +138,7 @@ public class ReceiptController {
         );
     }
 
-    @PatchMapping ("/{receiptId}/confirm")
+    @PatchMapping("/{receiptId}/confirm")
     @Operation(summary = "입고 확정", description = "입고를 확정합니다.")
     public ResponseEntity<ApiResponse<ConfirmReceiptResponse>> confirmReceipt(
             @PathVariable Long receiptId,
@@ -153,46 +153,53 @@ public class ReceiptController {
         );
     }
 
-    @GetMapping("/receipt/{receiptItemId}")
+    @GetMapping("/{receiptId}/items/{receiptItemId}")
     @Operation(summary = "입고 아이템 조회", description = "입고 아이템을 조회합니다.")
     public ResponseEntity<ApiResponse<ReceiptItemResponse>> getReceiptItem(
+            @PathVariable Long receiptId,
             @PathVariable Long receiptItemId,
             @AuthenticationPrincipal CustomUserPrincipal userPrincipal
     ) {
         Long userId = userPrincipal.getId();
-        log.info("[ReceiptController] 입고 아이템 조회 요청 - userId: {}, receiptItemId: {}", userId, receiptItemId);
-        ReceiptItemResponse response = receiptService.getReceiptItem(receiptItemId, userId);
+        log.info("[ReceiptController] 입고 아이템 조회 요청 - userId: {}, receiptId: {}, receiptItemId: {}",
+                userId, receiptId, receiptItemId);
+        ReceiptItemResponse response = receiptService.getReceiptItem(receiptId, receiptItemId, userId);
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.GET_RECEIPT_ITEM_SUCCESS.getMessage(), response)
         );
     }
 
-    @PatchMapping("/receipt/{receiptItemId}")
+    @PatchMapping("/{receiptId}/items/{receiptItemId}")
     @Operation(summary = "입고 아이템 수정", description = "입고 아이템을 수정합니다.")
     public ResponseEntity<ApiResponse<ReceiptItemResponse>> updateReceiptItem(
+            @PathVariable Long receiptId,
             @PathVariable Long receiptItemId,
             @Valid @RequestBody UpdateReceiptItemRequest request,
             @AuthenticationPrincipal CustomUserPrincipal userPrincipal
     ) {
         Long userId = userPrincipal.getId();
-        log.info("[ReceiptController] 입고 아이템 수정 요청 - userId: {}, receiptItemId: {}", userId, receiptItemId);
-        ReceiptItemResponse response = receiptService.updateReceiptItem(receiptItemId, request, userId);
+        log.info("[ReceiptController] 입고 아이템 수정 요청 - userId: {}, receiptId: {}, receiptItemId: {}",
+                userId, receiptId, receiptItemId);
+        ReceiptItemResponse response =
+                receiptService.updateReceiptItem(receiptId, receiptItemId, request, userId);
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.UPDATE_RECEIPT_ITEM_SUCCESS.getMessage(), response)
         );
     }
 
-    @DeleteMapping("/receipt/{receiptItemId}")
+    @DeleteMapping("/{receiptId}/items/{receiptItemId}")
     @Operation(summary = "입고 아이템 삭제", description = "입고 아이템을 삭제합니다.")
     public ResponseEntity<ApiResponse<DeleteReceiptItemResponse>> deleteReceiptItem(
+            @PathVariable Long receiptId,
             @PathVariable Long receiptItemId,
             @AuthenticationPrincipal CustomUserPrincipal userPrincipal
     ) {
         Long userId = userPrincipal.getId();
-        log.info("[ReceiptController] 입고 아이템 삭제 요청 - userId: {}, receiptItemId: {}", userId, receiptItemId);
-        DeleteReceiptItemResponse response = receiptService.deleteReceiptItem(receiptItemId, userId);
+        log.info("[ReceiptController] 입고 아이템 삭제 요청 - userId: {}, receiptId: {}, receiptItemId: {}",
+                userId, receiptId, receiptItemId);
+        DeleteReceiptItemResponse response = receiptService.deleteReceiptItem(receiptId, receiptItemId, userId);
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.DELETE_RECEIPT_ITEM_SUCCESS.getMessage(), response)

@@ -25,8 +25,8 @@ public record ReceiptItemResponse(
                 receiptItem.getMeasuredWeight(),
                 receiptItem.getExpectedQuantity(),
                 receiptItem.getActualQuantity(),
-                receiptItem.getAmount(),
                 receiptItem.getUnitPrice(),
+                receiptItem.getAmount(),
                 receiptItem.getErrorRate(),
                 receiptItem.getNote()
         );

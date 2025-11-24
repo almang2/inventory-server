@@ -157,6 +157,26 @@ public class ReceiptService {
         return ReceiptItemResponse.from(receiptItem);
     }
 
+    @Transactional
+    public ReceiptItemResponse updateReceiptItem(Long receiptItemId, UpdateReceiptItemRequest request, Long userId) {
+        User user = findUserById(userId);
+        Store store = user.getStore();
+
+        log.info("[ReceiptService] 입고 아이템 수정 요청 - userId: {}, storeId: {}", userId, store.getId());
+        Receipt receipt = findReceiptByIdAndValidateAccess(request.receiptId(), store);
+        ReceiptItem receiptItem = findReceiptItemByIdAndValidateAccess(receiptItemId, receipt);
+
+        receiptItem.update(
+                request.boxCount(), request.measuredWeight(),
+                request.expectedQuantity(), request.actualQuantity(),
+                request.unitPrice(), request.note()
+        );
+        receipt.updateTotalBoxCount(calculateTotalBoxCount(receipt.getItems()));
+
+        log.info("[ReceiptService] 입고 아이템 수정 성공 - receiptItemId: {}", receiptItem.getId());
+        return ReceiptItemResponse.from(receiptItem);
+    }
+
     private List<ReceiptItem> createReceiptItemsFromOrder(Order order) {
         List<ReceiptItem> items = new ArrayList<>();
 

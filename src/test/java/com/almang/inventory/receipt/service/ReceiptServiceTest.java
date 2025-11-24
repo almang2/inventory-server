@@ -20,6 +20,7 @@ import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
 import com.almang.inventory.receipt.dto.response.ReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
+import com.almang.inventory.receipt.repository.ReceiptItemRepository;
 import com.almang.inventory.receipt.repository.ReceiptRepository;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.store.repository.StoreRepository;
@@ -43,13 +44,14 @@ import org.springframework.transaction.annotation.Transactional;
 class ReceiptServiceTest {
 
     @Autowired private ReceiptService receiptService;
-
     @Autowired private ReceiptRepository receiptRepository;
+    @Autowired private ReceiptItemRepository receiptItemRepository;
     @Autowired private OrderRepository orderRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private StoreRepository storeRepository;
     @Autowired private VendorRepository vendorRepository;
     @Autowired private ProductRepository productRepository;
+
 
     private Store newStore(String name) {
         return storeRepository.save(
@@ -1086,5 +1088,194 @@ class ReceiptServiceTest {
         assertThatThrownBy(() -> receiptService.getReceiptItem(itemOfStore2.getId(), user1.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 입고_아이템_수정에_성공한다() {
+        // given
+        Store store = newStore("아이템수정상점");
+        User user = newUser(store, "modifyItemUser");
+        Vendor vendor = newVendor(store, "발주처");
+
+        Order order = newOrderWithItems(store, vendor);
+
+        Receipt receipt = Receipt.builder()
+                .store(store)
+                .order(order)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(0)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+
+        for (OrderItem orderItem : order.getItems()) {
+            ReceiptItem item = ReceiptItem.builder()
+                    .product(orderItem.getProduct())
+                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .amount(orderItem.getAmount())
+                    .unitPrice(orderItem.getUnitPrice())
+                    .build();
+            receipt.addItem(item);
+        }
+
+        Receipt saved = receiptRepository.save(receipt);
+        ReceiptItem targetItem = saved.getItems().get(0);
+
+        UpdateReceiptItemRequest req = new UpdateReceiptItemRequest(
+                targetItem.getId(),
+                saved.getId(),
+                2,
+                BigDecimal.valueOf(1.234),
+                BigDecimal.valueOf(5),
+                10,
+                1500,
+                "수정된 비고"
+        );
+
+        // when
+        ReceiptItemResponse response = receiptService.updateReceiptItem(
+                targetItem.getId(), req, user.getId());
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.boxCount()).isEqualTo(2);
+        assertThat(response.actualQuantity()).isEqualTo(10);
+        assertThat(response.unitPrice()).isEqualTo(1500);
+        assertThat(response.amount()).isEqualTo(10 * 1500);
+
+        ReceiptItem updated = receiptItemRepository.findById(targetItem.getId()).orElseThrow();
+        assertThat(updated.getBoxCount()).isEqualTo(2);
+        assertThat(updated.getActualQuantity()).isEqualTo(10);
+        assertThat(updated.getUnitPrice()).isEqualTo(1500);
+        assertThat(updated.getErrorRate()).isNotNull();
+    }
+
+    @Test
+    void 입고_아이템_수정시_사용자가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Long notExistUserId = 9999L;
+        Long anyItemId = 1L;
+
+        UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
+                anyItemId, 1L, 1, null, null, 5, 1000, "비고"
+        );
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.updateReceiptItem(anyItemId, request, notExistUserId))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 입고_아이템_수정시_아이템이_해당_입고에_속하지_않으면_접근_거부_예외가_발생한다() {
+        // given
+        Store store = newStore("아이템불일치상점");
+        User user = newUser(store, "wrongItemUser");
+        Vendor vendor = newVendor(store, "발주처");
+
+        Order order1 = newOrderWithItems(store, vendor);
+        Order order2 = newOrderWithItems(store, vendor);
+
+        Receipt receipt1 = Receipt.builder()
+                .store(store)
+                .order(order1)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(0)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+
+        receipt1.addItem(
+                ReceiptItem.builder()
+                        .product(order1.getItems().get(0).getProduct())
+                        .expectedQuantity(BigDecimal.valueOf(5))
+                        .amount(5000)
+                        .unitPrice(1000)
+                        .build()
+        );
+        Receipt savedReceipt1 = receiptRepository.save(receipt1);
+
+        Receipt receipt2 = Receipt.builder()
+                .store(store)
+                .order(order2)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(0)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        receipt2.addItem(
+                ReceiptItem.builder()
+                        .product(order2.getItems().get(0).getProduct())
+                        .expectedQuantity(BigDecimal.valueOf(3))
+                        .amount(6000)
+                        .unitPrice(2000)
+                        .build()
+        );
+        Receipt savedReceipt2 = receiptRepository.save(receipt2);
+        ReceiptItem otherReceiptItem = savedReceipt2.getItems().get(0);
+
+        UpdateReceiptItemRequest wrongRequest = new UpdateReceiptItemRequest(
+                otherReceiptItem.getId(),
+                savedReceipt1.getId(),
+                1,
+                null,
+                null,
+                10,
+                2000,
+                "잘못 수정"
+        );
+
+        // when & then
+        assertThatThrownBy(() ->
+                receiptService.updateReceiptItem(otherReceiptItem.getId(), wrongRequest, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 입고_아이템_수정시_입고ID가_다르면_예외가_발생한다() {
+        // given
+        Store store = newStore("입고Id불일치상점");
+        User user = newUser(store, "receiptMismatchUser");
+        Vendor vendor = newVendor(store, "발주처");
+
+        Order order = newOrderWithItems(store, vendor);
+
+        Receipt receipt = Receipt.builder()
+                .store(store)
+                .order(order)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(0)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        receipt.addItem(
+                ReceiptItem.builder()
+                        .product(order.getItems().get(0).getProduct())
+                        .expectedQuantity(BigDecimal.valueOf(5))
+                        .amount(5000)
+                        .unitPrice(1000)
+                        .build()
+        );
+
+        Receipt saved = receiptRepository.save(receipt);
+        ReceiptItem targetItem = saved.getItems().get(0);
+
+        UpdateReceiptItemRequest wrongReq = new UpdateReceiptItemRequest(
+                targetItem.getId(),
+                saved.getId() + 999,
+                1,
+                null,
+                null,
+                5,
+                1000,
+                "비고"
+        );
+
+        // when & then
+        assertThatThrownBy(() ->
+                receiptService.updateReceiptItem(targetItem.getId(), wrongReq, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_NOT_FOUND.getMessage());
     }
 }

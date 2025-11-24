@@ -63,7 +63,8 @@ class ReceiptControllerTest {
         // given
         Long orderId = 100L;
 
-        ReceiptItemResponse item = new ReceiptItemResponse(
+        ReceiptItemResponse item =
+                new ReceiptItemResponse(
                 1000L,
                 1L,
                 10L,
@@ -72,6 +73,7 @@ class ReceiptControllerTest {
                 BigDecimal.valueOf(5),
                 null,
                 5000,
+                null,
                 null,
                 "비고입니다."
         );
@@ -104,8 +106,7 @@ class ReceiptControllerTest {
                 .andExpect(jsonPath("$.data.status").value(ReceiptStatus.PENDING.name()))
                 .andExpect(jsonPath("$.data.activated").value(true))
                 .andExpect(jsonPath("$.data.receiptItems[0].receiptItemId").value(1000L))
-                .andExpect(jsonPath("$.data.receiptItems[0].productId").value(10L))
-                .andExpect(jsonPath("$.data.receiptItems[0].amount").value(5000));
+                .andExpect(jsonPath("$.data.receiptItems[0].productId").value(10L));
     }
 
     @Test
@@ -195,6 +196,7 @@ class ReceiptControllerTest {
                 null,
                 5000,
                 null,
+                null,
                 "비고입니다."
         );
 
@@ -226,8 +228,7 @@ class ReceiptControllerTest {
                 .andExpect(jsonPath("$.data.status").value(ReceiptStatus.PENDING.name()))
                 .andExpect(jsonPath("$.data.activated").value(true))
                 .andExpect(jsonPath("$.data.receiptItems[0].receiptItemId").value(1000L))
-                .andExpect(jsonPath("$.data.receiptItems[0].productId").value(10L))
-                .andExpect(jsonPath("$.data.receiptItems[0].amount").value(5000));
+                .andExpect(jsonPath("$.data.receiptItems[0].productId").value(10L));
     }
 
     @Test
@@ -317,6 +318,7 @@ class ReceiptControllerTest {
                 null,
                 5000,
                 null,
+                null,
                 "비고입니다."
         );
 
@@ -348,8 +350,7 @@ class ReceiptControllerTest {
                 .andExpect(jsonPath("$.data.status").value(ReceiptStatus.PENDING.name()))
                 .andExpect(jsonPath("$.data.activated").value(true))
                 .andExpect(jsonPath("$.data.receiptItems[0].receiptItemId").value(1000L))
-                .andExpect(jsonPath("$.data.receiptItems[0].productId").value(10L))
-                .andExpect(jsonPath("$.data.receiptItems[0].amount").value(5000));
+                .andExpect(jsonPath("$.data.receiptItems[0].productId").value(10L));
     }
 
     @Test
@@ -414,7 +415,7 @@ class ReceiptControllerTest {
                 null, null,
                 BigDecimal.valueOf(5),
                 null, 5000, null,
-                "비고1"
+                null, "비고1"
         );
 
         ReceiptItemResponse item2 = new ReceiptItemResponse(
@@ -422,7 +423,7 @@ class ReceiptControllerTest {
                 null, null,
                 BigDecimal.valueOf(3),
                 null, 3000, null,
-                "비고2"
+                null, "비고2"
         );
 
         ReceiptResponse r1 = new ReceiptResponse(
@@ -539,6 +540,7 @@ class ReceiptControllerTest {
                 BigDecimal.valueOf(5),
                 10,
                 11000,
+                110000,
                 BigDecimal.valueOf(1.000),
                 "수정 비고입니다."
         );
@@ -577,7 +579,7 @@ class ReceiptControllerTest {
                 .andExpect(jsonPath("$.data.receiptItems[0].receiptItemId").value(1000L))
                 .andExpect(jsonPath("$.data.receiptItems[0].productId").value(10L))
                 .andExpect(jsonPath("$.data.receiptItems[0].boxCount").value(2))
-                .andExpect(jsonPath("$.data.receiptItems[0].amount").value(11000));
+                .andExpect(jsonPath("$.data.receiptItems[0].amount").value(110000));
     }
 
     @Test
@@ -793,6 +795,7 @@ class ReceiptControllerTest {
                 BigDecimal.valueOf(5),
                 10,
                 5000,
+                50000,
                 BigDecimal.valueOf(1.000),
                 "비고입니다."
         );
@@ -811,7 +814,7 @@ class ReceiptControllerTest {
                 .andExpect(jsonPath("$.data.receiptId").value(1L))
                 .andExpect(jsonPath("$.data.productId").value(10L))
                 .andExpect(jsonPath("$.data.boxCount").value(2))
-                .andExpect(jsonPath("$.data.amount").value(5000));
+                .andExpect(jsonPath("$.data.amount").value(50000));
     }
 
     @Test
@@ -862,6 +865,219 @@ class ReceiptControllerTest {
         mockMvc.perform(get("/api/v1/receipt/receipt/{receiptItemId}", receiptItemId)
                         .with(authentication(auth()))
                         .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_아이템_수정에_성공한다() throws Exception {
+        // given
+        Long receiptItemId = 1000L;
+        Long receiptId = 1L;
+
+        UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
+                receiptItemId,
+                receiptId,
+                2,
+                BigDecimal.valueOf(1.234),
+                BigDecimal.valueOf(5),
+                10,
+                1500,
+                "수정 비고입니다."
+        );
+
+        ReceiptItemResponse response = new ReceiptItemResponse(
+                receiptItemId,
+                receiptId,
+                10L,
+                2,
+                BigDecimal.valueOf(1.234),
+                BigDecimal.valueOf(5),
+                10,
+                1500,
+                15000,
+                BigDecimal.valueOf(0.0),
+                "수정 비고입니다."
+        );
+
+        when(receiptService.updateReceiptItem(anyLong(), any(UpdateReceiptItemRequest.class), anyLong()))
+                .thenReturn(response);
+
+        String body = objectMapper.writeValueAsString(request);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/receipt/receipt/{receiptItemId}", receiptItemId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.UPDATE_RECEIPT_ITEM_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.receiptItemId").value(receiptItemId))
+                .andExpect(jsonPath("$.data.receiptId").value(receiptId))
+                .andExpect(jsonPath("$.data.productId").value(10L))
+                .andExpect(jsonPath("$.data.boxCount").value(2))
+                .andExpect(jsonPath("$.data.actualQuantity").value(10))
+                .andExpect(jsonPath("$.data.unitPrice").value(1500))
+                .andExpect(jsonPath("$.data.amount").value(15000));
+    }
+
+    @Test
+    void 입고_아이템_수정시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long receiptItemId = 1000L;
+
+        UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
+                receiptItemId,
+                1L,
+                2,
+                BigDecimal.valueOf(1.234),
+                BigDecimal.valueOf(5),
+                10,
+                1500,
+                "수정 비고입니다."
+        );
+
+        when(receiptService.updateReceiptItem(anyLong(), any(UpdateReceiptItemRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        String body = objectMapper.writeValueAsString(request);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/receipt/receipt/{receiptItemId}", receiptItemId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_아이템_수정시_입고가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long receiptItemId = 1000L;
+
+        UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
+                receiptItemId,
+                9999L,
+                2,
+                BigDecimal.valueOf(1.234),
+                BigDecimal.valueOf(5),
+                10,
+                1500,
+                "수정 비고입니다."
+        );
+
+        when(receiptService.updateReceiptItem(anyLong(), any(UpdateReceiptItemRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.RECEIPT_NOT_FOUND));
+
+        String body = objectMapper.writeValueAsString(request);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/receipt/receipt/{receiptItemId}", receiptItemId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_아이템_수정시_입고_접근_권한이_없으면_예외가_발생한다() throws Exception {
+        // given
+        Long receiptItemId = 1000L;
+
+        UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
+                receiptItemId,
+                1L,
+                2,
+                BigDecimal.valueOf(1.234),
+                BigDecimal.valueOf(5),
+                10,
+                1500,
+                "수정 비고입니다."
+        );
+
+        when(receiptService.updateReceiptItem(anyLong(), any(UpdateReceiptItemRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.RECEIPT_ACCESS_DENIED));
+
+        String body = objectMapper.writeValueAsString(request);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/receipt/receipt/{receiptItemId}", receiptItemId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_아이템_수정시_아이템이_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long receiptItemId = 9999L;
+
+        UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
+                receiptItemId,
+                1L,
+                2,
+                BigDecimal.valueOf(1.234),
+                BigDecimal.valueOf(5),
+                10,
+                1500,
+                "수정 비고입니다."
+        );
+
+        when(receiptService.updateReceiptItem(anyLong(), any(UpdateReceiptItemRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.RECEIPT_ITEM_NOT_FOUND));
+
+        String body = objectMapper.writeValueAsString(request);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/receipt/receipt/{receiptItemId}", receiptItemId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_ITEM_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ITEM_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_아이템_수정시_다른_상점의_아이템이면_접근_거부_예외가_발생한다() throws Exception {
+        // given
+        Long receiptItemId = 1000L;
+
+        UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
+                receiptItemId,
+                1L,
+                2,
+                BigDecimal.valueOf(1.234),
+                BigDecimal.valueOf(5),
+                10,
+                1500,
+                "수정 비고입니다."
+        );
+
+        when(receiptService.updateReceiptItem(anyLong(), any(UpdateReceiptItemRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED));
+
+        String body = objectMapper.writeValueAsString(request);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/receipt/receipt/{receiptItemId}", receiptItemId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage()))

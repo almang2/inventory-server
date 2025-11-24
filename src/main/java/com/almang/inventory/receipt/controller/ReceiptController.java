@@ -5,6 +5,7 @@ import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
+import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
 import com.almang.inventory.receipt.dto.response.DeleteReceiptResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptItemResponse;
@@ -147,6 +148,22 @@ public class ReceiptController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.GET_RECEIPT_ITEM_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @PatchMapping("/receipt/{receiptItemId}")
+    @Operation(summary = "입고 아이템 수정", description = "입고 아이템을 수정합니다.")
+    public ResponseEntity<ApiResponse<ReceiptItemResponse>> updateReceiptItem(
+            @PathVariable Long receiptItemId,
+            @Valid @RequestBody UpdateReceiptItemRequest request,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[ReceiptController] 입고 아이템 수정 요청 - userId: {}, receiptItemId: {}", userId, receiptItemId);
+        ReceiptItemResponse response = receiptService.updateReceiptItem(receiptItemId, request, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.UPDATE_RECEIPT_ITEM_SUCCESS.getMessage(), response)
         );
     }
 }

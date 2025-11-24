@@ -140,7 +140,7 @@ public class ReceiptService {
         Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
         receipt.deactivate();
 
-        log.info("[ReceiptService] 입고 수정 성공 - receiptId: {}", receipt.getId());
+        log.info("[ReceiptService] 입고 삭제 성공 - receiptId: {}", receipt.getId());
         return new DeleteReceiptResponse(true);
     }
 

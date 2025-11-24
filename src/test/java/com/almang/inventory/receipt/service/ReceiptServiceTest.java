@@ -16,6 +16,8 @@ import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.receipt.domain.Receipt;
 import com.almang.inventory.receipt.domain.ReceiptItem;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
+import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
+import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
 import com.almang.inventory.receipt.repository.ReceiptRepository;
 import com.almang.inventory.store.domain.Store;
@@ -633,5 +635,261 @@ class ReceiptServiceTest {
         assertThat(response.content()).hasSize(1);
         ReceiptResponse only = response.content().get(0);
         assertThat(only.receiptId()).isEqualTo(recentReceipt.getId());
+    }
+
+    @Test
+    void 입고_수정에_성공한다() {
+        // given
+        Store store = newStore("상점_수정");
+        User user = newUser(store, "updateUser");
+        Vendor vendor = newVendor(store, "발주처_수정");
+
+        Order order = newOrderWithItems(store, vendor);
+
+        Receipt receipt = Receipt.builder()
+                .store(store)
+                .order(order)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(0)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+
+        for (OrderItem orderItem : order.getItems()) {
+            ReceiptItem item = ReceiptItem.builder()
+                    .product(orderItem.getProduct())
+                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .amount(orderItem.getAmount())
+                    .unitPrice(orderItem.getUnitPrice())
+                    .build();
+            receipt.addItem(item);
+        }
+
+        Receipt saved = receiptRepository.save(receipt);
+        ReceiptItem item1 = saved.getItems().get(0);
+        ReceiptItem item2 = saved.getItems().get(1);
+
+        UpdateReceiptItemRequest updateItem1 = new UpdateReceiptItemRequest(
+                item1.getId(),
+                saved.getId(),
+                2,
+                null,
+                null,
+                10,
+                1100,
+                "수정 비고1"
+        );
+
+        UpdateReceiptItemRequest updateItem2 = new UpdateReceiptItemRequest(
+                item2.getId(),
+                saved.getId(),
+                3,
+                null,
+                null,
+                5,
+                2100,
+                "수정 비고2"
+        );
+
+        BigDecimal newTotalWeight = BigDecimal.valueOf(123.456);
+
+        UpdateReceiptRequest request = new UpdateReceiptRequest(
+                order.getId(),
+                null,
+                newTotalWeight,
+                ReceiptStatus.CONFIRMED,
+                true,
+                java.util.List.of(updateItem1, updateItem2)
+        );
+
+        // when
+        ReceiptResponse response =
+                receiptService.updateReceipt(saved.getId(), request, user.getId());
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.receiptId()).isEqualTo(saved.getId());
+        assertThat(response.orderId()).isEqualTo(order.getId());
+        assertThat(response.status()).isEqualTo(ReceiptStatus.CONFIRMED);
+        assertThat(response.totalWeightG()).isEqualTo(newTotalWeight);
+        // boxCount 2 + 3 = 5 로 재계산 되었는지
+        assertThat(response.totalBoxCount()).isEqualTo(5);
+        assertThat(response.receiptItems()).hasSize(2);
+
+        // 실제 엔티티까지 검증
+        Receipt updated = receiptRepository.findById(saved.getId())
+                .orElseThrow();
+
+        assertThat(updated.getTotalBoxCount()).isEqualTo(5);
+        assertThat(updated.getStatus()).isEqualTo(ReceiptStatus.CONFIRMED);
+        assertThat(updated.getTotalWeightG()).isEqualTo(newTotalWeight);
+
+        ReceiptItem updatedItem1 = updated.getItems().stream()
+                .filter(i -> i.getId().equals(item1.getId()))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(updatedItem1.getBoxCount()).isEqualTo(2);
+        assertThat(updatedItem1.getActualQuantity()).isEqualTo(10);
+        assertThat(updatedItem1.getUnitPrice()).isEqualTo(1100);
+        assertThat(updatedItem1.getAmount()).isEqualTo(10 * 1100);
+        assertThat(updatedItem1.getErrorRate()).isNotNull();
+    }
+
+    @Test
+    void 입고_수정시_사용자가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Long notExistUserId = 9999L;
+        Long anyReceiptId = 1L;
+
+        UpdateReceiptRequest request = new UpdateReceiptRequest(
+                1L,
+                null,
+                null,
+                null,
+                null,
+                java.util.List.of()
+        );
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.updateReceipt(anyReceiptId, request, notExistUserId))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 입고_수정시_입고가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Store store = newStore("상점_입고없음");
+        User user = newUser(store, "noReceiptUser");
+
+        Long notExistReceiptId = 9999L;
+
+        UpdateReceiptRequest request = new UpdateReceiptRequest(
+                1L,
+                null,
+                null,
+                null,
+                null,
+                java.util.List.of()
+        );
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.updateReceipt(notExistReceiptId, request, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 입고_수정시_요청_발주ID와_입고의_발주ID가_다르면_예외가_발생한다() {
+        // given
+        Store store = newStore("상점_발주불일치");
+        User user = newUser(store, "mismatchUser");
+        Vendor vendor = newVendor(store, "발주처");
+
+        Order order1 = newOrderWithItems(store, vendor);
+        Order order2 = newOrderWithItems(store, vendor);
+
+        Receipt receipt = Receipt.builder()
+                .store(store)
+                .order(order1)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(0)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        receiptRepository.save(receipt);
+
+        UpdateReceiptRequest request = new UpdateReceiptRequest(
+                order2.getId(),
+                null,
+                null,
+                null,
+                null,
+                java.util.List.of()
+        );
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.updateReceipt(receipt.getId(), request, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_ORDER_MISMATCH.getMessage());
+    }
+
+    @Test
+    void 입고_수정시_다른_입고의_아이템을_수정하려고_하면_예외가_발생한다() {
+        // given
+        Store store = newStore("상점_아이템접근");
+        User user = newUser(store, "itemAccessUser");
+        Vendor vendor = newVendor(store, "발주처");
+
+        Order order1 = newOrderWithItems(store, vendor);
+        Receipt receipt1 = Receipt.builder()
+                .store(store)
+                .order(order1)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(0)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        for (OrderItem orderItem : order1.getItems()) {
+            ReceiptItem item = ReceiptItem.builder()
+                    .product(orderItem.getProduct())
+                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .amount(orderItem.getAmount())
+                    .unitPrice(orderItem.getUnitPrice())
+                    .build();
+            receipt1.addItem(item);
+        }
+        receiptRepository.save(receipt1);
+
+        Order order2 = newOrderWithItems(store, vendor);
+        Receipt receipt2 = Receipt.builder()
+                .store(store)
+                .order(order2)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(0)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        for (OrderItem orderItem : order2.getItems()) {
+            ReceiptItem item = ReceiptItem.builder()
+                    .product(orderItem.getProduct())
+                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .amount(orderItem.getAmount())
+                    .unitPrice(orderItem.getUnitPrice())
+                    .build();
+            receipt2.addItem(item);
+        }
+        Receipt savedReceipt2 = receiptRepository.save(receipt2);
+        ReceiptItem otherReceiptItem = savedReceipt2.getItems().get(0);
+
+        UpdateReceiptItemRequest wrongItemRequest = new UpdateReceiptItemRequest(
+                otherReceiptItem.getId(),
+                receipt1.getId(),
+                1,
+                null,
+                null,
+                3,
+                1000,
+                "잘못된 수정 요청"
+        );
+
+        UpdateReceiptRequest request = new UpdateReceiptRequest(
+                receipt1.getOrder().getId(),
+                null,
+                null,
+                ReceiptStatus.PENDING,
+                true,
+                java.util.List.of(wrongItemRequest)
+        );
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.updateReceipt(receipt1.getId(), request, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage());
     }
 }

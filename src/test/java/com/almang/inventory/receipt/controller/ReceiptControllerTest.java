@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.almang.inventory.global.api.PageResponse;
@@ -15,6 +16,8 @@ import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
+import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
+import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
 import com.almang.inventory.receipt.dto.response.ReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
 import com.almang.inventory.receipt.service.ReceiptService;
@@ -496,6 +499,213 @@ class ReceiptControllerTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_ACCESS_DENIED.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_수정에_성공한다() throws Exception {
+        // given
+        Long receiptId = 1L;
+        Long orderId = 200L;
+
+        UpdateReceiptItemRequest updateItem = new UpdateReceiptItemRequest(
+                1000L,
+                receiptId,
+                2,
+                BigDecimal.valueOf(1.234),
+                null,
+                10,
+                1100,
+                "수정 비고입니다."
+        );
+
+        UpdateReceiptRequest request = new UpdateReceiptRequest(
+                orderId,
+                null,
+                BigDecimal.valueOf(10.000),
+                ReceiptStatus.CONFIRMED,
+                true,
+                List.of(updateItem)
+        );
+
+        ReceiptItemResponse itemResponse = new ReceiptItemResponse(
+                1000L,
+                1L,
+                10L,
+                2,
+                BigDecimal.valueOf(1.234),
+                BigDecimal.valueOf(5),
+                10,
+                11000,
+                BigDecimal.valueOf(1.000),
+                "수정 비고입니다."
+        );
+
+        ReceiptResponse response = new ReceiptResponse(
+                receiptId,
+                10L,
+                orderId,
+                LocalDate.now(),
+                2,
+                BigDecimal.valueOf(10.000),
+                ReceiptStatus.CONFIRMED,
+                true,
+                List.of(itemResponse)
+        );
+
+        when(receiptService.updateReceipt(anyLong(), any(UpdateReceiptRequest.class), anyLong()))
+                .thenReturn(response);
+
+        String body = objectMapper.writeValueAsString(request);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/receipt/{receiptId}", receiptId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.UPDATE_RECEIPT_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.receiptId").value(receiptId))
+                .andExpect(jsonPath("$.data.storeId").value(10L))
+                .andExpect(jsonPath("$.data.orderId").value(orderId))
+                .andExpect(jsonPath("$.data.status").value(ReceiptStatus.CONFIRMED.name()))
+                .andExpect(jsonPath("$.data.activated").value(true))
+                .andExpect(jsonPath("$.data.totalBoxCount").value(2))
+                .andExpect(jsonPath("$.data.receiptItems[0].receiptItemId").value(1000L))
+                .andExpect(jsonPath("$.data.receiptItems[0].productId").value(10L))
+                .andExpect(jsonPath("$.data.receiptItems[0].boxCount").value(2))
+                .andExpect(jsonPath("$.data.receiptItems[0].amount").value(11000));
+    }
+
+    @Test
+    void 입고_수정시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long receiptId = 1L;
+
+        UpdateReceiptRequest request = new UpdateReceiptRequest(
+                200L,
+                null,
+                null,
+                null,
+                null,
+                List.of()
+        );
+
+        when(receiptService.updateReceipt(anyLong(), any(UpdateReceiptRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        String body = objectMapper.writeValueAsString(request);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/receipt/{receiptId}", receiptId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_수정시_입고가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long receiptId = 9999L;
+
+        UpdateReceiptRequest request = new UpdateReceiptRequest(
+                200L,
+                null,
+                null,
+                null,
+                null,
+                List.of()
+        );
+
+        when(receiptService.updateReceipt(anyLong(), any(UpdateReceiptRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.RECEIPT_NOT_FOUND));
+
+        String body = objectMapper.writeValueAsString(request);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/receipt/{receiptId}", receiptId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_수정시_발주ID가_변경되면_예외가_발생한다() throws Exception {
+        // given
+        Long receiptId = 1L;
+
+        UpdateReceiptRequest request = new UpdateReceiptRequest(
+                999L,
+                null,
+                null,
+                null,
+                null,
+                List.of()
+        );
+
+        when(receiptService.updateReceipt(anyLong(), any(UpdateReceiptRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.RECEIPT_ORDER_MISMATCH));
+
+        String body = objectMapper.writeValueAsString(request);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/receipt/{receiptId}", receiptId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_ORDER_MISMATCH.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ORDER_MISMATCH.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 입고_수정시_다른_입고의_아이템이면_예외가_발생한다() throws Exception {
+        // given
+        Long receiptId = 1L;
+
+        UpdateReceiptItemRequest wrongItem = new UpdateReceiptItemRequest(
+                9999L,
+                receiptId,
+                1,
+                null,
+                null,
+                5,
+                1000,
+                "잘못된 아이템"
+        );
+
+        UpdateReceiptRequest request = new UpdateReceiptRequest(
+                200L,
+                null,
+                null,
+                null,
+                null,
+                List.of(wrongItem)
+        );
+
+        when(receiptService.updateReceipt(anyLong(), any(UpdateReceiptRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED));
+
+        String body = objectMapper.writeValueAsString(request);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/receipt/{receiptId}", receiptId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

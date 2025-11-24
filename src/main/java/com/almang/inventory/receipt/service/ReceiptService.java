@@ -25,7 +25,6 @@ import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -161,24 +160,34 @@ public class ReceiptService {
     }
 
     @Transactional(readOnly = true)
-    public ReceiptItemResponse getReceiptItem(Long receiptItemId, Long userId) {
+    public ReceiptItemResponse getReceiptItem(Long receiptId, Long receiptItemId, Long userId) {
         User user = findUserById(userId);
         Store store = user.getStore();
 
-        log.info("[ReceiptService] 입고 아이템 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
-        ReceiptItem receiptItem = findReceiptItemByIdAndValidateStoreAccess(receiptItemId, store);
+        log.info("[ReceiptService] 입고 아이템 조회 요청 - userId: {}, storeId: {}, receiptId: {}",
+                userId, store.getId(), receiptId);
 
-        log.info("[ReceiptService] 입고 아이템 조회 요청 - receiptItemId: {}", receiptItem.getId());
+        Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
+        ReceiptItem receiptItem = findReceiptItemByIdAndValidateAccess(receiptItemId, receipt);
+
+        log.info("[ReceiptService] 입고 아이템 조회 성공 - receiptItemId: {}", receiptItem.getId());
         return ReceiptItemResponse.from(receiptItem);
     }
 
     @Transactional
-    public ReceiptItemResponse updateReceiptItem(Long receiptItemId, UpdateReceiptItemRequest request, Long userId) {
+    public ReceiptItemResponse updateReceiptItem(
+            Long receiptId,
+            Long receiptItemId,
+            UpdateReceiptItemRequest request,
+            Long userId
+    ) {
         User user = findUserById(userId);
         Store store = user.getStore();
 
-        log.info("[ReceiptService] 입고 아이템 수정 요청 - userId: {}, storeId: {}", userId, store.getId());
-        Receipt receipt = findReceiptByIdAndValidateAccess(request.receiptId(), store);
+        log.info("[ReceiptService] 입고 아이템 수정 요청 - userId: {}, storeId: {}, receiptId: {}",
+                userId, store.getId(), receiptId);
+
+        Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
         ReceiptItem receiptItem = findReceiptItemByIdAndValidateAccess(receiptItemId, receipt);
 
         receiptItem.update(
@@ -193,13 +202,15 @@ public class ReceiptService {
     }
 
     @Transactional
-    public DeleteReceiptItemResponse deleteReceiptItem(Long receiptItemId, Long userId) {
+    public DeleteReceiptItemResponse deleteReceiptItem(Long receiptId, Long receiptItemId, Long userId) {
         User user = findUserById(userId);
         Store store = user.getStore();
 
-        log.info("[ReceiptService] 입고 아이템 삭제 요청 - userId: {}, storeId: {}", userId, store.getId());
-        ReceiptItem receiptItem = findReceiptItemByIdAndValidateStoreAccess(receiptItemId, store);
-        Receipt receipt = receiptItem.getReceipt();
+        log.info("[ReceiptService] 입고 아이템 삭제 요청 - userId: {}, storeId: {}, receiptId: {}",
+                userId, store.getId(), receiptId);
+
+        Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
+        ReceiptItem receiptItem = findReceiptItemByIdAndValidateAccess(receiptItemId, receipt);
 
         receipt.getItems().remove(receiptItem);
         receipt.updateTotalBoxCount(calculateTotalBoxCount(receipt.getItems()));
@@ -331,7 +342,8 @@ public class ReceiptService {
         }
 
         for (UpdateReceiptItemRequest receiptItemRequest : request.receiptItems()) {
-            ReceiptItem receiptItem = findReceiptItemByIdAndValidateAccess(receiptItemRequest.receiptItemId(), receipt);
+            ReceiptItem receiptItem =
+                    findReceiptItemByIdAndValidateAccess(receiptItemRequest.receiptItemId(), receipt);
             receiptItem.update(
                     receiptItemRequest.boxCount(), receiptItemRequest.measuredWeight(),
                     receiptItemRequest.expectedQuantity(), receiptItemRequest.actualQuantity(),
@@ -357,15 +369,5 @@ public class ReceiptService {
                 .filter(Objects::nonNull)
                 .mapToInt(Integer::intValue)
                 .sum();
-    }
-
-    private ReceiptItem findReceiptItemByIdAndValidateStoreAccess(Long receiptItemId, Store store) {
-        ReceiptItem receiptItem = receiptItemRepository.findById(receiptItemId)
-                .orElseThrow(() -> new BaseException(ErrorCode.RECEIPT_ITEM_NOT_FOUND));
-
-        if (!receiptItem.getReceipt().getStore().getId().equals(store.getId())) {
-            throw new BaseException(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED);
-        }
-        return receiptItem;
     }
 }

@@ -892,4 +892,89 @@ class ReceiptServiceTest {
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED.getMessage());
     }
+
+    @Test
+    void 입고_삭제에_성공한다() {
+        // given
+        Store store = newStore("삭제상점");
+        User user = newUser(store, "deleteUser");
+        Vendor vendor = newVendor(store, "삭제발주처");
+
+        Order order = newOrderWithItems(store, vendor);
+
+        Receipt receipt = Receipt.builder()
+                .store(store)
+                .order(order)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(1)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+
+        receiptRepository.save(receipt);
+
+        // when
+        receiptService.deleteReceipt(receipt.getId(), user.getId());
+
+        // then
+        Receipt deleted = receiptRepository.findById(receipt.getId()).orElseThrow();
+        assertThat(deleted.isActivated()).isFalse();
+        assertThat(deleted.getStatus()).isEqualTo(ReceiptStatus.CANCELED);
+    }
+
+    @Test
+    void 입고_삭제시_사용자가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Long notExistUserId = 9999L;
+        Long anyReceiptId = 1L;
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.deleteReceipt(anyReceiptId, notExistUserId))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 입고_삭제시_입고가_존재하지_않으면_예외가_발생한다() {
+        // given
+        Store store = newStore("삭제_입고없음");
+        User user = newUser(store, "deleteUser");
+
+        Long notExistReceiptId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.deleteReceipt(notExistReceiptId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 입고_삭제시_다른_상점의_입고면_접근_거부_예외가_발생한다() {
+        // given
+        Store store1 = newStore("상점1");
+        Store store2 = newStore("상점2");
+
+        User user1 = newUser(store1, "user1");
+        Vendor vendor2 = newVendor(store2, "발주처2");
+
+        Order order2 = newOrderWithItems(store2, vendor2);
+
+        Receipt receiptOfStore2 = Receipt.builder()
+                .store(store2)
+                .order(order2)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(1)
+                .totalWeightG(null)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+
+        receiptRepository.save(receiptOfStore2);
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.deleteReceipt(receiptOfStore2.getId(), user1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_ACCESS_DENIED.getMessage());
+    }
 }

@@ -42,6 +42,9 @@ public class SecurityConfig {
             "/api/v1/store/admin",
             "/api/v1/admin/store",
 
+            // Actuator (헬스체크용)
+            "/actuator/health",
+
             // Swagger / API docs
             "/swagger-ui/**",
             "/swagger-ui.html",

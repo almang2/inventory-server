@@ -41,6 +41,9 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
             "/api/v1/store/admin",
             "/api/v1/admin/store",
 
+            // Actuator (헬스체크용)
+            "/actuator/health",
+
             // Swagger / API docs
             "/swagger-ui",
             "/v3/api-docs",

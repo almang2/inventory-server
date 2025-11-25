@@ -144,6 +144,11 @@ public class ReceiptService {
         Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
         receipt.deactivate();
 
+        // 입고 취소 후 재고 상태 변경
+        for (OrderItem orderItem : receipt.getOrder().getItems()) {
+            inventoryService.cancelIncomingReservation(orderItem.getProduct(), BigDecimal.valueOf(orderItem.getQuantity()));
+        }
+
         log.info("[ReceiptService] 입고 삭제 성공 - receiptId: {}", receipt.getId());
         return new DeleteReceiptResponse(true);
     }

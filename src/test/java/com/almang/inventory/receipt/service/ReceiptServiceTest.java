@@ -920,6 +920,12 @@ class ReceiptServiceTest {
 
         Order order = newOrderWithItems(store, vendor);
 
+        for (OrderItem orderItem : order.getItems()) {
+            Inventory inventory = newInventory(orderItem.getProduct());
+            inventory.increaseIncoming(BigDecimal.valueOf(orderItem.getQuantity()));
+            inventoryRepository.save(inventory);
+        }
+
         Receipt receipt = Receipt.builder()
                 .store(store)
                 .order(order)
@@ -929,7 +935,6 @@ class ReceiptServiceTest {
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
-
         receiptRepository.save(receipt);
 
         // when
@@ -939,6 +944,37 @@ class ReceiptServiceTest {
         Receipt deleted = receiptRepository.findById(receipt.getId()).orElseThrow();
         assertThat(deleted.isActivated()).isFalse();
         assertThat(deleted.getStatus()).isEqualTo(ReceiptStatus.CANCELED);
+
+        for (OrderItem orderItem : order.getItems()) {
+            Inventory updated = inventoryRepository.findByProduct_Id(orderItem.getProduct().getId())
+                    .orElseThrow();
+            assertThat(updated.getIncomingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
+        }
+    }
+
+    @Test
+    void 확정된_입고는_삭제할_수_없다() {
+        // given
+        Store store = newStore("확정삭제상점");
+        User user = newUser(store, "confirmDeleteUser");
+        Vendor vendor = newVendor(store, "발주처");
+
+        Order order = newOrderWithItems(store, vendor);
+
+        Receipt receipt = Receipt.builder()
+                .store(store)
+                .order(order)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(1)
+                .status(ReceiptStatus.CONFIRMED)
+                .activated(true)
+                .build();
+        receiptRepository.save(receipt);
+
+        // when & then
+        assertThatThrownBy(() -> receiptService.deleteReceipt(receipt.getId(), user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_ALREADY_CONFIRMED.getMessage());
     }
 
     @Test

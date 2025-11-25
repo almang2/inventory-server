@@ -518,7 +518,6 @@ class ReceiptControllerTest {
                 receiptId,
                 2,
                 BigDecimal.valueOf(1.234),
-                null,
                 10,
                 1100,
                 "수정 비고입니다."
@@ -683,7 +682,6 @@ class ReceiptControllerTest {
                 9999L,
                 receiptId,
                 1,
-                null,
                 null,
                 5,
                 1000,
@@ -888,7 +886,6 @@ class ReceiptControllerTest {
                 receiptId,
                 2,
                 BigDecimal.valueOf(1.234),
-                BigDecimal.valueOf(5),
                 10,
                 1500,
                 "수정 비고입니다."
@@ -941,7 +938,6 @@ class ReceiptControllerTest {
                 receiptId,
                 2,
                 BigDecimal.valueOf(1.234),
-                BigDecimal.valueOf(5),
                 10,
                 1500,
                 "수정 비고입니다."
@@ -974,7 +970,6 @@ class ReceiptControllerTest {
                 receiptId,
                 2,
                 BigDecimal.valueOf(1.234),
-                BigDecimal.valueOf(5),
                 10,
                 1500,
                 "수정 비고입니다."
@@ -1007,7 +1002,6 @@ class ReceiptControllerTest {
                 receiptId,
                 2,
                 BigDecimal.valueOf(1.234),
-                BigDecimal.valueOf(5),
                 10,
                 1500,
                 "수정 비고입니다."
@@ -1040,7 +1034,6 @@ class ReceiptControllerTest {
                 receiptId,
                 2,
                 BigDecimal.valueOf(1.234),
-                BigDecimal.valueOf(5),
                 10,
                 1500,
                 "수정 비고입니다."
@@ -1073,7 +1066,6 @@ class ReceiptControllerTest {
                 receiptId,
                 2,
                 BigDecimal.valueOf(1.234),
-                BigDecimal.valueOf(5),
                 10,
                 1500,
                 "수정 비고입니다."

@@ -204,8 +204,7 @@ public class ReceiptService {
 
         receiptItem.update(
                 request.boxCount(), request.measuredWeight(),
-                request.expectedQuantity(), request.actualQuantity(),
-                request.unitPrice(), request.note()
+                request.actualQuantity(), request.unitPrice(), request.note()
         );
         receipt.updateTotalBoxCount(calculateTotalBoxCount(receipt.getItems()));
 
@@ -358,8 +357,7 @@ public class ReceiptService {
                     findReceiptItemByIdAndValidateAccess(receiptItemRequest.receiptItemId(), receipt);
             receiptItem.update(
                     receiptItemRequest.boxCount(), receiptItemRequest.measuredWeight(),
-                    receiptItemRequest.expectedQuantity(), receiptItemRequest.actualQuantity(),
-                    receiptItemRequest.unitPrice(), receiptItemRequest.note()
+                    receiptItemRequest.actualQuantity(), receiptItemRequest.unitPrice(), receiptItemRequest.note()
             );
         }
         receipt.updateTotalBoxCount(calculateTotalBoxCount(receipt.getItems()));

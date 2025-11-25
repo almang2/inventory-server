@@ -695,7 +695,6 @@ class ReceiptServiceTest {
                 saved.getId(),
                 2,
                 null,
-                null,
                 10,
                 1100,
                 "수정 비고1"
@@ -705,7 +704,6 @@ class ReceiptServiceTest {
                 item2.getId(),
                 saved.getId(),
                 3,
-                null,
                 null,
                 5,
                 2100,
@@ -889,7 +887,6 @@ class ReceiptServiceTest {
                 otherReceiptItem.getId(),
                 receipt1.getId(),
                 1,
-                null,
                 null,
                 3,
                 1000,
@@ -1191,7 +1188,6 @@ class ReceiptServiceTest {
                 saved.getId(),
                 2,
                 BigDecimal.valueOf(1.234),
-                BigDecimal.valueOf(5),
                 10,
                 1500,
                 "수정된 비고"
@@ -1222,7 +1218,7 @@ class ReceiptServiceTest {
         Long anyItemId = 1L;
 
         UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
-                anyItemId, 1L, 1, null, null, 5, 1000, "비고"
+                anyItemId, 1L, 1, null, 5, 1000, "비고"
         );
 
         // when & then
@@ -1284,7 +1280,6 @@ class ReceiptServiceTest {
                 savedReceipt1.getId(),
                 1,
                 null,
-                null,
                 10,
                 2000,
                 "잘못 수정"
@@ -1332,7 +1327,6 @@ class ReceiptServiceTest {
                 targetItem.getId(),
                 wrongReceiptId,
                 1,
-                null,
                 null,
                 5,
                 1000,

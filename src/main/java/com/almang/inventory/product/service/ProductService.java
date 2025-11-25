@@ -4,6 +4,7 @@ import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.util.PaginationUtil;
+import com.almang.inventory.inventory.service.InventoryService;
 import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.dto.request.CreateProductRequest;
 import com.almang.inventory.product.dto.request.UpdateProductRequest;
@@ -18,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ProductService {
 
+    private final InventoryService inventoryService;
     private final ProductRepository productRepository;
     private final VendorRepository vendorRepository;
     private final UserRepository userRepository;
@@ -38,6 +39,7 @@ public class ProductService {
         log.info("[ProductService] 품목 생성 요청 - userId: {}", user.getId());
         Product product = toEntity(request, user);
         Product saved = productRepository.save(product);
+        inventoryService.createInventory(saved);
 
         log.info("[ProductService] 품목 생성 성공 - productId: {}", saved.getId());
         return ProductResponse.from(saved);

@@ -1149,6 +1149,13 @@ class OrderServiceTest {
         OrderResponse created = orderService.createOrder(createRequest, user.getId());
         Long orderId = created.orderId();
 
+        // 삭제 전에 입고 예정 재고가 3으로 증가했는지 확인
+        Inventory inventoryBeforeDelete = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        assertThat(inventoryBeforeDelete.getIncomingReserved())
+                .isEqualByComparingTo(BigDecimal.valueOf(3));
+
         // when
         DeleteOrderResponse response = orderService.deleteOrder(orderId, user.getId());
 
@@ -1160,6 +1167,40 @@ class OrderServiceTest {
 
         assertThat(deletedOrder.getStatus()).isEqualTo(OrderStatus.CANCELED);
         assertThat(deletedOrder.isActivated()).isFalse();
+
+        // 삭제 후 입고 예정 재고가 0으로 돌아갔는지 확인
+        Inventory inventoryAfterDelete = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        assertThat(inventoryAfterDelete.getIncomingReserved())
+                .isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    void 발주_삭제시_이미_취소된_발주는_예외가_발생한다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_tester");
+        Vendor vendor = newVendor(store, "발주처1");
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        CreateOrderRequest request = new CreateOrderRequest(
+                vendor.getId(),
+                "취소된 발주",
+                2,
+                List.of(new CreateOrderItemRequest(product.getId(), 3, 1000, null))
+        );
+
+        OrderResponse created = orderService.createOrder(request, user.getId());
+        Long orderId = created.orderId();
+
+        // 발주 취소
+        orderService.deleteOrder(orderId, user.getId());
+
+        // when & then
+        assertThatThrownBy(() -> orderService.deleteOrder(orderId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.ORDER_ALREADY_CANCELED.getMessage());
     }
 
     @Test

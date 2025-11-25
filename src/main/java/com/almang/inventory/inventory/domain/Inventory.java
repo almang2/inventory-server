@@ -1,6 +1,8 @@
 package com.almang.inventory.inventory.domain;
 
 import com.almang.inventory.global.entity.BaseTimeEntity;
+import com.almang.inventory.global.exception.BaseException;
+import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.product.domain.Product;
 import jakarta.persistence.*;
 import lombok.*;
@@ -55,23 +57,35 @@ public class Inventory extends BaseTimeEntity {
 
     // 입고 예정 차감
     public void decreaseIncoming(BigDecimal quantity) {
+        if (this.incomingReserved.compareTo(quantity) < 0) {
+            throw new BaseException(ErrorCode.INCOMING_STOCK_NOT_ENOUGH);
+        }
         this.incomingReserved = this.incomingReserved.subtract(quantity);
     }
 
     // 입고 확정
     public void confirmIncoming(BigDecimal quantity) {
+        if (this.incomingReserved.compareTo(quantity) < 0) {
+            throw new BaseException(ErrorCode.INCOMING_STOCK_NOT_ENOUGH);
+        }
         this.incomingReserved = this.incomingReserved.subtract(quantity);
         this.warehouseStock = this.warehouseStock.add(quantity);
     }
 
     // 창고에서 매대로 이동
     public void moveToDisplay(BigDecimal quantity) {
+        if (this.incomingReserved.compareTo(quantity) < 0) {
+            throw new BaseException(ErrorCode.INCOMING_STOCK_NOT_ENOUGH);
+        }
         this.warehouseStock = this.warehouseStock.subtract(quantity);
         this.displayStock = this.displayStock.add(quantity);
     }
 
     // 판매(매대 차감)
     public void decreaseDisplay(BigDecimal quantity) {
+        if (this.incomingReserved.compareTo(quantity) < 0) {
+            throw new BaseException(ErrorCode.INCOMING_STOCK_NOT_ENOUGH);
+        }
         this.displayStock = this.displayStock.subtract(quantity);
     }
 }

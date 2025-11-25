@@ -4,7 +4,6 @@ import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.inventory.domain.Inventory;
 import com.almang.inventory.inventory.repository.InventoryRepository;
-import com.almang.inventory.order.domain.OrderItem;
 import com.almang.inventory.product.domain.Product;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
@@ -47,7 +46,7 @@ public class InventoryService {
     }
 
     private Inventory findInventoryByProductId(Long productId) {
-        Inventory inventory = inventoryRepository.findByProduct_Id(productId)
+        return inventoryRepository.findByProduct_Id(productId)
                 .orElseThrow(() -> new BaseException(ErrorCode.INVENTORY_NOT_FOUND));
     }
 }

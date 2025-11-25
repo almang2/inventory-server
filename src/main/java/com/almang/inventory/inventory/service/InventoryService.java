@@ -42,6 +42,24 @@ public class InventoryService {
         log.info("[InventoryService] 발주 삭제로 입고 예정 수량 감소 성공 - inventoryId: {}", inventory.getId());
     }
 
+    @Transactional
+    public void updateIncomingStockFromOrder(Product product, BigDecimal diff) {
+        if (diff.compareTo(BigDecimal.ZERO) == 0) {
+            return;
+        }
+
+        log.info("[InventoryService] 발주 수정으로 입고 예정 수량 변경 요청 - productId: {}", product.getId());
+        Inventory inventory = findInventoryByProductId(product.getId());
+
+        if (diff.compareTo(BigDecimal.ZERO) > 0) {
+            inventory.increaseIncoming(diff);
+            log.info("[InventoryService] 발주 수정으로 입고 예정 수량 증가 성공 - productId: {}", inventory.getId());
+            return;
+        }
+        inventory.decreaseIncoming(diff.abs());
+        log.info("[InventoryService] 발주 수정으로 입고 예정 수량 감소 성공 - productId: {}", inventory.getId());
+    }
+
     private Inventory toInventoryEntity(Product product) {
         return Inventory.builder()
                 .product(product)

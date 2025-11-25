@@ -321,7 +321,12 @@ public class OrderService {
 
         for (UpdateOrderItemRequest orderItemRequest : request.orderItems()) {
             OrderItem orderItem = findOrderItemByIdAndValidateAccess(orderItemRequest.orderItemId(), order);
+            int beforeQuantity = orderItem.getQuantity();
             orderItem.update(orderItemRequest.quantity(), orderItemRequest.unitPrice(), orderItemRequest.note());
+            int afterQuantity = orderItem.getQuantity();
+
+            int diff = afterQuantity - beforeQuantity;
+            inventoryService.updateIncomingStockFromOrder(orderItem.getProduct(), BigDecimal.valueOf(diff));
         }
         order.updateTotalPrice(calculateTotalPrice(order.getItems()));
     }

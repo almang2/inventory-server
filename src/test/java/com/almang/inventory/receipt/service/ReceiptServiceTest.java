@@ -1483,6 +1483,11 @@ class ReceiptServiceTest {
 
         Order order = newOrderWithItems(store, vendor);
 
+        for (OrderItem orderItem : order.getItems()) {
+            Inventory inventory = newInventory(orderItem.getProduct());
+            inventory.increaseIncoming(BigDecimal.valueOf(orderItem.getQuantity()));
+        }
+
         Receipt receipt = Receipt.builder()
                 .store(store)
                 .order(order)
@@ -1492,6 +1497,17 @@ class ReceiptServiceTest {
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
+
+        for (OrderItem orderItem : order.getItems()) {
+            ReceiptItem item = ReceiptItem.builder()
+                    .product(orderItem.getProduct())
+                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .actualQuantity(null) // null 이면 confirm 시 expected 로 대체
+                    .amount(orderItem.getAmount())
+                    .unitPrice(orderItem.getUnitPrice())
+                    .build();
+            receipt.addItem(item);
+        }
 
         Receipt saved = receiptRepository.save(receipt);
 
@@ -1548,6 +1564,16 @@ class ReceiptServiceTest {
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
+
+        ReceiptItem receiptItem = ReceiptItem.builder()
+                .product(product)
+                .expectedQuantity(BigDecimal.valueOf(5))
+                .actualQuantity(null)
+                .amount(5000)
+                .unitPrice(1000)
+                .build();
+        receipt.addItem(receiptItem);
+
         receiptRepository.save(receipt);
 
         // when
@@ -1558,6 +1584,66 @@ class ReceiptServiceTest {
                 .orElseThrow();
         assertThat(updated.getIncomingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(updated.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(5));
+    }
+
+    @Test
+    void 입고_확정시_실제_수량으로_재고가_반영된다() {
+        // given
+        Store store = newStore("실제수량상점");
+        User user = newUser(store, "actualQtyUser");
+        Vendor vendor = newVendor(store, "실제수량발주처");
+
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        Inventory inventory = newInventory(product);
+        inventory.increaseIncoming(BigDecimal.valueOf(5));
+
+        Order order = Order.builder()
+                .store(store)
+                .vendor(vendor)
+                .status(OrderStatus.REQUEST)
+                .orderMessage("테스트 발주")
+                .activated(true)
+                .totalPrice(0)
+                .build();
+
+        OrderItem item = OrderItem.builder()
+                .product(product)
+                .quantity(5)
+                .unitPrice(1000)
+                .amount(5000)
+                .build();
+        order.addItem(item);
+        orderRepository.save(order);
+
+        Receipt receipt = Receipt.builder()
+                .store(store)
+                .order(order)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(1)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+
+        ReceiptItem receiptItem = ReceiptItem.builder()
+                .product(product)
+                .expectedQuantity(BigDecimal.valueOf(5))
+                .actualQuantity(3)
+                .amount(3000)
+                .unitPrice(1000)
+                .build();
+        receipt.addItem(receiptItem);
+        receiptRepository.save(receipt);
+
+        // when
+        receiptService.confirmReceipt(receipt.getId(), user.getId());
+
+        // then
+        Inventory updated = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        assertThat(updated.getIncomingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(updated.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(3));
     }
 
     @Test

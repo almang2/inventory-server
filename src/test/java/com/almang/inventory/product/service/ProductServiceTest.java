@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.inventory.domain.Inventory;
+import com.almang.inventory.inventory.repository.InventoryRepository;
 import com.almang.inventory.product.domain.ProductUnit;
 import com.almang.inventory.product.dto.request.CreateProductRequest;
 import com.almang.inventory.product.dto.request.UpdateProductRequest;
@@ -20,6 +22,7 @@ import com.almang.inventory.vendor.domain.Vendor;
 import com.almang.inventory.vendor.domain.VendorChannel;
 import com.almang.inventory.vendor.repository.VendorRepository;
 import java.math.BigDecimal;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -36,6 +39,7 @@ public class ProductServiceTest {
     @Autowired private UserRepository userRepository;
     @Autowired private StoreRepository storeRepository;
     @Autowired private VendorRepository vendorRepository;
+    @Autowired private InventoryRepository inventoryRepository;
 
     private Store newStore() {
         return storeRepository.save(
@@ -108,6 +112,18 @@ public class ProductServiceTest {
         assertThat(response.storeId()).isEqualTo(store.getId());
         assertThat(response.vendorId()).isEqualTo(vendor.getId());
         assertThat(response.isActivated()).isTrue();
+
+        List<Inventory> inventories = inventoryRepository.findAll();
+        assertThat(inventories).hasSize(1);
+
+        Inventory inventory = inventories.get(0);
+        assertThat(inventory.getProduct().getId()).isEqualTo(response.productId());
+        assertThat(inventory.getDisplayStock()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(inventory.getWarehouseStock()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(inventory.getIncomingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(inventory.getOutgoingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(inventory.getReorderTriggerPoint())
+                .isEqualByComparingTo(store.getDefaultCountCheckThreshold());
     }
 
     @Test

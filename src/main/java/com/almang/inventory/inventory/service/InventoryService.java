@@ -53,11 +53,11 @@ public class InventoryService {
 
         if (diff.compareTo(BigDecimal.ZERO) > 0) {
             inventory.increaseIncoming(diff);
-            log.info("[InventoryService] 발주 수정으로 입고 예정 수량 증가 성공 - productId: {}", inventory.getId());
+            log.info("[InventoryService] 발주 수정으로 입고 예정 수량 증가 성공 - inventoryId: {}", inventory.getId());
             return;
         }
         inventory.decreaseIncoming(diff.abs());
-        log.info("[InventoryService] 발주 수정으로 입고 예정 수량 감소 성공 - productId: {}", inventory.getId());
+        log.info("[InventoryService] 발주 수정으로 입고 예정 수량 감소 성공 - inventoryId: {}", inventory.getId());
     }
 
     private Inventory toInventoryEntity(Product product) {

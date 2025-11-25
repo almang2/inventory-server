@@ -1050,6 +1050,174 @@ class OrderServiceTest {
     }
 
     @Test
+    void 발주_수정시_수량이_증가하면_입고_예정_재고도_증가한다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_updater");
+        Vendor vendor = newVendor(store, "발주처1");
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        CreateOrderRequest createRequest = new CreateOrderRequest(
+                vendor.getId(),
+                "원본 메시지",
+                3,
+                List.of(new CreateOrderItemRequest(product.getId(), 2, 1000, "원본 비고"))
+        );
+        OrderResponse created = orderService.createOrder(createRequest, user.getId());
+        Long orderId = created.orderId();
+
+        Inventory inventoryBefore = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+        assertThat(inventoryBefore.getIncomingReserved())
+                .isEqualByComparingTo(BigDecimal.valueOf(2));
+
+        Order order = orderRepository.findById(orderId).orElseThrow();
+        OrderItem orderItem = order.getItems().get(0);
+        Long orderItemId = orderItem.getId();
+
+        UpdateOrderItemRequest updateItemRequest = new UpdateOrderItemRequest(
+                orderItemId,
+                product.getId(),
+                5,  // 변경 수량
+                1000,
+                "수정 비고"
+        );
+
+        UpdateOrderRequest updateRequest = new UpdateOrderRequest(
+                vendor.getId(),
+                OrderStatus.IN_PRODUCTION,
+                "수정된 메시지",
+                null,
+                null,
+                null,
+                null,
+                List.of(updateItemRequest)
+        );
+
+        // when
+        orderService.updateOrder(orderId, updateRequest, user.getId());
+
+        // then
+        Inventory inventoryAfter = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        assertThat(inventoryAfter.getIncomingReserved())
+                .isEqualByComparingTo(BigDecimal.valueOf(5));
+    }
+
+    @Test
+    void 발주_수정시_수량이_감소하면_입고_예정_재고도_감소한다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_updater");
+        Vendor vendor = newVendor(store, "발주처1");
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        CreateOrderRequest createRequest = new CreateOrderRequest(
+                vendor.getId(),
+                "원본 메시지",
+                3,
+                List.of(new CreateOrderItemRequest(product.getId(), 5, 1000, "원본 비고"))
+        );
+        OrderResponse created = orderService.createOrder(createRequest, user.getId());
+        Long orderId = created.orderId();
+
+        Inventory inventoryBefore = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+        assertThat(inventoryBefore.getIncomingReserved())
+                .isEqualByComparingTo(BigDecimal.valueOf(5));
+
+        Order order = orderRepository.findById(orderId).orElseThrow();
+        OrderItem orderItem = order.getItems().get(0);
+        Long orderItemId = orderItem.getId();
+
+        UpdateOrderItemRequest updateItemRequest = new UpdateOrderItemRequest(
+                orderItemId,
+                product.getId(),
+                2,      // 변경 수량
+                1000,
+                "수정 비고"
+        );
+
+        UpdateOrderRequest updateRequest = new UpdateOrderRequest(
+                vendor.getId(),
+                OrderStatus.IN_PRODUCTION,
+                "수정된 메시지",
+                null,
+                null,
+                null,
+                null,
+                List.of(updateItemRequest)
+        );
+
+        // when
+        orderService.updateOrder(orderId, updateRequest, user.getId());
+
+        // then
+        Inventory inventoryAfter = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        assertThat(inventoryAfter.getIncomingReserved())
+                .isEqualByComparingTo(BigDecimal.valueOf(2));
+    }
+
+    @Test
+    void 발주_수정시_수량이_변경되지_않으면_입고_예정_재고는_그대로_유지된다() {
+        // given
+        Store store = newStore("테스트 상점");
+        User user = newUser(store, "order_updater");
+        Vendor vendor = newVendor(store, "발주처1");
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        CreateOrderRequest createRequest = new CreateOrderRequest(
+                vendor.getId(),
+                "원본 메시지",
+                3,
+                List.of(new CreateOrderItemRequest(product.getId(), 3, 1000, "원본 비고"))
+        );
+        OrderResponse created = orderService.createOrder(createRequest, user.getId());
+        Long orderId = created.orderId();
+
+        Inventory inventoryBefore = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+        assertThat(inventoryBefore.getIncomingReserved())
+                .isEqualByComparingTo(BigDecimal.valueOf(3));
+
+        Order order = orderRepository.findById(orderId).orElseThrow();
+        OrderItem orderItem = order.getItems().get(0);
+        Long orderItemId = orderItem.getId();
+
+        UpdateOrderItemRequest updateItemRequest = new UpdateOrderItemRequest(
+                orderItemId,
+                product.getId(),
+                3, // 수량 변경 없음
+                2000,
+                "단가만 수정"
+        );
+
+        UpdateOrderRequest updateRequest = new UpdateOrderRequest(
+                vendor.getId(),
+                OrderStatus.IN_PRODUCTION,
+                "메시지 수정",
+                null,
+                null,
+                null,
+                null,
+                List.of(updateItemRequest)
+        );
+
+        // when
+        orderService.updateOrder(orderId, updateRequest, user.getId());
+
+        // then
+        Inventory inventoryAfter = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        assertThat(inventoryAfter.getIncomingReserved())
+                .isEqualByComparingTo(BigDecimal.valueOf(3));
+    }
+
+    @Test
     void 발주_아이템_수정시_사용자가_존재하지_않으면_예외가_발생한다() {
         // given
         Long notExistUserId = 9999L;

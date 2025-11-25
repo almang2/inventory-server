@@ -96,6 +96,9 @@ public class Order extends BaseTimeEntity {
         if (this.status == OrderStatus.DELIVERED) {
             throw new BaseException(ErrorCode.ORDER_ALREADY_DELIVERED);
         }
+        if (this.status == OrderStatus.CANCELED) {
+            throw new BaseException(ErrorCode.ORDER_ALREADY_CANCELED);
+        }
         this.status = OrderStatus.CANCELED;
         this.activated = false;
     }

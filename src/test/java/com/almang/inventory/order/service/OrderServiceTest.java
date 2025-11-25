@@ -1009,6 +1009,12 @@ class OrderServiceTest {
         OrderResponse created = orderService.createOrder(createRequest, user.getId());
         Long orderId = created.orderId();
 
+        // 수정 전 입고 예정 재고 확인
+        Inventory inventoryBefore = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+        assertThat(inventoryBefore.getIncomingReserved())
+                .isEqualByComparingTo(BigDecimal.valueOf(2));
+
         Order order = orderRepository.findById(orderId)
                 .orElseThrow();
         OrderItem orderItem = order.getItems().get(0);
@@ -1029,7 +1035,7 @@ class OrderServiceTest {
         // when
         OrderItemResponse response = orderService.updateOrderItem(orderItemId, updateRequest, user.getId());
 
-        // then (응답 검증)
+        // then
         assertThat(response).isNotNull();
         assertThat(response.orderItemId()).isEqualTo(orderItemId);
         assertThat(response.productId()).isEqualTo(product.getId());
@@ -1047,6 +1053,12 @@ class OrderServiceTest {
         assertThat(updated.getUnitPrice()).isEqualTo(newUnitPrice);
         assertThat(updated.getAmount()).isEqualTo(newQuantity * newUnitPrice);
         assertThat(updated.getNote()).isEqualTo(newNote);
+
+        // 수정 후 입고 예정 재고 확인
+        Inventory inventoryAfter = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+        assertThat(inventoryAfter.getIncomingReserved())
+                .isEqualByComparingTo(BigDecimal.valueOf(10));
     }
 
     @Test

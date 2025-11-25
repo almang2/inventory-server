@@ -141,8 +141,13 @@ public class OrderService {
         log.info("[OrderService] 발주 아이템 수정 요청 - userId: {}, storeId: {}", userId, store.getId());
         OrderItem orderItem = findOrderItemById(orderItemId);
         validateOrderItemAccess(orderItem, store);
+        int beforeQuantity = orderItem.getQuantity();
 
         orderItem.update(request.quantity(), request.unitPrice(), request.note());
+        int afterQuantity = orderItem.getQuantity();
+
+        int diff = afterQuantity - beforeQuantity;
+        inventoryService.updateIncomingStockFromOrder(orderItem.getProduct(), BigDecimal.valueOf(diff));
 
         Order order = orderItem.getOrder();
         order.updateTotalPrice(calculateTotalPrice(order.getItems()));

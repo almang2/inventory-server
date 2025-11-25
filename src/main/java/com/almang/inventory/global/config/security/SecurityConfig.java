@@ -32,6 +32,33 @@ public class SecurityConfig {
     private final UserRepository userRepository;
     private final JwtAuthEntryPoint jwtAuthEntryPoint;
 
+    private static final String[] PUBLIC_APIS = {
+            // Auth
+            "/api/v1/auth/login",
+            "/api/v1/auth/reset-password",
+            "/api/v1/auth/reissue",
+
+            // Store admin
+            "/api/v1/store/admin",
+            "/api/v1/admin/store",
+
+            // Swagger / API docs
+            "/swagger-ui/**",
+            "/swagger-ui.html",
+            "/v3/api-docs/**",
+            "/v3/api-docs",
+            "/swagger-resources/**",
+
+            // H2 console
+            "/h2-console/**",
+
+            // 기타 공개 엔드포인트
+            "/docs/**",
+            "/health",
+            "/error",
+            "/favicon.ico"
+    };
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
@@ -40,8 +67,11 @@ public class SecurityConfig {
                 .headers(h -> h.frameOptions(FrameOptionsConfig::sameOrigin)) // H2 콘솔 접근 시 iframe 사용 허용 (동일 출처만 허용하여 보안 유지)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/logout").authenticated()
-                        .anyRequest().permitAll() // 추후 변경 예정
+                        // 공개 엔드포인트
+                        .requestMatchers(PUBLIC_APIS).permitAll()
+
+                        // 다른 엔드포인트는 인증 필요
+                        .anyRequest().authenticated()
                 )
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint(jwtAuthEntryPoint))

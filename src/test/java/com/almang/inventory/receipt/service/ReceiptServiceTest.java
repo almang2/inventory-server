@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.inventory.domain.Inventory;
+import com.almang.inventory.inventory.repository.InventoryRepository;
 import com.almang.inventory.order.domain.Order;
 import com.almang.inventory.order.domain.OrderItem;
 import com.almang.inventory.order.domain.OrderStatus;
@@ -53,6 +55,7 @@ class ReceiptServiceTest {
     @Autowired private StoreRepository storeRepository;
     @Autowired private VendorRepository vendorRepository;
     @Autowired private ProductRepository productRepository;
+    @Autowired private InventoryRepository inventoryRepository;
 
     private Store newStore(String name) {
         return storeRepository.save(
@@ -143,6 +146,19 @@ class ReceiptServiceTest {
         order.addItem(item2);
 
         return orderRepository.save(order);
+    }
+
+    private Inventory newInventory(Product product) {
+        return inventoryRepository.save(
+                Inventory.builder()
+                        .product(product)
+                        .displayStock(BigDecimal.ZERO)
+                        .warehouseStock(BigDecimal.ZERO)
+                        .outgoingReserved(BigDecimal.ZERO)
+                        .incomingReserved(BigDecimal.ZERO)
+                        .reorderTriggerPoint(null)
+                        .build()
+        );
     }
 
     @Test
@@ -1461,6 +1477,57 @@ class ReceiptServiceTest {
 
         assertThat(updated.getStatus()).isEqualTo(ReceiptStatus.CONFIRMED);
         assertThat(updated.isActivated()).isTrue();
+    }
+
+    @Test
+    void 입고_확정시_재고가_정상적으로_반영된다() {
+        // given
+        Store store = newStore("재고확인상점");
+        User user = newUser(store, "inventoryUser");
+        Vendor vendor = newVendor(store, "재고발주처");
+
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        Inventory inventory = newInventory(product);
+        inventory.increaseIncoming(BigDecimal.valueOf(5));
+
+        Order order = Order.builder()
+                .store(store)
+                .vendor(vendor)
+                .status(OrderStatus.REQUEST)
+                .orderMessage("테스트 발주")
+                .activated(true)
+                .totalPrice(0)
+                .build();
+
+        OrderItem item = OrderItem.builder()
+                .product(product)
+                .quantity(5)
+                .unitPrice(1000)
+                .amount(5000)
+                .build();
+
+        order.addItem(item);
+        orderRepository.save(order);
+
+        Receipt receipt = Receipt.builder()
+                .store(store)
+                .order(order)
+                .receiptDate(LocalDate.now())
+                .totalBoxCount(1)
+                .status(ReceiptStatus.PENDING)
+                .activated(true)
+                .build();
+        receiptRepository.save(receipt);
+
+        // when
+        receiptService.confirmReceipt(receipt.getId(), user.getId());
+
+        // then
+        Inventory updated = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+        assertThat(updated.getIncomingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(updated.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(5));
     }
 
     @Test

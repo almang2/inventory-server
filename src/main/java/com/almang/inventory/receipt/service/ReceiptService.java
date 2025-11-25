@@ -163,8 +163,12 @@ public class ReceiptService {
         receipt.confirm();
 
         // 입고 확정 후 재고 상태 변경
-        for (OrderItem orderItem : receipt.getOrder().getItems()) {
-            inventoryService.applyReceipt(orderItem.getProduct(), BigDecimal.valueOf(orderItem.getQuantity()));
+        for (ReceiptItem receiptItem : receipt.getItems()) {
+            BigDecimal expected = receiptItem.getExpectedQuantity();
+            BigDecimal actual =
+                    receiptItem.getActualQuantity() != null ? BigDecimal.valueOf(receiptItem.getActualQuantity()) : expected;
+
+            inventoryService.applyReceipt(receiptItem.getProduct(), expected, actual);
         }
 
         log.info("[ReceiptService] 입고 확정 성공 - receiptId: {}", receipt.getId());

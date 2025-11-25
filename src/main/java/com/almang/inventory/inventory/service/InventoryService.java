@@ -63,10 +63,10 @@ public class InventoryService {
     }
 
     @Transactional
-    public void applyReceipt(Product product, BigDecimal quantity) {
+    public void applyReceipt(Product product, BigDecimal expected, BigDecimal actual) {
         log.info("[InventoryService] 입고 이후 입고 예정 수량 감소 및 재고 수량 증가 요청 - productId: {}", product.getId());
         Inventory inventory = findInventoryByProductId(product.getId());
-        inventory.confirmIncoming(quantity);
+        inventory.confirmIncoming(expected, actual);
         log.info("[InventoryService] 입고 이후 입고 예정 수량 감소 및 재고 수량 증가 성공 - inventoryId: {}", inventory.getId());
     }
 

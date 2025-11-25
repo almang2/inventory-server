@@ -83,6 +83,9 @@ public class Receipt extends BaseTimeEntity {
     }
 
     public void deactivate() {
+        if (this.status == ReceiptStatus.CONFIRMED) {
+            throw new BaseException(ErrorCode.RECEIPT_ALREADY_CONFIRMED);
+        }
         if (this.status == ReceiptStatus.CANCELED) {
             throw new BaseException(ErrorCode.RECEIPT_ALREADY_CANCELED);
         }

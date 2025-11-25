@@ -5,6 +5,8 @@ import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.inventory.domain.Inventory;
 import com.almang.inventory.inventory.repository.InventoryRepository;
 import com.almang.inventory.product.domain.Product;
+import com.almang.inventory.receipt.domain.Receipt;
+import com.almang.inventory.receipt.domain.ReceiptStatus;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,6 +68,14 @@ public class InventoryService {
         Inventory inventory = findInventoryByProductId(product.getId());
         inventory.confirmIncoming(quantity);
         log.info("[InventoryService] 입고 이후 입고 예정 수량 감소 및 재고 수량 증가 성공 - inventoryId: {}", inventory.getId());
+    }
+
+    @Transactional
+    public void cancelIncomingReservation(Product product, BigDecimal quantity) {
+        log.info("[InventoryService] 입고 취소로 입고 예정 수량 감소 요청 - productId: {}", product.getId());
+        Inventory inventory = findInventoryByProductId(product.getId());
+        inventory.decreaseIncoming(quantity);
+        log.info("[InventoryService] 입고 취소로 입고 예정 수량 감소 성공 - inventoryId: {}", inventory.getId());
     }
 
     private Inventory toInventoryEntity(Product product) {

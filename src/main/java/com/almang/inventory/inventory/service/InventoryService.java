@@ -60,6 +60,14 @@ public class InventoryService {
         log.info("[InventoryService] 발주 수정으로 입고 예정 수량 감소 성공 - inventoryId: {}", inventory.getId());
     }
 
+    @Transactional
+    public void applyReceipt(Product product, BigDecimal quantity) {
+        log.info("[InventoryService] 입고 이후 입고 예정 수량 감소 및 재고 수량 증가 요청 - productId: {}", product.getId());
+        Inventory inventory = findInventoryByProductId(product.getId());
+        inventory.confirmIncoming(quantity);
+        log.info("[InventoryService] 입고 이후 입고 예정 수량 감소 및 재고 수량 증가 성공 - inventoryId: {}", inventory.getId());
+    }
+
     private Inventory toInventoryEntity(Product product) {
         return Inventory.builder()
                 .product(product)

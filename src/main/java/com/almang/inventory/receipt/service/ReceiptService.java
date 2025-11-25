@@ -4,6 +4,7 @@ import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.util.PaginationUtil;
+import com.almang.inventory.inventory.service.InventoryService;
 import com.almang.inventory.order.domain.Order;
 import com.almang.inventory.order.domain.OrderItem;
 import com.almang.inventory.order.domain.OrderStatus;
@@ -41,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ReceiptService {
 
+    private final InventoryService inventoryService;
     private final ReceiptRepository receiptRepository;
     private final ReceiptItemRepository receiptItemRepository;
     private final OrderRepository orderRepository;
@@ -154,6 +156,11 @@ public class ReceiptService {
         log.info("[ReceiptService] 입고 확정 요청 - userId: {}, storeId: {}", userId, store.getId());
         Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
         receipt.confirm();
+
+        // 입고 확정 후 재고 상태 변경
+        for (OrderItem orderItem : receipt.getOrder().getItems()) {
+            inventoryService.applyReceipt(orderItem.getProduct(), BigDecimal.valueOf(orderItem.getQuantity()));
+        }
 
         log.info("[ReceiptService] 입고 확정 성공 - receiptId: {}", receipt.getId());
         return new ConfirmReceiptResponse(true);

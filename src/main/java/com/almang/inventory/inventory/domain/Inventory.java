@@ -48,14 +48,6 @@ public class Inventory extends BaseTimeEntity {
     @Column(name = "reorder_trigger_point", precision = 3, scale = 2)
     private BigDecimal reorderTriggerPoint;
 
-    @PrePersist
-    void prePersist() {
-        if (displayStock == null) displayStock = BigDecimal.ZERO;
-        if (warehouseStock == null) warehouseStock = BigDecimal.ZERO;
-        if (outgoingReserved == null) outgoingReserved = BigDecimal.ZERO;
-        if (incomingReserved == null) incomingReserved = BigDecimal.ZERO;
-    }
-
     // 입고 예정 추가
     public void increaseIncoming(BigDecimal quantity) {
         this.incomingReserved = this.incomingReserved.add(quantity);

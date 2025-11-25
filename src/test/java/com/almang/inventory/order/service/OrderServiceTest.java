@@ -6,6 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.inventory.domain.Inventory;
+import com.almang.inventory.inventory.repository.InventoryRepository;
+import com.almang.inventory.inventory.service.InventoryService;
 import com.almang.inventory.order.domain.Order;
 import com.almang.inventory.order.domain.OrderItem;
 import com.almang.inventory.order.domain.OrderStatus;
@@ -48,6 +51,8 @@ class OrderServiceTest {
     @Autowired private VendorRepository vendorRepository;
     @Autowired private ProductRepository productRepository;
     @Autowired private OrderRepository orderRepository;
+    @Autowired private InventoryService inventoryService;
+    @Autowired private InventoryRepository inventoryRepository;
 
     private Store newStore(String name) {
         return storeRepository.save(
@@ -85,7 +90,7 @@ class OrderServiceTest {
     }
 
     private Product newProduct(Store store, Vendor vendor, String name, String code) {
-        return productRepository.save(
+        Product product = productRepository.save(
                 Product.builder()
                         .store(store)
                         .vendor(vendor)
@@ -101,6 +106,9 @@ class OrderServiceTest {
                         .wholesalePrice(1200)
                         .build()
         );
+        inventoryService.createInventory(product);
+
+        return product;
     }
 
     @Test
@@ -168,6 +176,16 @@ class OrderServiceTest {
         assertThat(savedItem2.getOrder().getId()).isEqualTo(savedOrder.getId());
         assertThat(savedItem2.getProduct().getId()).isIn(product1.getId(), product2.getId());
         assertThat(savedItem2.getAmount()).isEqualTo(savedItem2.getQuantity() * savedItem2.getUnitPrice());
+
+        Inventory inventory1 = inventoryRepository.findByProduct_Id(product1.getId())
+                .orElseThrow();
+        Inventory inventory2 = inventoryRepository.findByProduct_Id(product2.getId())
+                .orElseThrow();
+
+        assertThat(inventory1.getIncomingReserved())
+                .isEqualByComparingTo(BigDecimal.valueOf(10)); // itemReq1 quantity
+        assertThat(inventory2.getIncomingReserved())
+                .isEqualByComparingTo(BigDecimal.valueOf(5));  // itemReq2 quantity
     }
 
     @Test

@@ -56,6 +56,7 @@ public enum ErrorCode {
     RECEIPT_ALREADY_CONFIRMED(HttpStatus.BAD_REQUEST, "이미 확정된 입고입니다."),
 
     // INVENTORY
+    INVENTORY_NOT_FOUND(HttpStatus.NOT_FOUND, "재고를 찾을 수 없습니다."),
     INCOMING_STOCK_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "입고 예정 수량이 부족합니다."),
     WAREHOUSE_STOCK_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "창고 재고가 부족합니다."),
     DISPLAY_STOCK_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "매대 재고가 부족합니다."),

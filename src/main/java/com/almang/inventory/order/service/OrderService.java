@@ -4,6 +4,7 @@ import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.util.PaginationUtil;
+import com.almang.inventory.inventory.service.InventoryService;
 import com.almang.inventory.order.domain.Order;
 import com.almang.inventory.order.domain.OrderItem;
 import com.almang.inventory.order.domain.OrderStatus;
@@ -23,6 +24,7 @@ import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
 import com.almang.inventory.vendor.domain.Vendor;
 import com.almang.inventory.vendor.repository.VendorRepository;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -45,6 +47,7 @@ public class OrderService {
     private final VendorRepository vendorRepository;
     private final ProductRepository productRepository;
     private final OrderItemRepository orderItemRepository;
+    private final InventoryService inventoryService;
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request, Long userId) {
@@ -168,6 +171,7 @@ public class OrderService {
         for (CreateOrderItemRequest request : requests) {
             Product product = findProductByIdAndValidateAccess(request.productId(), store);
             items.add(toOrderItemEntity(request, product));
+            inventoryService.increaseIncomingStockFromOrder(product, BigDecimal.valueOf(request.quantity()));
         }
         return items;
     }

@@ -1,7 +1,10 @@
 package com.almang.inventory.inventory.service;
 
+import com.almang.inventory.global.exception.BaseException;
+import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.inventory.domain.Inventory;
 import com.almang.inventory.inventory.repository.InventoryRepository;
+import com.almang.inventory.order.domain.OrderItem;
 import com.almang.inventory.product.domain.Product;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +27,14 @@ public class InventoryService {
         log.info("[InventoryService] 재고 생성 성공 - inventoryId: {}", inventory.getId());
     }
 
+    @Transactional
+    public void increaseIncomingStockFromOrder(Product product, BigDecimal quantity) {
+        log.info("[InventoryService] 발주 생성으로 입고 예정 수량 증가 요청 - productId: {}", product.getId());
+        Inventory inventory = findInventoryByProductId(product.getId());
+        inventory.increaseIncoming(quantity);
+        log.info("[InventoryService] 발주 생성으로 입고 예정 수량 증가 성공 - productId: {}", product.getId());
+    }
+
     private Inventory toInventoryEntity(Product product) {
         return Inventory.builder()
                 .product(product)
@@ -33,5 +44,10 @@ public class InventoryService {
                 .incomingReserved(BigDecimal.ZERO)
                 .reorderTriggerPoint(product.getStore().getDefaultCountCheckThreshold())
                 .build();
+    }
+
+    private Inventory findInventoryByProductId(Long productId) {
+        Inventory inventory = inventoryRepository.findByProduct_Id(productId)
+                .orElseThrow(() -> new BaseException(ErrorCode.INVENTORY_NOT_FOUND));
     }
 }

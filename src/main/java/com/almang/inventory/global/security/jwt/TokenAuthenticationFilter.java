@@ -31,16 +31,29 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
     private final UserRepository userRepository;
     private static final String TOKEN_PREFIX = "Bearer ";
 
-    // 화이트리스트
     private final List<String> whitelist = List.of(
+            // Auth
             "/api/v1/auth/login",
+            "/api/v1/auth/reset-password",
             "/api/v1/auth/reissue",
+
+            // Store admin
             "/api/v1/store/admin",
+            "/api/v1/admin/store",
+
+            // Swagger / API docs
+            "/swagger-ui",
+            "/v3/api-docs",
+            "/swagger-resources",
+
+            // H2 console
+            "/h2-console",
+
+            // 기타 공개 엔드포인트
             "/docs",
             "/health",
-            "/h2-console",
-            "/swagger-ui",
-            "/v3/api-docs"
+            "/error",
+            "/favicon.ico"
     );
 
     @Override

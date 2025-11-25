@@ -87,12 +87,17 @@ public class Order extends BaseTimeEntity {
     }
 
     public void updateStatus(OrderStatus status) {
-        if (status == OrderStatus.DELIVERED) {
-            throw new BaseException(ErrorCode.ORDER_ALREADY_DELIVERED);
-        }
         if (status != null) {
             this.status = status;
         }
+    }
+
+    public void cancel() {
+        if (this.status == OrderStatus.DELIVERED) {
+            throw new BaseException(ErrorCode.ORDER_ALREADY_DELIVERED);
+        }
+        this.status = OrderStatus.CANCELED;
+        this.activated = false;
     }
 
     public void updateMessageAndActivated(String orderMessage, Boolean activated) {

@@ -158,8 +158,7 @@ public class OrderService {
 
         log.info("[OrderService] 발주 삭제 요청 - userId: {}, storeId: {}", userId, store.getId());
         Order order = findOrderByIdAndValidateAccess(orderId, store);
-        order.updateStatus(OrderStatus.CANCELED);
-        order.updateMessageAndActivated(null, false);
+        order.cancel();
 
         // 발주 취소로 인한 입고 예정 재고 차감
         for (OrderItem item : order.getItems()) {

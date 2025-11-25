@@ -1149,6 +1149,13 @@ class OrderServiceTest {
         OrderResponse created = orderService.createOrder(createRequest, user.getId());
         Long orderId = created.orderId();
 
+        // 삭제 전에 입고 예정 재고가 3으로 증가했는지 확인
+        Inventory inventoryBeforeDelete = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        assertThat(inventoryBeforeDelete.getIncomingReserved())
+                .isEqualByComparingTo(BigDecimal.valueOf(3));
+
         // when
         DeleteOrderResponse response = orderService.deleteOrder(orderId, user.getId());
 
@@ -1160,6 +1167,13 @@ class OrderServiceTest {
 
         assertThat(deletedOrder.getStatus()).isEqualTo(OrderStatus.CANCELED);
         assertThat(deletedOrder.isActivated()).isFalse();
+
+        // 삭제 후 입고 예정 재고가 0으로 돌아갔는지 확인
+        Inventory inventoryAfterDelete = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        assertThat(inventoryAfterDelete.getIncomingReserved())
+                .isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test

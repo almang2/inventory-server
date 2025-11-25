@@ -161,6 +161,11 @@ public class OrderService {
         order.updateStatus(OrderStatus.CANCELED);
         order.updateMessageAndActivated(null, false);
 
+        // 발주 취소로 인한 입고 예정 재고 차감
+        for (OrderItem item : order.getItems()) {
+            inventoryService.decreaseIncomingStockFromOrder(item.getProduct(), BigDecimal.valueOf(item.getQuantity()));
+        }
+
         log.info("[OrderService] 발주 삭제 성공 - userId: {}, storeId: {}", userId, store.getId());
         return new DeleteOrderResponse(true);
     }

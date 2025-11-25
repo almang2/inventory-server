@@ -31,7 +31,15 @@ public class InventoryService {
         log.info("[InventoryService] 발주 생성으로 입고 예정 수량 증가 요청 - productId: {}", product.getId());
         Inventory inventory = findInventoryByProductId(product.getId());
         inventory.increaseIncoming(quantity);
-        log.info("[InventoryService] 발주 생성으로 입고 예정 수량 증가 성공 - productId: {}", product.getId());
+        log.info("[InventoryService] 발주 생성으로 입고 예정 수량 증가 성공 - inventoryId: {}", inventory.getId());
+    }
+
+    @Transactional
+    public void decreaseIncomingStockFromOrder(Product product, BigDecimal quantity) {
+        log.info("[InventoryService] 발주 삭제로 입고 예정 수량 감소 요청 - productId: {}", product.getId());
+        Inventory inventory = findInventoryByProductId(product.getId());
+        inventory.decreaseIncoming(quantity);
+        log.info("[InventoryService] 발주 삭제로 입고 예정 수량 감소 성공 - inventoryId: {}", inventory.getId());
     }
 
     private Inventory toInventoryEntity(Product product) {

@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -41,6 +42,21 @@ public class InventoryController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.UPDATE_INVENTORY_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @GetMapping("/{inventoryId}")
+    @Operation(summary = "재고 아이디 기반 재고 조회", description = "재고 아이디를 통해 재고를 조회하고 재고 정보를 반환합니다.")
+    public ResponseEntity<ApiResponse<InventoryResponse>> getInventory(
+            @PathVariable Long inventoryId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[InventoryController] 재고 아이디 기반 재고 조회 요청 - userId: {}, inventoryId: {}", userId, inventoryId);
+        InventoryResponse response = inventoryService.getInventory(inventoryId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.GET_INVENTORY_SUCCESS.getMessage(), response)
         );
     }
 }

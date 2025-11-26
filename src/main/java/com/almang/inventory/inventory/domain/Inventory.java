@@ -88,4 +88,28 @@ public class Inventory extends BaseTimeEntity {
         }
         this.displayStock = this.displayStock.subtract(quantity);
     }
+
+    public void updateManually(
+            BigDecimal displayStock,
+            BigDecimal warehouseStock,
+            BigDecimal outgoingReserved,
+            BigDecimal incomingReserved,
+            BigDecimal reorderTriggerPoint
+    ) {
+        if (displayStock != null) {
+            this.displayStock = displayStock;
+        }
+        if (warehouseStock != null) {
+            this.warehouseStock = warehouseStock;
+        }
+        if (outgoingReserved != null) {
+            this.outgoingReserved = outgoingReserved;
+        }
+        if (incomingReserved != null) {
+            this.incomingReserved = incomingReserved;
+        }
+        if (reorderTriggerPoint != null) {
+            this.reorderTriggerPoint = reorderTriggerPoint;
+        }
+    }
 }

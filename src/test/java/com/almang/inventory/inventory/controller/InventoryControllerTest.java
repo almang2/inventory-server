@@ -1,0 +1,178 @@
+package com.almang.inventory.inventory.controller;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import com.almang.inventory.global.api.SuccessMessage;
+import com.almang.inventory.global.config.TestSecurityConfig;
+import com.almang.inventory.global.exception.BaseException;
+import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.global.security.principal.CustomUserPrincipal;
+import com.almang.inventory.inventory.dto.request.UpdateInventoryRequest;
+import com.almang.inventory.inventory.dto.response.InventoryResponse;
+import com.almang.inventory.inventory.service.InventoryService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
+import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+@WebMvcTest(InventoryController.class)
+@Import(TestSecurityConfig.class)
+@ActiveProfiles("test")
+public class InventoryControllerTest {
+
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
+
+    @MockitoBean private InventoryService inventoryService;
+    @MockitoBean private JpaMetamodelMappingContext jpaMetamodelMappingContext;
+
+    private UsernamePasswordAuthenticationToken auth() {
+        CustomUserPrincipal principal =
+                new CustomUserPrincipal(1L, "inventory_admin", List.of());
+        return new UsernamePasswordAuthenticationToken(
+                principal, null, principal.getAuthorities()
+        );
+    }
+
+    @Test
+    void 재고_수동_수정에_성공한다() throws Exception {
+        // given
+        Long inventoryId = 1L;
+        Long productId = 10L;
+
+        UpdateInventoryRequest request = new UpdateInventoryRequest(
+                productId,
+                BigDecimal.valueOf(1.234),
+                BigDecimal.valueOf(10.000),
+                BigDecimal.valueOf(0.500),
+                BigDecimal.valueOf(3.000),
+                BigDecimal.valueOf(0.25)
+        );
+
+        InventoryResponse response = new InventoryResponse(
+                inventoryId,
+                productId,
+                BigDecimal.valueOf(1.234),
+                BigDecimal.valueOf(10.000),
+                BigDecimal.valueOf(0.500),
+                BigDecimal.valueOf(3.000),
+                BigDecimal.valueOf(0.25)
+        );
+
+        when(inventoryService.updateInventory(anyLong(), any(UpdateInventoryRequest.class), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/inventory/{inventoryId}", inventoryId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.UPDATE_INVENTORY_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.inventoryId").value(inventoryId))
+                .andExpect(jsonPath("$.data.productId").value(productId))
+                .andExpect(jsonPath("$.data.displayStock").value(1.234))
+                .andExpect(jsonPath("$.data.warehouseStock").value(10.000))
+                .andExpect(jsonPath("$.data.incomingReserved").value(3.000))
+                .andExpect(jsonPath("$.data.reorderTriggerPoint").value(0.25));
+    }
+
+    @Test
+    void 재고_수동_수정시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long inventoryId = 1L;
+
+        UpdateInventoryRequest request = new UpdateInventoryRequest(
+                10L,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(0.2)
+        );
+
+        when(inventoryService.updateInventory(anyLong(), any(UpdateInventoryRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/inventory/{inventoryId}", inventoryId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 재고_수동_수정시_재고가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long inventoryId = 9999L;
+
+        UpdateInventoryRequest request = new UpdateInventoryRequest(
+                10L,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(0.2)
+        );
+
+        when(inventoryService.updateInventory(anyLong(), any(UpdateInventoryRequest.class), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.INVENTORY_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/inventory/{inventoryId}", inventoryId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.INVENTORY_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.INVENTORY_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 재고_수동_수정_요청값_검증에_실패하면_예외가_발생한다() throws Exception {
+        // given
+        Long inventoryId = 1L;
+
+        UpdateInventoryRequest invalidRequest = new UpdateInventoryRequest(
+                null,
+                BigDecimal.valueOf(-1.0),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(1.5)
+        );
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/inventory/{inventoryId}", inventoryId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+}

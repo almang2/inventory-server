@@ -163,8 +163,12 @@ public class ReceiptService {
         receipt.confirm();
 
         // 입고 확정 후 재고 상태 변경
-        for (OrderItem orderItem : receipt.getOrder().getItems()) {
-            inventoryService.applyReceipt(orderItem.getProduct(), BigDecimal.valueOf(orderItem.getQuantity()));
+        for (ReceiptItem receiptItem : receipt.getItems()) {
+            BigDecimal expected = receiptItem.getExpectedQuantity();
+            BigDecimal actual =
+                    receiptItem.getActualQuantity() != null ? BigDecimal.valueOf(receiptItem.getActualQuantity()) : expected;
+
+            inventoryService.applyReceipt(receiptItem.getProduct(), expected, actual);
         }
 
         log.info("[ReceiptService] 입고 확정 성공 - receiptId: {}", receipt.getId());
@@ -204,8 +208,7 @@ public class ReceiptService {
 
         receiptItem.update(
                 request.boxCount(), request.measuredWeight(),
-                request.expectedQuantity(), request.actualQuantity(),
-                request.unitPrice(), request.note()
+                request.actualQuantity(), request.unitPrice(), request.note()
         );
         receipt.updateTotalBoxCount(calculateTotalBoxCount(receipt.getItems()));
 
@@ -358,8 +361,7 @@ public class ReceiptService {
                     findReceiptItemByIdAndValidateAccess(receiptItemRequest.receiptItemId(), receipt);
             receiptItem.update(
                     receiptItemRequest.boxCount(), receiptItemRequest.measuredWeight(),
-                    receiptItemRequest.expectedQuantity(), receiptItemRequest.actualQuantity(),
-                    receiptItemRequest.unitPrice(), receiptItemRequest.note()
+                    receiptItemRequest.actualQuantity(), receiptItemRequest.unitPrice(), receiptItemRequest.note()
             );
         }
         receipt.updateTotalBoxCount(calculateTotalBoxCount(receipt.getItems()));

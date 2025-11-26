@@ -57,7 +57,7 @@ public class ReceiptItem extends BaseTimeEntity {
     }
 
     public void update(
-            Integer boxCount, BigDecimal measuredWeight, BigDecimal expectedQuantity,
+            Integer boxCount, BigDecimal measuredWeight,
             Integer actualQuantity, Integer unitPrice, String note
     ) {
         if (boxCount != null) {
@@ -65,9 +65,6 @@ public class ReceiptItem extends BaseTimeEntity {
         }
         if (measuredWeight != null) {
             this.measuredWeight = measuredWeight;
-        }
-        if (expectedQuantity != null) {
-            this.expectedQuantity = expectedQuantity;
         }
         if (actualQuantity != null) {
             this.actualQuantity = actualQuantity;

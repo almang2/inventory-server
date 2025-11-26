@@ -8,7 +8,6 @@ public record UpdateReceiptItemRequest(
         Long receiptId,
         Integer boxCount,
         BigDecimal measuredWeight,
-        BigDecimal expectedQuantity,
         Integer actualQuantity,
         Integer unitPrice,
         String note

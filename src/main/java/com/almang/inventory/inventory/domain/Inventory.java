@@ -64,12 +64,12 @@ public class Inventory extends BaseTimeEntity {
     }
 
     // 입고 확정
-    public void confirmIncoming(BigDecimal quantity) {
-        if (this.incomingReserved.compareTo(quantity) < 0) {
+    public void confirmIncoming(BigDecimal expected, BigDecimal actual) {
+        if (this.incomingReserved.compareTo(expected) < 0) {
             throw new BaseException(ErrorCode.INCOMING_STOCK_NOT_ENOUGH);
         }
-        this.incomingReserved = this.incomingReserved.subtract(quantity);
-        this.warehouseStock = this.warehouseStock.add(quantity);
+        this.incomingReserved = this.incomingReserved.subtract(expected);
+        this.warehouseStock = this.warehouseStock.add(actual);
     }
 
     // 창고에서 매대로 이동

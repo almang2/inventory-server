@@ -1,6 +1,8 @@
 package com.almang.inventory.product.service;
 
 import com.almang.inventory.global.api.PageResponse;
+import com.almang.inventory.global.context.UserContextProvider;
+import com.almang.inventory.global.context.UserContextProvider.UserStoreContext;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.util.PaginationUtil;
@@ -30,11 +32,12 @@ public class ProductService {
     private final InventoryService inventoryService;
     private final ProductRepository productRepository;
     private final VendorRepository vendorRepository;
-    private final UserRepository userRepository;
+    private final UserContextProvider userContextProvider;
 
     @Transactional
     public ProductResponse createProduct(CreateProductRequest request, Long userId) {
-        User user = findUserById(userId);
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        User user = context.user();
 
         log.info("[ProductService] 품목 생성 요청 - userId: {}", user.getId());
         Product product = toEntity(request, user);
@@ -47,7 +50,8 @@ public class ProductService {
 
     @Transactional
     public ProductResponse updateProduct(Long productId, UpdateProductRequest request, Long userId) {
-        User user = findUserById(userId);
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        User user = context.user();
         Product product = findProductById(productId);
         validateStoreAccess(product, user);
 
@@ -67,7 +71,8 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public ProductResponse getProductDetail(Long productId, Long userId) {
-        User user = findUserById(userId);
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        User user = context.user();
         Product product = findProductById(productId);
         validateStoreAccess(product, user);
 
@@ -79,8 +84,8 @@ public class ProductService {
     public PageResponse<ProductResponse> getProductList(
             Long userId, Integer page, Integer size, Boolean isActivate, String nameKeyword
     ) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[ProductService] 품목 목록 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
         PageRequest pageable = PaginationUtil.createPageRequest(page, size, "name");
@@ -108,11 +113,6 @@ public class ProductService {
                 .retailPrice(request.retailPrice())
                 .wholesalePrice(request.wholesalePrice())
                 .build();
-    }
-
-    private User findUserById(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new BaseException(ErrorCode.USER_NOT_FOUND));
     }
 
     private Vendor findVendorByIdAndValidateAccess(Long vendorId, User user) {

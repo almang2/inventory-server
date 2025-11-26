@@ -1,6 +1,8 @@
 package com.almang.inventory.vendor.service;
 
 import com.almang.inventory.global.api.PageResponse;
+import com.almang.inventory.global.context.UserContextProvider;
+import com.almang.inventory.global.context.UserContextProvider.UserStoreContext;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.util.PaginationUtil;
@@ -9,7 +11,6 @@ import com.almang.inventory.order.template.domain.OrderTemplate;
 import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.user.domain.User;
-import com.almang.inventory.user.repository.UserRepository;
 import com.almang.inventory.vendor.domain.Vendor;
 import com.almang.inventory.vendor.dto.request.CreateOrderTemplateRequest;
 import com.almang.inventory.vendor.dto.request.CreateVendorRequest;
@@ -30,12 +31,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class VendorService {
 
     private final VendorRepository vendorRepository;
-    private final UserRepository userRepository;
     private final OrderTemplateRepository orderTemplateRepository;
+    private final UserContextProvider userContextProvider;
 
     @Transactional
     public VendorResponse createVendor(CreateVendorRequest request, Long userId) {
-        User user = findUserById(userId);
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        User user = context.user();
 
         log.info("[VendorService] 발주처 생성 요청 - userId: {}", user.getId());
         Vendor vendor = toVendorEntity(request, user);
@@ -47,7 +49,8 @@ public class VendorService {
 
     @Transactional
     public VendorResponse updateVendor(Long vendorId, UpdateVendorRequest request, Long userId) {
-        User user = findUserById(userId);
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        User user = context.user();
         Vendor vendor = findVendorByIdAndValidateAccess(vendorId, user);
 
         log.info("[VendorService] 발주처 수정 요청 - userId: {}, vendorId: {}", userId, vendor.getId());
@@ -61,7 +64,8 @@ public class VendorService {
 
     @Transactional(readOnly = true)
     public VendorResponse getVendorDetail(Long vendorId, Long userId) {
-        User user = findUserById(userId);
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        User user = context.user();
         Vendor vendor = findVendorByIdAndValidateAccess(vendorId, user);
 
         log.info("[VendorService] 발주처 상세 조회 성공 - vendorId: {}", vendor.getId());
@@ -72,8 +76,8 @@ public class VendorService {
     public PageResponse<VendorResponse> getVendorList(
             Long userId, Integer page, Integer size, Boolean isActivate, String nameKeyword
     ) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[VendorService] 발주처 목록 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
         PageRequest pageable = PaginationUtil.createPageRequest(page, size, "name");
@@ -86,7 +90,8 @@ public class VendorService {
 
     @Transactional
     public OrderTemplateResponse createOrderTemplate(Long vendorId, CreateOrderTemplateRequest request, Long userId) {
-        User user = findUserById(userId);
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        User user = context.user();
         Vendor vendor = findVendorByIdAndValidateAccess(vendorId, user);
 
         log.info("[VendorService] 발주처 양식 등록 요청 - userId: {}, vendorId: {}", userId, vendorId);
@@ -99,7 +104,8 @@ public class VendorService {
 
     @Transactional(readOnly = true)
     public List<OrderTemplateResponse> getOrderTemplates(Long vendorId, Long userId, Boolean activated) {
-        User user = findUserById(userId);
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        User user = context.user();
         Vendor vendor = findVendorByIdAndValidateAccess(vendorId, user);
 
         log.info("[VendorService] 발주처 발주처 템플릿 조회 요청 - userId: {}, vendorId: {}", userId, vendorId);
@@ -129,11 +135,6 @@ public class VendorService {
                 .body(request.body())
                 .activated(true)
                 .build();
-    }
-
-    private User findUserById(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new BaseException(ErrorCode.USER_NOT_FOUND));
     }
 
     private Vendor findVendorByIdAndValidateAccess(Long vendorId, User user) {

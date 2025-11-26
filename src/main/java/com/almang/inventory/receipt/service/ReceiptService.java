@@ -1,6 +1,8 @@
 package com.almang.inventory.receipt.service;
 
 import com.almang.inventory.global.api.PageResponse;
+import com.almang.inventory.global.context.UserContextProvider;
+import com.almang.inventory.global.context.UserContextProvider.UserStoreContext;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.util.PaginationUtil;
@@ -46,15 +48,15 @@ public class ReceiptService {
     private final ReceiptRepository receiptRepository;
     private final ReceiptItemRepository receiptItemRepository;
     private final OrderRepository orderRepository;
-    private final UserRepository userRepository;
+    private final UserContextProvider userContextProvider;
 
     @Transactional
     public ReceiptResponse createReceiptFromOrder(Long orderId, Long userId) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[ReceiptService] 발주 기반 입고 생성 요청 - userId: {}, storeId: {}, orderId: {}",
-                user.getId(), store.getId(), orderId);
+                userId, store.getId(), orderId);
 
         Order order = findOrderByIdAndValidateAccess(orderId, store);
         validateOrderStatusForReceipt(order);
@@ -65,17 +67,17 @@ public class ReceiptService {
         Receipt saved = receiptRepository.save(receipt);
 
         log.info("[ReceiptService] 발주 기반 입고 생성 성공 - userId: {}, storeId: {}, orderId: {}",
-                user.getId(), store.getId(), orderId);
+                userId, store.getId(), orderId);
         return ReceiptResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
     public ReceiptResponse getReceiptFromOrder(Long orderId, Long userId) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[ReceiptService] 발주 기반 입고 조회 요청 - userId: {}, storeId: {}, orderId: {}",
-                user.getId(), store.getId(), orderId);
+                userId, store.getId(), orderId);
 
         Order order = findOrderByIdAndValidateAccess(orderId, store);
         Receipt receipt = findReceiptByOrderId(orderId);
@@ -86,10 +88,10 @@ public class ReceiptService {
 
     @Transactional(readOnly = true)
     public ReceiptResponse getReceipt(Long receiptId, Long userId) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
-        log.info("[ReceiptService] 입고 조회 요청 - userId: {}, storeId: {}", user.getId(), store.getId());
+        log.info("[ReceiptService] 입고 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
         Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
 
         log.info("[ReceiptService] 입고 조회 성공 - receiptId: {}", receipt.getId());
@@ -101,8 +103,8 @@ public class ReceiptService {
             Long userId, Integer page, Integer size, Long vendorId,
             ReceiptStatus status, LocalDate fromDate, LocalDate toDate
     ) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[ReceiptService] 입고 목록 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
 
@@ -116,8 +118,8 @@ public class ReceiptService {
 
     @Transactional
     public ReceiptResponse updateReceipt(Long receiptId, UpdateReceiptRequest request, Long userId) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[ReceiptService] 입고 수정 요청 - userId: {}, storeId: {}", userId, store.getId());
         Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
@@ -137,8 +139,8 @@ public class ReceiptService {
 
     @Transactional
     public DeleteReceiptResponse deleteReceipt(Long receiptId, Long userId) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[ReceiptService] 입고 삭제 요청 - userId: {}, storeId: {}", userId, store.getId());
         Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
@@ -155,8 +157,8 @@ public class ReceiptService {
 
     @Transactional
     public ConfirmReceiptResponse confirmReceipt(Long receiptId, Long userId) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[ReceiptService] 입고 확정 요청 - userId: {}, storeId: {}", userId, store.getId());
         Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
@@ -177,8 +179,8 @@ public class ReceiptService {
 
     @Transactional(readOnly = true)
     public ReceiptItemResponse getReceiptItem(Long receiptId, Long receiptItemId, Long userId) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[ReceiptService] 입고 아이템 조회 요청 - userId: {}, storeId: {}, receiptId: {}",
                 userId, store.getId(), receiptId);
@@ -197,8 +199,8 @@ public class ReceiptService {
             UpdateReceiptItemRequest request,
             Long userId
     ) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[ReceiptService] 입고 아이템 수정 요청 - userId: {}, storeId: {}, receiptId: {}",
                 userId, store.getId(), receiptId);
@@ -218,8 +220,8 @@ public class ReceiptService {
 
     @Transactional
     public DeleteReceiptItemResponse deleteReceiptItem(Long receiptId, Long receiptItemId, Long userId) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[ReceiptService] 입고 아이템 삭제 요청 - userId: {}, storeId: {}, receiptId: {}",
                 userId, store.getId(), receiptId);
@@ -268,11 +270,6 @@ public class ReceiptService {
                 .errorRate(null)
                 .note(null)
                 .build();
-    }
-
-    private User findUserById(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new BaseException(ErrorCode.USER_NOT_FOUND));
     }
 
     private Order findOrderByIdAndValidateAccess(Long orderId, Store store) {

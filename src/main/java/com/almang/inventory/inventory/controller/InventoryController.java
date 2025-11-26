@@ -59,4 +59,19 @@ public class InventoryController {
                 ApiResponse.success(SuccessMessage.GET_INVENTORY_SUCCESS.getMessage(), response)
         );
     }
+
+    @GetMapping("/product/{productId}")
+    @Operation(summary = "품목 아이디 기반 재고 조회", description = "품목 아이디를 통해 재고를 조회하고 재고 정보를 반환합니다.")
+    public ResponseEntity<ApiResponse<InventoryResponse>> getInventoryByProduct(
+            @PathVariable Long productId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[InventoryController] 품목 기준 재고 조회 요청 - userId: {}, productId: {}", userId, productId);
+        InventoryResponse response = inventoryService.getInventoryByProduct(productId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.GET_INVENTORY_BY_PRODUCT_SUCCESS.getMessage(), response)
+        );
+    }
 }

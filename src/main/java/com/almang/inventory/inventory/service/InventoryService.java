@@ -113,6 +113,18 @@ public class InventoryService {
         return InventoryResponse.from(inventory);
     }
 
+    @Transactional(readOnly = true)
+    public InventoryResponse getInventory(Long inventoryId, Long userId) {
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
+
+        log.info("[InventoryService] 재고 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
+        Inventory inventory = findInventoryByIdAndValidateAccess(inventoryId, store);
+
+        log.info("[InventoryService] 재고 조회 성공 - inventoryId: {}", inventory.getId());
+        return InventoryResponse.from(inventory);
+    }
+
     private Inventory toInventoryEntity(Product product) {
         return Inventory.builder()
                 .product(product)

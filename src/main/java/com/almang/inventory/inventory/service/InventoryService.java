@@ -100,6 +100,31 @@ public class InventoryService {
         return InventoryResponse.from(inventory);
     }
 
+    @Transactional(readOnly = true)
+    public InventoryResponse getInventoryByProduct(Long productId, Long userId) {
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
+
+        log.info("[InventoryService] 품목으로 재고 조회 요청 - userId: {}, productId: {}", userId, productId);
+        Inventory inventory = findInventoryByProductId(productId);
+        validateStoreMatch(inventory, store.getId());
+
+        log.info("[InventoryService] 품목으로 재고 조회 성공 - inventoryId: {}", inventory.getId());
+        return InventoryResponse.from(inventory);
+    }
+
+    @Transactional(readOnly = true)
+    public InventoryResponse getInventory(Long inventoryId, Long userId) {
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
+
+        log.info("[InventoryService] 재고 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
+        Inventory inventory = findInventoryByIdAndValidateAccess(inventoryId, store);
+
+        log.info("[InventoryService] 재고 조회 성공 - inventoryId: {}", inventory.getId());
+        return InventoryResponse.from(inventory);
+    }
+
     private Inventory toInventoryEntity(Product product) {
         return Inventory.builder()
                 .product(product)
@@ -129,6 +154,12 @@ public class InventoryService {
     private void validateProductMatch(Inventory inventory, Long productId) {
         if (!inventory.getProduct().getId().equals(productId)) {
             throw new BaseException(ErrorCode.INVENTORY_PRODUCT_MISMATCH);
+        }
+    }
+
+    private void validateStoreMatch(Inventory inventory, Long storeId) {
+        if (!inventory.getProduct().getStore().getId().equals(storeId)) {
+            throw new BaseException(ErrorCode.INVENTORY_ACCESS_DENIED);
         }
     }
 }

@@ -244,4 +244,96 @@ class InventoryServiceTest {
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.INVENTORY_NOT_FOUND.getMessage());
     }
+
+    @Test
+    void 재고_ID로_재고_조회에_성공한다() {
+        // given
+        Store store = newStore("조회상점");
+        User user = newUser(store, "inventoryUser");
+        Vendor vendor = newVendor(store, "발주처");
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        inventoryService.createInventory(product);
+
+        Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        // when
+        InventoryResponse response = inventoryService.getInventory(inventory.getId(), user.getId());
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.inventoryId()).isEqualTo(inventory.getId());
+        assertThat(response.productId()).isEqualTo(product.getId());
+        assertThat(response.displayStock()).isEqualByComparingTo(inventory.getDisplayStock());
+        assertThat(response.warehouseStock()).isEqualByComparingTo(inventory.getWarehouseStock());
+        assertThat(response.outgoingReserved()).isEqualByComparingTo(inventory.getOutgoingReserved());
+        assertThat(response.incomingReserved()).isEqualByComparingTo(inventory.getIncomingReserved());
+        assertThat(response.reorderTriggerPoint()).isEqualByComparingTo(inventory.getReorderTriggerPoint());
+    }
+
+    @Test
+    void 재고_ID로_재고_조회시_다른_상점의_재고면_접근_거부_예외가_발생한다() {
+        // given
+        Store store1 = newStore("상점1");
+        Store store2 = newStore("상점2");
+
+        User user1 = newUser(store1, "user1");
+        Vendor vendor2 = newVendor(store2, "발주처2");
+        Product product2 = newProduct(store2, vendor2, "상품2", "P002");
+
+        inventoryService.createInventory(product2);
+        Inventory inventoryOfStore2 = inventoryRepository.findByProduct_Id(product2.getId())
+                .orElseThrow();
+
+        // when & then
+        assertThatThrownBy(() -> inventoryService.getInventory(inventoryOfStore2.getId(), user1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.INVENTORY_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 품목으로_재고_조회에_성공한다() {
+        // given
+        Store store = newStore("품목조회상점");
+        User user = newUser(store, "inventoryUser");
+        Vendor vendor = newVendor(store, "발주처");
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        inventoryService.createInventory(product);
+
+        Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        // when
+        InventoryResponse response = inventoryService.getInventoryByProduct(product.getId(), user.getId());
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.inventoryId()).isEqualTo(inventory.getId());
+        assertThat(response.productId()).isEqualTo(product.getId());
+        assertThat(response.displayStock()).isEqualByComparingTo(inventory.getDisplayStock());
+        assertThat(response.warehouseStock()).isEqualByComparingTo(inventory.getWarehouseStock());
+        assertThat(response.outgoingReserved()).isEqualByComparingTo(inventory.getOutgoingReserved());
+        assertThat(response.incomingReserved()).isEqualByComparingTo(inventory.getIncomingReserved());
+        assertThat(response.reorderTriggerPoint()).isEqualByComparingTo(inventory.getReorderTriggerPoint());
+    }
+
+    @Test
+    void 품목으로_재고_조회시_다른_상점의_재고면_접근_거부_예외가_발생한다() {
+        // given
+        Store store1 = newStore("상점1");
+        Store store2 = newStore("상점2");
+
+        User user1 = newUser(store1, "user1");
+        Vendor vendor2 = newVendor(store2, "발주처2");
+        Product product2 = newProduct(store2, vendor2, "상품2", "P002");
+
+        inventoryService.createInventory(product2);
+
+        // when & then
+        assertThatThrownBy(() -> inventoryService.getInventoryByProduct(product2.getId(), user1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.INVENTORY_ACCESS_DENIED.getMessage());
+    }
 }

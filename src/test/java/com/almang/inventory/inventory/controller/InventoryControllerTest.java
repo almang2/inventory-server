@@ -148,4 +148,31 @@ public class InventoryControllerTest {
                 .andExpect(jsonPath("$.message").value(ErrorCode.INVENTORY_NOT_FOUND.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
+
+    @Test
+    void 재고_수동_수정_요청값_검증에_실패하면_예외가_발생한다() throws Exception {
+        // given
+        Long inventoryId = 1L;
+
+        UpdateInventoryRequest invalidRequest = new UpdateInventoryRequest(
+                null,
+                BigDecimal.valueOf(-1.0),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(1.5)
+        );
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/inventory/{inventoryId}", inventoryId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
 }

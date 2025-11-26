@@ -64,6 +64,7 @@ public enum ErrorCode {
     DISPLAY_STOCK_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "매대 재고가 부족합니다."),
     INVENTORY_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 상점의 재고가 아닙니다."),
     INVENTORY_PRODUCT_MISMATCH(HttpStatus.BAD_REQUEST, "요청한 상품 정보와 재고의 상품 정보가 일치하지 않습니다."),
+    INVENTORY_STORE_MISMATCH(HttpStatus.BAD_REQUEST, "요청한 상점 정보와 재고의 상점 정보가 일치하지 않습니다."),
     ;
 
     private final HttpStatus httpStatus;

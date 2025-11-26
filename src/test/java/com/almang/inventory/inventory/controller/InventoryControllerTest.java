@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.almang.inventory.global.api.SuccessMessage;
@@ -83,8 +84,7 @@ public class InventoryControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
-                .andExpect(jsonPath("$.message")
-                        .value(SuccessMessage.UPDATE_INVENTORY_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.UPDATE_INVENTORY_SUCCESS.getMessage()))
                 .andExpect(jsonPath("$.data.inventoryId").value(inventoryId))
                 .andExpect(jsonPath("$.data.productId").value(productId))
                 .andExpect(jsonPath("$.data.displayStock").value(1.234))
@@ -169,10 +169,147 @@ public class InventoryControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status")
-                        .value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
-                .andExpect(jsonPath("$.message")
-                        .value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
+                .andExpect(jsonPath("$.status").value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 재고_ID_기반_재고_조회에_성공한다() throws Exception {
+        // given
+        Long inventoryId = 1L;
+        Long productId = 10L;
+
+        InventoryResponse response = new InventoryResponse(
+                inventoryId,
+                productId,
+                BigDecimal.valueOf(1.234),
+                BigDecimal.valueOf(10.000),
+                BigDecimal.valueOf(0.500),
+                BigDecimal.valueOf(3.000),
+                BigDecimal.valueOf(0.25)
+        );
+
+        when(inventoryService.getInventory(anyLong(), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/inventory/{inventoryId}", inventoryId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.GET_INVENTORY_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.inventoryId").value(inventoryId))
+                .andExpect(jsonPath("$.data.productId").value(productId))
+                .andExpect(jsonPath("$.data.displayStock").value(1.234))
+                .andExpect(jsonPath("$.data.warehouseStock").value(10.000))
+                .andExpect(jsonPath("$.data.incomingReserved").value(3.000))
+                .andExpect(jsonPath("$.data.reorderTriggerPoint").value(0.25));
+    }
+
+    @Test
+    void 재고_ID_기반_재고_조회시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long inventoryId = 1L;
+
+        when(inventoryService.getInventory(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/inventory/{inventoryId}", inventoryId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 재고_ID_기반_재고_조회시_재고가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long inventoryId = 9999L;
+
+        when(inventoryService.getInventory(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.INVENTORY_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/inventory/{inventoryId}", inventoryId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.INVENTORY_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.INVENTORY_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 품목_ID_기반_재고_조회에_성공한다() throws Exception {
+        // given
+        Long inventoryId = 1L;
+        Long productId = 10L;
+
+        InventoryResponse response = new InventoryResponse(
+                inventoryId,
+                productId,
+                BigDecimal.valueOf(1.000),
+                BigDecimal.valueOf(5.000),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(0.3)
+        );
+
+        when(inventoryService.getInventoryByProduct(anyLong(), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/inventory/product/{productId}", productId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.GET_INVENTORY_BY_PRODUCT_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.inventoryId").value(inventoryId))
+                .andExpect(jsonPath("$.data.productId").value(productId))
+                .andExpect(jsonPath("$.data.displayStock").value(1.000))
+                .andExpect(jsonPath("$.data.warehouseStock").value(5.000))
+                .andExpect(jsonPath("$.data.reorderTriggerPoint").value(0.3));
+    }
+
+    @Test
+    void 품목_ID_기반_재고_조회시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long productId = 10L;
+
+        when(inventoryService.getInventoryByProduct(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/inventory/product/{productId}", productId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 품목_ID_기반_재고_조회시_재고가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long productId = 9999L;
+
+        when(inventoryService.getInventoryByProduct(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.INVENTORY_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/inventory/product/{productId}", productId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.INVENTORY_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.INVENTORY_NOT_FOUND.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

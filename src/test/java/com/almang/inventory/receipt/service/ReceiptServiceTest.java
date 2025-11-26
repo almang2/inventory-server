@@ -1477,48 +1477,52 @@ class ReceiptServiceTest {
     @Test
     void 입고_확정에_성공한다() {
         // given
-        Store store = newStore("확정상점");
-        User user = newUser(store, "confirmUser");
-        Vendor vendor = newVendor(store, "확정부발주처");
+        Store store = newStore("재고확인상점");
+        User user = newUser(store, "inventoryUser");
+        Vendor vendor = newVendor(store, "재고발주처");
 
-        Order order = newOrderWithItems(store, vendor);
+        Product product = newProduct(store, vendor, "상품1", "P001");
 
-        for (OrderItem orderItem : order.getItems()) {
-            Inventory inventory = newInventory(orderItem.getProduct());
-            inventory.increaseIncoming(BigDecimal.valueOf(orderItem.getQuantity()));
-        }
+        Inventory inventory = newInventory(product);
+        inventory.increaseIncoming(BigDecimal.valueOf(5));
+
+        Order order = Order.builder()
+                .store(store)
+                .vendor(vendor)
+                .status(OrderStatus.REQUEST)
+                .orderMessage("테스트 발주")
+                .activated(true)
+                .totalPrice(0)
+                .build();
+
+        OrderItem item = OrderItem.builder()
+                .product(product)
+                .quantity(5)
+                .unitPrice(1000)
+                .amount(5000)
+                .build();
+
+        order.addItem(item);
+        orderRepository.save(order);
 
         Receipt receipt = Receipt.builder()
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
                 .totalBoxCount(1)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
-
-        for (OrderItem orderItem : order.getItems()) {
-            ReceiptItem item = ReceiptItem.builder()
-                    .product(orderItem.getProduct())
-                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
-                    .actualQuantity(null) // null 이면 confirm 시 expected 로 대체
-                    .amount(orderItem.getAmount())
-                    .unitPrice(orderItem.getUnitPrice())
-                    .build();
-            receipt.addItem(item);
-        }
-
-        Receipt saved = receiptRepository.save(receipt);
+        receiptRepository.save(receipt);
 
         // when
-        ConfirmReceiptResponse response = receiptService.confirmReceipt(saved.getId(), user.getId());
+        ConfirmReceiptResponse response = receiptService.confirmReceipt(receipt.getId(), user.getId());
 
         // then
         assertThat(response).isNotNull();
         assertThat(response.success()).isTrue();
 
-        Receipt updated = receiptRepository.findById(saved.getId())
+        Receipt updated = receiptRepository.findById(receipt.getId())
                 .orElseThrow();
 
         assertThat(updated.getStatus()).isEqualTo(ReceiptStatus.CONFIRMED);

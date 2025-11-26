@@ -5,8 +5,6 @@ import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.inventory.domain.Inventory;
 import com.almang.inventory.inventory.repository.InventoryRepository;
 import com.almang.inventory.product.domain.Product;
-import com.almang.inventory.receipt.domain.Receipt;
-import com.almang.inventory.receipt.domain.ReceiptStatus;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

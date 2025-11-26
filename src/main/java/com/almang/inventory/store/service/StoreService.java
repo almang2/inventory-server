@@ -1,6 +1,8 @@
 package com.almang.inventory.store.service;
 
 import com.almang.inventory.global.api.PageResponse;
+import com.almang.inventory.global.context.UserContextProvider;
+import com.almang.inventory.global.context.UserContextProvider.UserStoreContext;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.util.PaginationUtil;
@@ -10,7 +12,6 @@ import com.almang.inventory.order.template.repository.OrderTemplateRepository;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.store.dto.request.UpdateStoreRequest;
 import com.almang.inventory.store.dto.response.UpdateStoreResponse;
-import com.almang.inventory.user.domain.User;
 import com.almang.inventory.user.repository.UserRepository;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
@@ -25,13 +26,13 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class StoreService {
 
-    private final UserRepository userRepository;
     private final OrderTemplateRepository orderTemplateRepository;
+    private final UserContextProvider userContextProvider;
 
     @Transactional
     public UpdateStoreResponse updateStore(UpdateStoreRequest request, Long userId) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[StoreService] 상점 정보 수정 요청 - userId: {}, storeId: {}", userId, store.getId());
 
@@ -57,8 +58,8 @@ public class StoreService {
     public PageResponse<OrderTemplateResponse> getStoreOrderTemplateList(
             Long userId, Integer page, Integer size, Boolean activated
     ) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[StoreService] 상점 발주 템플릿 목록 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
         PageRequest pageable = PaginationUtil.createPageRequest(page, size, "title");
@@ -67,11 +68,6 @@ public class StoreService {
 
         log.info("[StoreService] 상점 발주 템플릿 목록 조회 성공 - userId: {}, storeId: {}", userId, store.getId());
         return PageResponse.from(mapped);
-    }
-
-    private User findUserById(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new BaseException(ErrorCode.USER_NOT_FOUND));
     }
 
     private void validateStoreName(String storeName) {

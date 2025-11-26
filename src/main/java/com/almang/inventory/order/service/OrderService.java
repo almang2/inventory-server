@@ -1,6 +1,8 @@
 package com.almang.inventory.order.service;
 
 import com.almang.inventory.global.api.PageResponse;
+import com.almang.inventory.global.context.UserContextProvider;
+import com.almang.inventory.global.context.UserContextProvider.UserStoreContext;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.util.PaginationUtil;
@@ -43,16 +45,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final UserRepository userRepository;
     private final VendorRepository vendorRepository;
     private final ProductRepository productRepository;
     private final OrderItemRepository orderItemRepository;
     private final InventoryService inventoryService;
+    private final UserContextProvider userContextProvider;
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request, Long userId) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        User user = context.user();
+        Store store = context.store();
 
         log.info("[OrderService] 발주 생성 요청 - userId: {}, storeId: {}", user.getId(), store.getId());
 
@@ -72,8 +75,9 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public OrderResponse getOrder(Long orderId, Long userId) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        User user = context.user();
+        Store store = context.store();
 
         log.info("[OrderService] 발주 조회 요청 - userId: {}, storeId: {}", user.getId(), store.getId());
         Order order = findOrderByIdAndValidateAccess(orderId, store);
@@ -87,8 +91,8 @@ public class OrderService {
             Long userId, Long vendorId, Integer page, Integer size,
             OrderStatus status, LocalDate fromDate, LocalDate toDate
     ) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[OrderService] 발주 목록 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
         PageRequest pageable = PaginationUtil.createPageRequest(page, size, "createdAt");
@@ -101,8 +105,8 @@ public class OrderService {
 
     @Transactional
     public OrderResponse updateOrder(Long orderId, UpdateOrderRequest request, Long userId) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[OrderService] 발주 수정 요청 - userId: {}, storeId: {}", userId, store.getId());
         Order order = findOrderByIdAndValidateAccess(orderId, store);
@@ -122,8 +126,8 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public OrderItemResponse getOrderItem(Long orderItemId, Long userId) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[OrderService] 발주 상세 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
         OrderItem orderItem = findOrderItemById(orderItemId);
@@ -135,8 +139,8 @@ public class OrderService {
 
     @Transactional
     public OrderItemResponse updateOrderItem(Long orderItemId, UpdateOrderItemRequest request, Long userId) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[OrderService] 발주 아이템 수정 요청 - userId: {}, storeId: {}", userId, store.getId());
         OrderItem orderItem = findOrderItemById(orderItemId);
@@ -158,8 +162,8 @@ public class OrderService {
 
     @Transactional
     public DeleteOrderResponse deleteOrder(Long orderId, Long userId) {
-        User user = findUserById(userId);
-        Store store = user.getStore();
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         log.info("[OrderService] 발주 삭제 요청 - userId: {}, storeId: {}", userId, store.getId());
         Order order = findOrderByIdAndValidateAccess(orderId, store);
@@ -221,11 +225,6 @@ public class OrderService {
             return null;
         }
         return LocalDate.now().plusDays(leadTime);
-    }
-
-    private User findUserById(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new BaseException(ErrorCode.USER_NOT_FOUND));
     }
 
     private Vendor findVendorByIdAndValidateStore(Long vendorId, Store store) {

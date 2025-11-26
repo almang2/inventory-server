@@ -334,6 +334,6 @@ class InventoryServiceTest {
         // when & then
         assertThatThrownBy(() -> inventoryService.getInventoryByProduct(product2.getId(), user1.getId()))
                 .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.INVENTORY_STORE_MISMATCH.getMessage());
+                .hasMessageContaining(ErrorCode.INVENTORY_ACCESS_DENIED.getMessage());
     }
 }

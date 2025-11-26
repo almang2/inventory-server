@@ -159,7 +159,7 @@ public class InventoryService {
 
     private void validateStoreMatch(Inventory inventory, Long storeId) {
         if (!inventory.getProduct().getStore().getId().equals(storeId)) {
-            throw new BaseException(ErrorCode.INVENTORY_STORE_MISMATCH);
+            throw new BaseException(ErrorCode.INVENTORY_ACCESS_DENIED);
         }
     }
 }

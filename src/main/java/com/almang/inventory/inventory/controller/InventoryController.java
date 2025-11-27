@@ -1,6 +1,7 @@
 package com.almang.inventory.inventory.controller;
 
 import com.almang.inventory.global.api.ApiResponse;
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.inventory.dto.request.UpdateInventoryRequest;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
@@ -28,6 +30,27 @@ import org.springframework.web.bind.annotation.RestController;
 public class InventoryController {
 
     private final InventoryService inventoryService;
+
+    @GetMapping
+    @Operation(summary = "재고 목록 조회", description = "상점의 재고 목록을 조회합니다.")
+    public ResponseEntity<ApiResponse<PageResponse<InventoryResponse>>> getStoreInventoryList(
+            @RequestParam(name = "page", required = false) int page,
+            @RequestParam(name = "size", required = false) int size,
+            @RequestParam(name = "scope", required = false) String scope,
+            @RequestParam(name = "q", required = false) String q,
+            @RequestParam(name = "sort", required = false) String sort,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[InventoryController] 상점 재고 전체 조회 요청 - userId: {}, page: {}, size: {}, scope: {}, q: {}, sort: {}",
+                userId, page, size, scope, q, sort);
+        PageResponse<InventoryResponse> response =
+                inventoryService.getStoreInventoryList(userId, page, size, scope, q, sort);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.GET_STORE_INVENTORY_SUCCESS.getMessage(), response)
+        );
+    }
 
     @PatchMapping("/{inventoryId}")
     @Operation(summary = "재고 수동 수정", description = "재고를 수정하고 수정된 재고 정보를 반환합니다.")

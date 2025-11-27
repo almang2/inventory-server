@@ -6,7 +6,9 @@ import com.almang.inventory.global.context.UserContextProvider.UserStoreContext;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.inventory.domain.Inventory;
+import com.almang.inventory.inventory.domain.InventoryMoveDirection;
 import com.almang.inventory.inventory.domain.InventoryScope;
+import com.almang.inventory.inventory.dto.request.MoveInventoryRequest;
 import com.almang.inventory.inventory.dto.request.UpdateInventoryRequest;
 import com.almang.inventory.inventory.dto.response.InventoryResponse;
 import com.almang.inventory.inventory.repository.InventoryRepository;
@@ -18,7 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -163,6 +164,25 @@ public class InventoryService {
 
         log.info("[InventoryService] 상점 재고 전체 조회 성공 - userId: {}, storeId: {}", userId, store.getId());
         return PageResponse.from(mapped);
+    }
+
+    @Transactional
+        public InventoryResponse moveInventory(Long inventoryId, MoveInventoryRequest request, Long userId) {
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
+
+        log.info("[InventoryService] 재고 이동 요청 - userId: {}, storeId: {}", userId, store.getId());
+        Inventory inventory = findInventoryByIdAndValidateAccess(inventoryId, store);
+
+        if (request.direction() == InventoryMoveDirection.WAREHOUSE_TO_DISPLAY) {
+            inventory.moveWarehouseToDisplay(request.quantity());
+            log.info("[InventoryService] 창고 재고에서 매대 재고로 이동 성공 - inventoryId: {}", inventory.getId());
+        }
+        if (request.direction() == InventoryMoveDirection.DISPLAY_TO_WAREHOUSE) {
+            inventory.moveDisplayToWarehouse(request.quantity());
+            log.info("[InventoryService] 매대 재고에서 창고 재고로 이동 성공 - inventoryId: {}", inventory.getId());
+        }
+        return InventoryResponse.from(inventory);
     }
 
     private Inventory toInventoryEntity(Product product) {

@@ -64,6 +64,7 @@ public enum SuccessMessage {
     GET_INVENTORY_SUCCESS("재고 조회 성공"),
     GET_INVENTORY_BY_PRODUCT_SUCCESS("품목 기준 재고 조회 성공"),
     GET_STORE_INVENTORY_SUCCESS("상점 내 재고 리스트 조회 성공"),
+    MOVE_INVENTORY_SUCCESS("재고 이동 성공"),
     ;
 
     private final String message;

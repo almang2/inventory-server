@@ -92,7 +92,7 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(List.of("http://localhost:3000")); // 프론트엔드 경로
+        config.setAllowedOrigins(List.of("http://localhost:3000", "https://almang.vercel.app")); // 프론트엔드 경로
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization","Content-Type","X-Requested-With"));
 

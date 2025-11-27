@@ -1,13 +1,15 @@
 package com.almang.inventory.inventory.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.config.TestSecurityConfig;
 import com.almang.inventory.global.exception.BaseException;
@@ -23,6 +25,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -67,6 +72,8 @@ public class InventoryControllerTest {
         InventoryResponse response = new InventoryResponse(
                 inventoryId,
                 productId,
+                "상품1",
+                "P001",
                 BigDecimal.valueOf(1.234),
                 BigDecimal.valueOf(10.000),
                 BigDecimal.valueOf(0.500),
@@ -84,7 +91,8 @@ public class InventoryControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
-                .andExpect(jsonPath("$.message").value(SuccessMessage.UPDATE_INVENTORY_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.UPDATE_INVENTORY_SUCCESS.getMessage()))
                 .andExpect(jsonPath("$.data.inventoryId").value(inventoryId))
                 .andExpect(jsonPath("$.data.productId").value(productId))
                 .andExpect(jsonPath("$.data.displayStock").value(1.234))
@@ -169,8 +177,10 @@ public class InventoryControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
-                .andExpect(jsonPath("$.message").value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
+                .andExpect(jsonPath("$.status")
+                        .value(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message")
+                        .value(ErrorCode.INVALID_INPUT_VALUE.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 
@@ -183,6 +193,8 @@ public class InventoryControllerTest {
         InventoryResponse response = new InventoryResponse(
                 inventoryId,
                 productId,
+                "상품1",
+                "P001",
                 BigDecimal.valueOf(1.234),
                 BigDecimal.valueOf(10.000),
                 BigDecimal.valueOf(0.500),
@@ -199,7 +211,8 @@ public class InventoryControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
-                .andExpect(jsonPath("$.message").value(SuccessMessage.GET_INVENTORY_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.GET_INVENTORY_SUCCESS.getMessage()))
                 .andExpect(jsonPath("$.data.inventoryId").value(inventoryId))
                 .andExpect(jsonPath("$.data.productId").value(productId))
                 .andExpect(jsonPath("$.data.displayStock").value(1.234))
@@ -253,6 +266,8 @@ public class InventoryControllerTest {
         InventoryResponse response = new InventoryResponse(
                 inventoryId,
                 productId,
+                "상품1",
+                "P001",
                 BigDecimal.valueOf(1.000),
                 BigDecimal.valueOf(5.000),
                 BigDecimal.ZERO,
@@ -269,7 +284,8 @@ public class InventoryControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
-                .andExpect(jsonPath("$.message").value(SuccessMessage.GET_INVENTORY_BY_PRODUCT_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.message")
+                        .value(SuccessMessage.GET_INVENTORY_BY_PRODUCT_SUCCESS.getMessage()))
                 .andExpect(jsonPath("$.data.inventoryId").value(inventoryId))
                 .andExpect(jsonPath("$.data.productId").value(productId))
                 .andExpect(jsonPath("$.data.displayStock").value(1.000))
@@ -311,5 +327,52 @@ public class InventoryControllerTest {
                 .andExpect(jsonPath("$.status").value(ErrorCode.INVENTORY_NOT_FOUND.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message").value(ErrorCode.INVENTORY_NOT_FOUND.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 상점_재고_목록_조회에_성공한다() throws Exception {
+        // given
+        Long inventoryId = 1L;
+        Long productId = 10L;
+
+        InventoryResponse inventoryResponse = new InventoryResponse(
+                inventoryId,
+                productId,
+                "상품1",
+                "P001",
+                BigDecimal.ONE,
+                BigDecimal.TEN,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(0.2)
+        );
+
+        Page<InventoryResponse> page = new PageImpl<>(
+                List.of(inventoryResponse),
+                PageRequest.of(0, 20),
+                1
+        );
+
+        PageResponse<InventoryResponse> pageResponse = PageResponse.from(page);
+
+        when(inventoryService.getStoreInventoryList(anyLong(), anyInt(), anyInt(), any(), any(), any()))
+                .thenReturn(pageResponse);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/inventory")
+                        .param("page", "0")
+                        .param("size", "20")
+                        .param("scope", "all")
+                        .param("q", "")
+                        .param("sort", "")
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.GET_STORE_INVENTORY_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.content[0].inventoryId").value(inventoryId))
+                .andExpect(jsonPath("$.data.content[0].productId").value(productId))
+                .andExpect(jsonPath("$.data.content[0].productName").value("상품1"))
+                .andExpect(jsonPath("$.data.content[0].productCode").value("P001"));
     }
 }

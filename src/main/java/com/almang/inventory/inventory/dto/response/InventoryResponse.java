@@ -20,7 +20,7 @@ public record InventoryResponse(
 
         return new InventoryResponse(
                 inventory.getId(),
-                inventory.getProduct().getId(),
+                product.getId(),
                 product.getName(),
                 product.getCode(),
                 inventory.getDisplayStock(),

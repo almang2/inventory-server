@@ -73,12 +73,21 @@ public class Inventory extends BaseTimeEntity {
     }
 
     // 창고에서 매대로 이동
-    public void moveToDisplay(BigDecimal quantity) {
+    public void moveWarehouseToDisplay(BigDecimal quantity) {
         if (this.warehouseStock.compareTo(quantity) < 0) {
             throw new BaseException(ErrorCode.WAREHOUSE_STOCK_NOT_ENOUGH);
         }
         this.warehouseStock = this.warehouseStock.subtract(quantity);
         this.displayStock = this.displayStock.add(quantity);
+    }
+
+    // 매대에서 창고로 이동
+    public void moveDisplayToWarehouse(BigDecimal quantity) {
+        if (this.displayStock.compareTo(quantity) < 0) {
+            throw new BaseException(ErrorCode.DISPLAY_STOCK_NOT_ENOUGH);
+        }
+        this.displayStock = this.displayStock.subtract(quantity);
+        this.warehouseStock = this.warehouseStock.add(quantity);
     }
 
     // 판매(매대 차감)

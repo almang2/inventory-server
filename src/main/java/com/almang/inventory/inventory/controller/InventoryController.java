@@ -4,6 +4,7 @@ import com.almang.inventory.global.api.ApiResponse;
 import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
+import com.almang.inventory.inventory.dto.request.MoveInventoryRequest;
 import com.almang.inventory.inventory.dto.request.UpdateInventoryRequest;
 import com.almang.inventory.inventory.dto.response.InventoryResponse;
 import com.almang.inventory.inventory.service.InventoryService;
@@ -17,6 +18,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -80,6 +82,22 @@ public class InventoryController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.GET_INVENTORY_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @PostMapping("/{inventoryId}/move")
+    @Operation(summary = "재고 이동", description = "재고를 이동합니다.")
+    public ResponseEntity<ApiResponse<InventoryResponse>> transferInventory(
+            @PathVariable Long inventoryId,
+            @Valid @RequestBody MoveInventoryRequest request,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[InventoryController] 재고 이동 요청 - userId: {}", userId);
+        InventoryResponse response = inventoryService.moveInventory(inventoryId, request, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.MOVE_INVENTORY_SUCCESS.getMessage(), response)
         );
     }
 

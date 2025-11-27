@@ -1,10 +1,12 @@
 package com.almang.inventory.inventory.service;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.context.UserContextProvider;
 import com.almang.inventory.global.context.UserContextProvider.UserStoreContext;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.inventory.domain.Inventory;
+import com.almang.inventory.inventory.domain.InventoryScope;
 import com.almang.inventory.inventory.dto.request.UpdateInventoryRequest;
 import com.almang.inventory.inventory.dto.response.InventoryResponse;
 import com.almang.inventory.inventory.repository.InventoryRepository;
@@ -13,6 +15,11 @@ import com.almang.inventory.store.domain.Store;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -123,6 +130,39 @@ public class InventoryService {
 
         log.info("[InventoryService] 재고 조회 성공 - inventoryId: {}", inventory.getId());
         return InventoryResponse.from(inventory);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<InventoryResponse> getStoreInventoryList(
+            Long userId, int page, int size, String scopeParam, String q, String sortParam
+    ) {
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
+
+        log.info("[InventoryService] 상점 재고 전체 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
+
+        InventoryScope scope = InventoryScope.from(scopeParam);
+
+        Direction direction = "productName".equals(sortParam)
+                ? Direction.ASC
+                : Direction.DESC;
+
+        String sortBy = "productName".equals(sortParam)
+                ? "product.name"
+                : "updatedAt";
+
+        Pageable pageable = PageRequest.of(page, size, direction, sortBy);
+
+        Page<Inventory> inventoryPage = inventoryRepository.findByFilter(
+                store.getId(),
+                scope.name(),
+                (q == null || q.isBlank()) ? null : q,
+                pageable
+        );
+        Page<InventoryResponse> mapped = inventoryPage.map(InventoryResponse::from);
+
+        log.info("[InventoryService] 상점 재고 전체 조회 성공 - userId: {}, storeId: {}", userId, store.getId());
+        return PageResponse.from(mapped);
     }
 
     private Inventory toInventoryEntity(Product product) {

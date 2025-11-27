@@ -7,6 +7,8 @@ import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.inventory.domain.Inventory;
+import com.almang.inventory.inventory.domain.InventoryMoveDirection;
+import com.almang.inventory.inventory.dto.request.MoveInventoryRequest;
 import com.almang.inventory.inventory.dto.request.UpdateInventoryRequest;
 import com.almang.inventory.inventory.dto.response.InventoryResponse;
 import com.almang.inventory.inventory.repository.InventoryRepository;
@@ -493,5 +495,184 @@ class InventoryServiceTest {
         assertThat(response.content())
                 .extracting(InventoryResponse::productName)
                 .containsExactly("고무장갑", "실리콘 용기", "치약");
+    }
+
+    @Test
+    void 창고에서_매대로_재고_이동에_성공한다() {
+        // given
+        Store store = newStore("이동상점");
+        User user = newUser(store, "moveUser");
+        Vendor vendor = newVendor(store, "발주처");
+        Product product = newProduct(store, vendor, "이동상품", "P001");
+
+        inventoryService.createInventory(product);
+        Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        UpdateInventoryRequest initRequest = new UpdateInventoryRequest(
+                product.getId(),
+                BigDecimal.ZERO,
+                BigDecimal.TEN,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                null
+        );
+        inventoryService.updateInventory(inventory.getId(), initRequest, user.getId());
+
+        // when
+        MoveInventoryRequest moveRequest = new MoveInventoryRequest(
+                BigDecimal.valueOf(3),
+                InventoryMoveDirection.WAREHOUSE_TO_DISPLAY
+        );
+        InventoryResponse response = inventoryService.moveInventory(inventory.getId(), moveRequest, user.getId());
+
+        // then
+        assertThat(response.displayStock()).isEqualByComparingTo(BigDecimal.valueOf(3));
+        assertThat(response.warehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(7));
+
+        Inventory updated = inventoryRepository.findById(inventory.getId())
+                .orElseThrow();
+        assertThat(updated.getDisplayStock()).isEqualByComparingTo(BigDecimal.valueOf(3));
+        assertThat(updated.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(7));
+    }
+
+    @Test
+    void 매대에서_창고로_재고_이동에_성공한다() {
+        // given
+        Store store = newStore("이동상점2");
+        User user = newUser(store, "moveUser2");
+        Vendor vendor = newVendor(store, "발주처2");
+        Product product = newProduct(store, vendor, "이동상품2", "P002");
+
+        inventoryService.createInventory(product);
+        Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        UpdateInventoryRequest initRequest = new UpdateInventoryRequest(
+                product.getId(),
+                BigDecimal.valueOf(5),
+                BigDecimal.valueOf(2),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                null
+        );
+        inventoryService.updateInventory(inventory.getId(), initRequest, user.getId());
+
+        // when
+        MoveInventoryRequest moveRequest = new MoveInventoryRequest(
+                BigDecimal.valueOf(2),
+                InventoryMoveDirection.DISPLAY_TO_WAREHOUSE
+        );
+        InventoryResponse response = inventoryService.moveInventory(inventory.getId(), moveRequest, user.getId());
+
+        // then
+        assertThat(response.displayStock()).isEqualByComparingTo(BigDecimal.valueOf(3));
+        assertThat(response.warehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(4));
+
+        Inventory updated = inventoryRepository.findById(inventory.getId())
+                .orElseThrow();
+        assertThat(updated.getDisplayStock()).isEqualByComparingTo(BigDecimal.valueOf(3));
+        assertThat(updated.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(4));
+    }
+
+    @Test
+    void 재고_이동시_다른_상점의_재고면_접근_거부_예외가_발생한다() {
+        // given
+        Store store1 = newStore("상점1");
+        Store store2 = newStore("상점2");
+
+        User user1 = newUser(store1, "user1");
+        Vendor vendor2 = newVendor(store2, "발주처2");
+        Product product2 = newProduct(store2, vendor2, "상품2", "P002");
+
+        inventoryService.createInventory(product2);
+        Inventory inventoryOfStore2 = inventoryRepository.findByProduct_Id(product2.getId())
+                .orElseThrow();
+
+        MoveInventoryRequest moveRequest = new MoveInventoryRequest(
+                BigDecimal.ONE, InventoryMoveDirection.WAREHOUSE_TO_DISPLAY
+        );
+
+        // when & then
+        assertThatThrownBy(() -> inventoryService.moveInventory(inventoryOfStore2.getId(), moveRequest, user1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.INVENTORY_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 창고에서_매대로_이동시_창고_재고보다_많이_요청하면_예외가_발생한다() {
+        // given
+        Store store = newStore("이동상점_예외");
+        User user = newUser(store, "moveUser_ex");
+        Vendor vendor = newVendor(store, "발주처");
+        Product product = newProduct(store, vendor, "이동상품", "P001");
+
+        inventoryService.createInventory(product);
+        Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        UpdateInventoryRequest initRequest = new UpdateInventoryRequest(
+                product.getId(),
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(5),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                null
+        );
+        inventoryService.updateInventory(inventory.getId(), initRequest, user.getId());
+
+        // when
+        MoveInventoryRequest moveRequest = new MoveInventoryRequest(
+                BigDecimal.valueOf(10), InventoryMoveDirection.WAREHOUSE_TO_DISPLAY
+        );
+
+        // then
+        assertThatThrownBy(() -> inventoryService.moveInventory(inventory.getId(), moveRequest, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.WAREHOUSE_STOCK_NOT_ENOUGH.getMessage());
+
+        Inventory after = inventoryRepository.findById(inventory.getId())
+                .orElseThrow();
+        assertThat(after.getDisplayStock()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(after.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(5));
+    }
+
+    @Test
+    void 매대에서_창고로_이동시_매대_재고보다_많이_요청하면_예외가_발생한다() {
+        // given
+        Store store = newStore("이동상점_예외2");
+        User user = newUser(store, "moveUser_ex2");
+        Vendor vendor = newVendor(store, "발주처2");
+        Product product = newProduct(store, vendor, "이동상품2", "P002");
+
+        inventoryService.createInventory(product);
+        Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        UpdateInventoryRequest initRequest = new UpdateInventoryRequest(
+                product.getId(),
+                BigDecimal.valueOf(3),
+                BigDecimal.ONE,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                null
+        );
+        inventoryService.updateInventory(inventory.getId(), initRequest, user.getId());
+
+        // when
+        MoveInventoryRequest moveRequest = new MoveInventoryRequest(
+                BigDecimal.valueOf(5),
+                InventoryMoveDirection.DISPLAY_TO_WAREHOUSE
+        );
+
+        // then
+        assertThatThrownBy(() -> inventoryService.moveInventory(inventory.getId(), moveRequest, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.DISPLAY_STOCK_NOT_ENOUGH.getMessage());
+
+        Inventory after = inventoryRepository.findById(inventory.getId())
+                .orElseThrow();
+        assertThat(after.getDisplayStock()).isEqualByComparingTo(BigDecimal.valueOf(3));
+        assertThat(after.getWarehouseStock()).isEqualByComparingTo(BigDecimal.ONE);
     }
 }

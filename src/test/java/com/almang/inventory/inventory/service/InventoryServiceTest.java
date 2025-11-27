@@ -3,6 +3,7 @@ package com.almang.inventory.inventory.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.inventory.domain.Inventory;
@@ -122,13 +123,14 @@ class InventoryServiceTest {
         );
 
         // when
-        InventoryResponse response =
-                inventoryService.updateInventory(inventory.getId(), request, user.getId());
+        InventoryResponse response = inventoryService.updateInventory(inventory.getId(), request, user.getId());
 
         // then
         assertThat(response).isNotNull();
         assertThat(response.inventoryId()).isEqualTo(inventory.getId());
         assertThat(response.productId()).isEqualTo(product.getId());
+        assertThat(response.productName()).isEqualTo(product.getName());
+        assertThat(response.productCode()).isEqualTo(product.getCode());
         assertThat(response.displayStock()).isEqualByComparingTo(newDisplay);
         assertThat(response.warehouseStock()).isEqualByComparingTo(newWarehouse);
         assertThat(response.outgoingReserved()).isEqualByComparingTo(newOutgoing);
@@ -265,11 +267,14 @@ class InventoryServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.inventoryId()).isEqualTo(inventory.getId());
         assertThat(response.productId()).isEqualTo(product.getId());
+        assertThat(response.productName()).isEqualTo(product.getName());
+        assertThat(response.productCode()).isEqualTo(product.getCode());
         assertThat(response.displayStock()).isEqualByComparingTo(inventory.getDisplayStock());
         assertThat(response.warehouseStock()).isEqualByComparingTo(inventory.getWarehouseStock());
         assertThat(response.outgoingReserved()).isEqualByComparingTo(inventory.getOutgoingReserved());
         assertThat(response.incomingReserved()).isEqualByComparingTo(inventory.getIncomingReserved());
         assertThat(response.reorderTriggerPoint()).isEqualByComparingTo(inventory.getReorderTriggerPoint());
+
     }
 
     @Test
@@ -312,6 +317,8 @@ class InventoryServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.inventoryId()).isEqualTo(inventory.getId());
         assertThat(response.productId()).isEqualTo(product.getId());
+        assertThat(response.productName()).isEqualTo(product.getName());
+        assertThat(response.productCode()).isEqualTo(product.getCode());
         assertThat(response.displayStock()).isEqualByComparingTo(inventory.getDisplayStock());
         assertThat(response.warehouseStock()).isEqualByComparingTo(inventory.getWarehouseStock());
         assertThat(response.outgoingReserved()).isEqualByComparingTo(inventory.getOutgoingReserved());
@@ -335,5 +342,156 @@ class InventoryServiceTest {
         assertThatThrownBy(() -> inventoryService.getInventoryByProduct(product2.getId(), user1.getId()))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.INVENTORY_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 상점_재고_전체_조회에_성공한다() {
+        // given
+        Store store = newStore("재고목록상점");
+        User user = newUser(store, "inventoryUser");
+        Vendor vendor = newVendor(store, "발주처");
+
+        Product product1 = newProduct(store, vendor, "상품A", "P001");
+        Product product2 = newProduct(store, vendor, "상품B", "P002");
+        Product product3 = newProduct(store, vendor, "상품C", "P003");
+
+        inventoryService.createInventory(product1);
+        inventoryService.createInventory(product2);
+        inventoryService.createInventory(product3);
+
+        Store otherStore = newStore("다른상점");
+        Vendor otherVendor = newVendor(otherStore, "다른발주처");
+        Product otherProduct = newProduct(otherStore, otherVendor, "다른상품", "PX01");
+        inventoryService.createInventory(otherProduct);
+
+        // when
+        PageResponse<InventoryResponse> pageResponse =
+                inventoryService.getStoreInventoryList(user.getId(), 0, 20, "all", null, null);
+
+        // then
+        assertThat(pageResponse).isNotNull();
+        assertThat(pageResponse.content()).hasSize(3);
+
+        assertThat(pageResponse.content())
+                .extracting(InventoryResponse::productId)
+                .containsExactlyInAnyOrder(
+                        product1.getId(),
+                        product2.getId(),
+                        product3.getId()
+                );
+
+        assertThat(pageResponse.content())
+                .extracting(InventoryResponse::productName)
+                .containsExactlyInAnyOrder("상품A", "상품B", "상품C");
+    }
+
+    @Test
+    void 상점_재고_목록_조회시_검색어로_필터링된다() {
+        // given
+        Store store = newStore("검색상점");
+        User user = newUser(store, "inventoryUser");
+        Vendor vendor = newVendor(store, "발주처");
+
+        Product target = newProduct(store, vendor, "고체치약 60ea", "P001");
+        Product other1 = newProduct(store, vendor, "고무장갑 M", "P002");
+        Product other2 = newProduct(store, vendor, "실리콘 용기 540ml", "P003");
+
+        inventoryService.createInventory(target);
+        inventoryService.createInventory(other1);
+        inventoryService.createInventory(other2);
+
+        // when
+        PageResponse<InventoryResponse> pageResponse =
+                inventoryService.getStoreInventoryList(user.getId(), 0, 20, "all", "치약", null);
+
+        // then
+        assertThat(pageResponse).isNotNull();
+        assertThat(pageResponse.content()).hasSize(1);
+
+        InventoryResponse result = pageResponse.content().get(0);
+        assertThat(result.productId()).isEqualTo(target.getId());
+        assertThat(result.productName()).isEqualTo("고체치약 60ea");
+    }
+
+    @Test
+    void 상점_재고_목록_조회시_scope가_적용된다() {
+        // given
+        Store store = newStore("스코프상점");
+        User user = newUser(store, "inventoryUser");
+        Vendor vendor = newVendor(store, "발주처");
+
+        Product displayProduct = newProduct(store, vendor, "매대상품", "P001");
+        Product warehouseProduct = newProduct(store, vendor, "창고상품", "P002");
+
+        inventoryService.createInventory(displayProduct);
+        inventoryService.createInventory(warehouseProduct);
+
+        Inventory displayInventory = inventoryRepository.findByProduct_Id(displayProduct.getId())
+                .orElseThrow();
+        Inventory warehouseInventory = inventoryRepository.findByProduct_Id(warehouseProduct.getId())
+                .orElseThrow();
+
+        // 매대상품: display_stock > 0
+        UpdateInventoryRequest displayUpdate = new UpdateInventoryRequest(
+                displayProduct.getId(),
+                BigDecimal.ONE,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                null
+        );
+        inventoryService.updateInventory(displayInventory.getId(), displayUpdate, user.getId());
+
+        // 창고상품: warehouse_stock > 0, display_stock = 0
+        UpdateInventoryRequest warehouseUpdate = new UpdateInventoryRequest(
+                warehouseProduct.getId(),
+                BigDecimal.ZERO,
+                BigDecimal.TEN,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                null
+        );
+        inventoryService.updateInventory(warehouseInventory.getId(), warehouseUpdate, user.getId());
+
+        // when: scope = display
+        PageResponse<InventoryResponse> pageResponse =
+                inventoryService.getStoreInventoryList(user.getId(), 0, 20, "display", null, null);
+
+        // then
+        assertThat(pageResponse).isNotNull();
+        assertThat(pageResponse.content()).hasSize(1);
+
+        InventoryResponse only = pageResponse.content().get(0);
+        assertThat(only.productId()).isEqualTo(displayProduct.getId());
+        assertThat(only.productName()).isEqualTo("매대상품");
+    }
+
+    @Test
+    void 상점_재고_목록_조회시_상품명_기준_오름차순_정렬이_적용된다() {
+        // given
+        Store store = newStore("정렬상점");
+        User user = newUser(store, "sortUser");
+        Vendor vendor = newVendor(store, "발주처");
+
+        Product p3 = newProduct(store, vendor, "치약", "P003");
+        Product p1 = newProduct(store, vendor, "고무장갑", "P001");
+        Product p2 = newProduct(store, vendor, "실리콘 용기", "P002");
+
+        inventoryService.createInventory(p3);
+        inventoryService.createInventory(p1);
+        inventoryService.createInventory(p2);
+
+        // when: sort=productName
+        PageResponse<InventoryResponse> response =
+                inventoryService.getStoreInventoryList(user.getId(), 0, 20, "all", null, "productName");
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.content()).hasSize(3);
+
+        // 오름차순 정렬 결과 체크
+        assertThat(response.content())
+                .extracting(InventoryResponse::productName)
+                .containsExactly("고무장갑", "실리콘 용기", "치약");
     }
 }

@@ -4,7 +4,6 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import com.almang.inventory.global.logging.InMemoryLogAppender;
 import com.almang.inventory.global.util.MaskingUtil;
-import jakarta.servlet.http.HttpServletRequest;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Instant;
@@ -15,7 +14,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -63,6 +61,12 @@ public class DiscordErrorNotifier {
     @Value("${monitoring.discord.enabled:false}")
     private boolean enabled;
 
+    @Value("${monitoring.discord.include-logs:true}")
+    private boolean includeLogs;
+
+    @Value("${monitoring.discord.include-stacktrace:true}")
+    private boolean includeStacktrace;
+
     private final RestTemplate restTemplate;
 
     @Async("discordNotifierExecutor")
@@ -79,8 +83,12 @@ public class DiscordErrorNotifier {
         String rawStackTrace = getStackTrace(exception);
 
         // 민감정보 마스킹 적용
-        String maskedLogs = MaskingUtil.maskText(rawLogs);
-        String maskedStackTrace = MaskingUtil.maskText(rawStackTrace);
+        String maskedLogs = includeLogs
+                ? MaskingUtil.maskText(formatRecentLogs())
+                : "(로그 포함 비활성화됨)";
+        String maskedStackTrace = includeStacktrace
+                ? MaskingUtil.maskText(getStackTrace(exception))
+                : "(스택트레이스 포함 비활성화됨)";
         String maskedExceptionMessage = MaskingUtil.maskText(safeMessage(exception.getMessage()));
 
         // 길이 제한에 맞추기

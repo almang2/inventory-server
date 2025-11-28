@@ -12,7 +12,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -22,6 +24,7 @@ import org.springframework.web.client.RestTemplate;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class DiscordErrorNotifier {
 
     private static final DateTimeFormatter TIME_FORMATTER =
@@ -58,7 +61,7 @@ public class DiscordErrorNotifier {
     @Value("${monitoring.discord.enabled:false}")
     private boolean enabled;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
     public void notifyException(Throwable exception, HttpServletRequest request) {
         if (!enabled || webhookUrl == null || webhookUrl.isBlank()) {

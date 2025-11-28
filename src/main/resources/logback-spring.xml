@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- 콘솔에 찍는 기본 appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 메모리에 최근 로그를 저장하는 커스텀 appender -->
+    <appender name="IN_MEMORY" class="com.almang.inventory.global.logging.InMemoryLogAppender" />
+
+    <!-- 루트 로거 설정: INFO 이상 로그 → 콘솔 + 인메모리 둘 다 -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="IN_MEMORY" />
+    </root>
+
+</configuration>

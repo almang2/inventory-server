@@ -34,3 +34,10 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
+monitoring:
+  discord:
+    error-webhook-url: ${DISCORD_WEBHOOK_URL}
+    enabled: true
+    include-logs: true          # MVP 단계라 true
+    include-stacktrace: true    # MVP 단계라 true

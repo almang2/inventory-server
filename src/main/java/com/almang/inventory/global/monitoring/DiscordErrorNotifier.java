@@ -61,10 +61,10 @@ public class DiscordErrorNotifier {
     @Value("${monitoring.discord.enabled:false}")
     private boolean enabled;
 
-    @Value("${monitoring.discord.include-logs:true}")
+    @Value("${monitoring.discord.include-logs:false}")
     private boolean includeLogs;
 
-    @Value("${monitoring.discord.include-stacktrace:true}")
+    @Value("${monitoring.discord.include-stacktrace:false}")
     private boolean includeStacktrace;
 
     private final RestTemplate restTemplate;
@@ -77,10 +77,6 @@ public class DiscordErrorNotifier {
 
         String safePath = (path != null) ? path : "알 수 없음";
         String safeMethod = (method != null) ? method : "알 수 없음";
-
-        // 원본 로그 / 스택트레이스
-        String rawLogs = formatRecentLogs();
-        String rawStackTrace = getStackTrace(exception);
 
         // 민감정보 마스킹 적용
         String maskedLogs = includeLogs

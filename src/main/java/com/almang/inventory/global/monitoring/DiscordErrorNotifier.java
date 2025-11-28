@@ -27,9 +27,12 @@ public class DiscordErrorNotifier {
     private static final DateTimeFormatter TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
                     .withZone(ZoneId.systemDefault());
-    private static final int MAX_SECTION_LENGTH = 1500;
+
+    private static final int MAX_SECTION_LENGTH = 800;
     private static final int RECENT_LOG_LIMIT = 20;
     private static final String TRUNCATED_SUFFIX = "\n...(생략)";
+    private static final int DISCORD_CONTENT_LIMIT = 2000;
+    private static final String MESSAGE_TRUNCATED_SUFFIX = "\n\n...(메시지가 너무 길어 일부만 표시됩니다)";
 
     private static final String ERROR_TEMPLATE = """
         📛 *Almang 서버 에러 발생*
@@ -65,8 +68,8 @@ public class DiscordErrorNotifier {
         String path = (request != null) ? request.getRequestURI() : "알 수 없음";
         String method = (request != null) ? request.getMethod() : "알 수 없음";
 
-        String stackTrace = truncate(getStackTrace(exception));
-        String recentLogs = truncate(formatRecentLogs());
+        String stackTrace = truncateSection(getStackTrace(exception));
+        String recentLogs = truncateSection(formatRecentLogs());
 
         String content = ERROR_TEMPLATE.formatted(
                 method,
@@ -77,6 +80,7 @@ public class DiscordErrorNotifier {
                 stackTrace
         );
 
+        content = truncateForDiscord(content);
         sendToDiscord(content);
     }
 
@@ -126,7 +130,7 @@ public class DiscordErrorNotifier {
         return stringWriter.toString();
     }
 
-    private String truncate(String value) {
+    private String truncateSection(String value) {
         if (value == null) {
             return "";
         }
@@ -134,6 +138,18 @@ public class DiscordErrorNotifier {
             return value;
         }
         return value.substring(0, MAX_SECTION_LENGTH) + TRUNCATED_SUFFIX;
+    }
+
+    private String truncateForDiscord(String content) {
+        if (content == null) {
+            return "";
+        }
+        if (content.length() <= DISCORD_CONTENT_LIMIT) {
+            return content;
+        }
+        int max = DISCORD_CONTENT_LIMIT - MESSAGE_TRUNCATED_SUFFIX.length();
+
+        return content.substring(0, max) + MESSAGE_TRUNCATED_SUFFIX;
     }
 
     private String safeMessage(String message) {

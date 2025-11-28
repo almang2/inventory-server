@@ -48,11 +48,6 @@ public class DiscordErrorNotifier {
         ```text
         %s
         ```
-
-        🔍 스택트레이스
-        ```text
-        %s
-        ```
         """;
 
     @Value("${monitoring.discord.error-webhook-url:}")
@@ -64,8 +59,8 @@ public class DiscordErrorNotifier {
     @Value("${monitoring.discord.include-logs:false}")
     private boolean includeLogs;
 
-    @Value("${monitoring.discord.include-stacktrace:false}")
-    private boolean includeStacktrace;
+//    @Value("${monitoring.discord.include-stacktrace:false}")
+//    private boolean includeStacktrace;
 
     private final RestTemplate restTemplate;
 
@@ -82,22 +77,22 @@ public class DiscordErrorNotifier {
         String maskedLogs = includeLogs
                 ? MaskingUtil.maskText(formatRecentLogs())
                 : "(로그 포함 비활성화됨)";
-        String maskedStackTrace = includeStacktrace
-                ? MaskingUtil.maskText(getStackTrace(exception))
-                : "(스택트레이스 포함 비활성화됨)";
+//        String maskedStackTrace = includeStacktrace
+//                ? MaskingUtil.maskText(getStackTrace(exception))
+//                : "(스택트레이스 포함 비활성화됨)";
         String maskedExceptionMessage = MaskingUtil.maskText(safeMessage(exception.getMessage()));
 
         // 길이 제한에 맞추기
         String recentLogs = truncateSection(maskedLogs);
-        String stackTrace = truncateSection(maskedStackTrace);
+//        String stackTrace = truncateSection(maskedStackTrace);
 
         String content = ERROR_TEMPLATE.formatted(
                 safeMethod,
                 safePath,
                 exception.getClass().getName(),
                 maskedExceptionMessage,
-                recentLogs,
-                stackTrace
+                recentLogs
+//                stackTrace
         );
 
         content = truncateForDiscord(content);
@@ -144,11 +139,11 @@ public class DiscordErrorNotifier {
         }
     }
 
-    private String getStackTrace(Throwable exception) {
-        StringWriter stringWriter = new StringWriter();
-        exception.printStackTrace(new PrintWriter(stringWriter));
-        return stringWriter.toString();
-    }
+//    private String getStackTrace(Throwable exception) {
+//        StringWriter stringWriter = new StringWriter();
+//        exception.printStackTrace(new PrintWriter(stringWriter));
+//        return stringWriter.toString();
+//    }
 
     private String truncateSection(String value) {
         if (value == null) {

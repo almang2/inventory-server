@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -63,20 +64,21 @@ public class DiscordErrorNotifier {
 
     private final RestTemplate restTemplate;
 
-    public void notifyException(Throwable exception, HttpServletRequest request) {
+    @Async("discordNotifierExecutor")
+    public void notifyException(Throwable exception, String method, String path) {
         if (!enabled || webhookUrl == null || webhookUrl.isBlank()) {
             return;
         }
 
-        String path = (request != null) ? request.getRequestURI() : "알 수 없음";
-        String method = (request != null) ? request.getMethod() : "알 수 없음";
+        String safePath = (path != null) ? path : "알 수 없음";
+        String safeMethod = (method != null) ? method : "알 수 없음";
 
         String stackTrace = truncateSection(getStackTrace(exception));
         String recentLogs = truncateSection(formatRecentLogs());
 
         String content = ERROR_TEMPLATE.formatted(
-                method,
-                path,
+                safeMethod,
+                safePath,
                 exception.getClass().getName(),
                 safeMessage(exception.getMessage()),
                 recentLogs,

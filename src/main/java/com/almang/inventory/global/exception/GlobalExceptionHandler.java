@@ -22,7 +22,10 @@ public class GlobalExceptionHandler {
             BaseException baseException, HttpServletRequest request
     ) {
         log.error("[BaseException]", baseException);
-        discordErrorNotifier.notifyException(baseException, request);
+        String method = (request != null) ? request.getMethod() : null;
+        String path = (request != null) ? request.getRequestURI() : null;
+        discordErrorNotifier.notifyException(baseException, method, path);
+
         ErrorCode errorCode = baseException.getErrorCode();
         return ResponseEntity
                 .status(errorCode.getHttpStatus())
@@ -34,7 +37,10 @@ public class GlobalExceptionHandler {
             MethodArgumentNotValidException e, HttpServletRequest request
     ) {
         log.warn("[ValidationException] {}", e.getMessage());
-        discordErrorNotifier.notifyException(e, request);
+        String method = (request != null) ? request.getMethod() : null;
+        String path = (request != null) ? request.getRequestURI() : null;
+        discordErrorNotifier.notifyException(e, method, path);
+
         return ResponseEntity
                 .status(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
                 .body(ApiResponse.fail(ErrorCode.INVALID_INPUT_VALUE));
@@ -45,7 +51,10 @@ public class GlobalExceptionHandler {
             Exception exception, HttpServletRequest request
     ) {
         log.error("[Exception]", exception);
-        discordErrorNotifier.notifyException(exception, request);
+        String method = (request != null) ? request.getMethod() : null;
+        String path = (request != null) ? request.getRequestURI() : null;
+        discordErrorNotifier.notifyException(exception, method, path);
+
         ErrorCode errorCode = ErrorCode.INTERNAL_SERVER_ERROR;
         return ResponseEntity
                 .status(errorCode.getHttpStatus())

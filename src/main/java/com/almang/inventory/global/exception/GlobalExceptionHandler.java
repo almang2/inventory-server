@@ -22,9 +22,7 @@ public class GlobalExceptionHandler {
             BaseException baseException, HttpServletRequest request
     ) {
         log.error("[BaseException]", baseException);
-        String method = (request != null) ? request.getMethod() : null;
-        String path = (request != null) ? request.getRequestURI() : null;
-        discordErrorNotifier.notifyException(baseException, method, path);
+        notifyToDiscord(baseException, request);
 
         ErrorCode errorCode = baseException.getErrorCode();
         return ResponseEntity
@@ -34,12 +32,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationException(
-            MethodArgumentNotValidException e, HttpServletRequest request
+            MethodArgumentNotValidException exception, HttpServletRequest request
     ) {
-        log.warn("[ValidationException] {}", e.getMessage());
-        String method = (request != null) ? request.getMethod() : null;
-        String path = (request != null) ? request.getRequestURI() : null;
-        discordErrorNotifier.notifyException(e, method, path);
+        log.warn("[ValidationException] {}", exception.getMessage());
+        notifyToDiscord(exception, request);
 
         return ResponseEntity
                 .status(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
@@ -51,13 +47,17 @@ public class GlobalExceptionHandler {
             Exception exception, HttpServletRequest request
     ) {
         log.error("[Exception]", exception);
-        String method = (request != null) ? request.getMethod() : null;
-        String path = (request != null) ? request.getRequestURI() : null;
-        discordErrorNotifier.notifyException(exception, method, path);
+        notifyToDiscord(exception, request);
 
         ErrorCode errorCode = ErrorCode.INTERNAL_SERVER_ERROR;
         return ResponseEntity
                 .status(errorCode.getHttpStatus())
                 .body(ApiResponse.fail(errorCode));
+    }
+
+    private void notifyToDiscord(Exception exception, HttpServletRequest request) {
+        String method = (request != null) ? request.getMethod() : null;
+        String path = (request != null) ? request.getRequestURI() : null;
+        discordErrorNotifier.notifyException(exception, method, path);
     }
 }

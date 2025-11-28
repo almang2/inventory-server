@@ -41,3 +41,12 @@ monitoring:
     enabled: true
     include-logs: true          # MVP 단계라 true
     include-stacktrace: true    # MVP 단계라 true
+
+cafe24:
+  api:
+    oauth-url: ${CAFE24_API_OAUTH_URL}
+    base-url: ${CAFE24_API_BASE_URL}
+    client-id: ${CAFE24_API_CLIENT_ID}
+    client-secret: ${CAFE24_API_CLIENT_SECRET}
+    redirect-uri: ${CAFE24_API_REDIRECT_URI}
+    scope: ${CAFE24_API_SCOPE}

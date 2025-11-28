@@ -35,3 +35,17 @@ jwt:
 auth:
   refresh:
     expiration-days: ${REFRESH_TOKEN_EXPIRATION_DAYS}
+
+cafe24:
+  api:
+    oauth-url: ${CAFE24_API_OAUTH_URL}
+    base-url: ${CAFE24_API_BASE_URL}
+    client-id: ${CAFE24_API_CLIENT_ID}
+    client-secret: ${CAFE24_API_CLIENT_SECRET}
+    redirect-uri: ${CAFE24_API_REDIRECT_URI}
+    scope: ${CAFE24_API_SCOPE}
+
+logging:
+  level:
+    com.almang.inventory.global.cafe24.service.Cafe24OAuthService: DEBUG
+    reactor.netty.http.client.HttpClient: DEBUG

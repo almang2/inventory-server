@@ -41,6 +41,9 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
             "/api/v1/store/admin",
             "/api/v1/admin/store",
 
+            // Cafe24 OAuth
+            "/api/v1/oauth/cafe24",
+
             // Actuator (헬스체크용)
             "/actuator/health",
 
@@ -62,8 +65,8 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return whitelist.stream().anyMatch(path::equals) ||
-                whitelist.stream().anyMatch(path::startsWith);
+        return whitelist.stream().anyMatch(whitePath -> 
+                path.equals(whitePath) || path.startsWith(whitePath + "/"));
     }
 
     @Override

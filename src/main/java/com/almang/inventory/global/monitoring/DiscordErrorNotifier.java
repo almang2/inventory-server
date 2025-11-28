@@ -3,6 +3,7 @@ package com.almang.inventory.global.monitoring;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import com.almang.inventory.global.logging.InMemoryLogAppender;
+import com.almang.inventory.global.util.MaskingUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -73,14 +74,24 @@ public class DiscordErrorNotifier {
         String safePath = (path != null) ? path : "알 수 없음";
         String safeMethod = (method != null) ? method : "알 수 없음";
 
-        String stackTrace = truncateSection(getStackTrace(exception));
-        String recentLogs = truncateSection(formatRecentLogs());
+        // 원본 로그 / 스택트레이스
+        String rawLogs = formatRecentLogs();
+        String rawStackTrace = getStackTrace(exception);
+
+        // 민감정보 마스킹 적용
+        String maskedLogs = MaskingUtil.maskText(rawLogs);
+        String maskedStackTrace = MaskingUtil.maskText(rawStackTrace);
+        String maskedExceptionMessage = MaskingUtil.maskText(safeMessage(exception.getMessage()));
+
+        // 길이 제한에 맞추기
+        String recentLogs = truncateSection(maskedLogs);
+        String stackTrace = truncateSection(maskedStackTrace);
 
         String content = ERROR_TEMPLATE.formatted(
                 safeMethod,
                 safePath,
                 exception.getClass().getName(),
-                safeMessage(exception.getMessage()),
+                maskedExceptionMessage,
                 recentLogs,
                 stackTrace
         );

@@ -54,11 +54,11 @@ public class WholesaleService {
             Wholesale existing = existingWholesale.get();
             
             // 입금 완료 처리: paid="F" → "T"로 변경되었고, 아직 재고 차감 안 했으면 차감
-            if ("T".equals(cafe24Order.getPaid()) && existing.getStatus() == WholesaleStatus.입금_대기_중) {
+            if ("T".equals(cafe24Order.getPaid()) && existing.getStatus() == WholesaleStatus.PAYMENT_PENDING) {
                 log.info("입금 완료 처리 - orderId: {}, 재고 차감 시작", cafe24Order.getOrderId());
                 
                 // 상태 업데이트
-                existing.updateStatus(WholesaleStatus.주문_확인);
+                existing.updateStatus(WholesaleStatus.ORDER_CONFIRMED);
                 
                 // 재고 차감 (아직 차감하지 않은 경우)
                 for (WholesaleItem item : existing.getItems()) {
@@ -131,9 +131,9 @@ public class WholesaleService {
     private WholesaleStatus determineWholesaleStatus(Cafe24OrderResponse.Order cafe24Order) {
         // 결제 여부에 따라 상태 결정
         if ("T".equals(cafe24Order.getPaid())) {
-            return WholesaleStatus.주문_확인;
+            return WholesaleStatus.ORDER_CONFIRMED;
         } else {
-            return WholesaleStatus.입금_대기_중;
+            return WholesaleStatus.PAYMENT_PENDING;
         }
     }
 

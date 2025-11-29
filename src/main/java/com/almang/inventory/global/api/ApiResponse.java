@@ -47,6 +47,17 @@ public record ApiResponse<T>(
         );
     }
 
+    // 새로 추가할 success 메서드
+    public static <T> ApiResponse<T> success(SuccessMessage successMessage, T data) {
+        return new ApiResponse<>(
+                SUCCESS_STATUS,
+                SUCCESS_CODE,
+                successMessage.getMessage(),
+                data,
+                LocalDateTime.now()
+        );
+    }
+
     public static <T> ApiResponse<T> fail(ErrorCode errorCode) {
         return new ApiResponse<>(
                 errorCode.getHttpStatus().value(),

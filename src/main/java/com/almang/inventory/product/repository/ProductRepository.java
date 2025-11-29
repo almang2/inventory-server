@@ -5,6 +5,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Optional;
+
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
     Page<Product> findAllByStoreId(Long storeId, Pageable pageable);
@@ -22,4 +24,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> findAllByStoreIdAndActivatedFalseAndNameContainingIgnoreCase(
             Long storeId, String name, Pageable pageable
     );
+
+    // 상품 코드로 상품 찾기 (카페24 주문 처리용)
+    Optional<Product> findByCode(String code);
 }

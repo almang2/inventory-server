@@ -35,7 +35,6 @@ jwt:
 auth:
   refresh:
     expiration-days: ${REFRESH_TOKEN_EXPIRATION_DAYS}
-
 cafe24:
   api:
     oauth-url: ${CAFE24_API_OAUTH_URL}
@@ -49,3 +48,4 @@ logging:
   level:
     com.almang.inventory.global.cafe24.service.Cafe24OAuthService: DEBUG
     reactor.netty.http.client.HttpClient: DEBUG
+

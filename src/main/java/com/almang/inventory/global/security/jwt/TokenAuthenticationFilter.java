@@ -41,7 +41,7 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
             "/api/v1/store/admin",
             "/api/v1/admin/store",
 
-            // Cafe24 OAuth
+            // Cafe24 OAuth (모든 하위 경로 포함)
             "/api/v1/oauth/cafe24",
 
             // Actuator (헬스체크용)
@@ -65,8 +65,15 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return whitelist.stream().anyMatch(whitePath -> 
-                path.equals(whitePath) || path.startsWith(whitePath + "/"));
+        boolean shouldSkip = whitelist.stream().anyMatch(whitePath -> {
+            // 정확히 일치하거나, whitePath로 시작하는 경로인지 확인
+            boolean matches = path.equals(whitePath) || path.startsWith(whitePath + "/");
+            if (matches) {
+                log.debug("[AUTH] Filter skipped for path: {}", path);
+            }
+            return matches;
+        });
+        return shouldSkip;
     }
 
     @Override
@@ -74,6 +81,18 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
+        String path = request.getServletPath();
+        
+        // 추가 안전장치: whitelist에 있는 경로는 필터를 건너뛰기
+        boolean isWhitelisted = whitelist.stream().anyMatch(whitePath -> 
+                path.equals(whitePath) || path.startsWith(whitePath + "/"));
+        
+        if (isWhitelisted) {
+            log.debug("[AUTH] Whitelisted path, skipping filter: {}", path);
+            filterChain.doFilter(request, response);
+            return;
+        }
+        
         request.removeAttribute("authErrorCode");
 
         String token = resolveToken(request);

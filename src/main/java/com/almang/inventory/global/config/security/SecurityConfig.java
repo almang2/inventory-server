@@ -74,6 +74,8 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_APIS).permitAll()
                         // Cafe24 OAuth 엔드포인트
                         .requestMatchers("/api/v1/oauth/cafe24/**").permitAll()
+                        // Cafe24 테스트 엔드포인트
+                        .requestMatchers("/api/v1/cafe24/orders/test").permitAll()
 
                         // 다른 엔드포인트는 인증 필요
                         .anyRequest().authenticated()

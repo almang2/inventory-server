@@ -1,6 +1,7 @@
 package com.almang.inventory.inventory.repository;
 
 import com.almang.inventory.inventory.domain.Inventory;
+import com.almang.inventory.product.domain.Product;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -11,6 +12,8 @@ import org.springframework.data.repository.query.Param;
 public interface InventoryRepository extends JpaRepository<Inventory, Long> {
 
     Optional<Inventory> findByProduct_Id(Long productId);
+
+    Optional<Inventory> findByProduct(Product product);
 
     @Query("""
         SELECT inventory

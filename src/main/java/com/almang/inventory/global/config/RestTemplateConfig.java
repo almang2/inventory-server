@@ -16,4 +16,12 @@ public class RestTemplateConfig {
         factory.setReadTimeout((int) Duration.ofSeconds(5).toMillis());
         return new RestTemplate(factory);
     }
+
+    @Bean
+    public RestTemplate restTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout((int) Duration.ofSeconds(10).toMillis()); // 카페24 API 호출은 좀 더 긴 타임아웃 설정
+        factory.setReadTimeout((int) Duration.ofSeconds(30).toMillis());
+        return new RestTemplate(factory);
+    }
 }

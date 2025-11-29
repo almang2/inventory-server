@@ -9,6 +9,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod; // HttpMethod import 추가
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -72,7 +73,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 공개 엔드포인트
                         .requestMatchers(PUBLIC_APIS).permitAll()
-
+                        // 카페24 주문 수신 엔드포인트 (인증 제외)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/customer-orders").permitAll()
+                        // 카페24 OAuth 콜백 엔드포인트 (인증 제외 - 카페24에서 외부적으로 호출)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/cafe24/oauth/callback").permitAll()
                         // 다른 엔드포인트는 인증 필요
                         .anyRequest().authenticated()
                 )

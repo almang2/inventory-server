@@ -15,6 +15,7 @@ import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.config.TestSecurityConfig;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.global.monitoring.DiscordErrorNotifier;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;
 import com.almang.inventory.vendor.domain.VendorChannel;
@@ -46,6 +47,7 @@ class VendorControllerTest {
 
     @MockitoBean private VendorService vendorService;
     @MockitoBean private JpaMetamodelMappingContext jpaMetamodelMappingContext;
+    @MockitoBean private DiscordErrorNotifier discordErrorNotifier;
 
     private UsernamePasswordAuthenticationToken auth() {
         CustomUserPrincipal principal = new CustomUserPrincipal(1L, "store_admin", List.of());

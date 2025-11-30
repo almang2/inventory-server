@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.global.monitoring.DiscordErrorNotifier;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.global.config.TestSecurityConfig;
 import com.almang.inventory.user.auth.dto.request.ChangePasswordRequest;
@@ -48,6 +49,7 @@ public class AuthControllerTest {
     @MockitoBean private AuthService authService;
     @MockitoBean private TokenService tokenService;
     @MockitoBean private JpaMetamodelMappingContext jpaMetamodelMappingContext;
+    @MockitoBean private DiscordErrorNotifier discordErrorNotifier;
 
     @Test
     void 로그인에_성공한다() throws Exception {

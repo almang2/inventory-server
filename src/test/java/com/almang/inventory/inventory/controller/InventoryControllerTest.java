@@ -15,6 +15,7 @@ import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.config.TestSecurityConfig;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.global.monitoring.DiscordErrorNotifier;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.inventory.domain.InventoryMoveDirection;
 import com.almang.inventory.inventory.dto.request.MoveInventoryRequest;
@@ -48,6 +49,7 @@ public class InventoryControllerTest {
 
     @MockitoBean private InventoryService inventoryService;
     @MockitoBean private JpaMetamodelMappingContext jpaMetamodelMappingContext;
+    @MockitoBean private DiscordErrorNotifier discordErrorNotifier;
 
     private UsernamePasswordAuthenticationToken auth() {
         CustomUserPrincipal principal =

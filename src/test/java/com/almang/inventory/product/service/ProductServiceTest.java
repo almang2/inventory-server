@@ -11,6 +11,7 @@ import com.almang.inventory.inventory.repository.InventoryRepository;
 import com.almang.inventory.product.domain.ProductUnit;
 import com.almang.inventory.product.dto.request.CreateProductRequest;
 import com.almang.inventory.product.dto.request.UpdateProductRequest;
+import com.almang.inventory.product.dto.response.DeleteProductResponse;
 import com.almang.inventory.product.dto.response.ProductResponse;
 import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.store.domain.Store;
@@ -1087,5 +1088,140 @@ public class ProductServiceTest {
         assertThat(only.productId()).isEqualTo(inactiveMatch.productId());
         assertThat(only.name()).isEqualTo("고무장갑");
         assertThat(only.isActivated()).isFalse();
+    }
+
+    @Test
+    void 품목_삭제에_성공한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor = newVendor(store);
+        User user = newUser(store);
+
+        ProductResponse created = productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                user.getId()
+        );
+
+        Long productId = created.productId();
+
+        // when
+        DeleteProductResponse deleteResponse = productService.deleteProduct(productId, user.getId());
+
+        // then
+        assertThat(deleteResponse.success()).isTrue();
+
+        assertThatThrownBy(() -> productService.getProductDetail(productId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
+
+        PageResponse<ProductResponse> page =
+                productService.getProductList(user.getId(), 1, 10, null, null);
+
+        assertThat(page.totalElements()).isZero();
+        assertThat(page.content()).isEmpty();
+    }
+
+    @Test
+    void 존재하지_않는_품목_삭제시_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Long notExistProductId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> productService.deleteProduct(notExistProductId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 다른_상점의_품목을_삭제하려고_하면_예외가_발생한다() {
+        // given
+        Store store1 = newStore();
+        Store store2 = newStore();
+
+        Vendor vendor1 = newVendor(store1);
+        Vendor vendor2 = newVendor(store2);
+
+        User userOfStore1 = newUser(store1);
+        User userOfStore2 = userRepository.save(
+                User.builder()
+                        .store(store2)
+                        .username("delete_tester_store2")
+                        .password("password")
+                        .name("상점2 관리자(삭제)")
+                        .role(UserRole.ADMIN)
+                        .build()
+        );
+
+        ProductResponse productOfStore2 = productService.createProduct(
+                new CreateProductRequest(
+                        vendor2.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                userOfStore2.getId()
+        );
+
+        // when & then
+        assertThatThrownBy(() -> productService.deleteProduct(productOfStore2.productId(), userOfStore1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.STORE_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 삭제된_품목은_목록_및_상세에서_조회되지_않는다() {
+        // given
+        Store store = newStore();
+        Vendor vendor = newVendor(store);
+        User user = newUser(store);
+
+        ProductResponse product = productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        BigDecimal.valueOf(900.0),
+                        10,
+                        BigDecimal.valueOf(90.0),
+                        1000,
+                        1500,
+                        1200
+                ),
+                user.getId()
+        );
+
+        productService.deleteProduct(product.productId(), user.getId());
+
+        // when & then
+        assertThatThrownBy(() -> productService.getProductDetail(product.productId(), user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
+
+        // when & then
+        PageResponse<ProductResponse> page =
+                productService.getProductList(user.getId(), 1, 10, null, null);
+
+        assertThat(page.totalElements()).isZero();
+        assertThat(page.content()).isEmpty();
     }
 }

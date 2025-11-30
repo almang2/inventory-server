@@ -6,6 +6,7 @@ import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.product.dto.request.CreateProductRequest;
 import com.almang.inventory.product.dto.request.UpdateProductRequest;
+import com.almang.inventory.product.dto.response.DeleteProductResponse;
 import com.almang.inventory.product.dto.response.ProductResponse;
 import com.almang.inventory.product.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -76,6 +78,21 @@ public class ProductController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.GET_PRODUCT_DETAIL_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @DeleteMapping("/{productId}")
+    @Operation(summary = "품목 삭제", description = "품목을 삭제합니다.")
+    public ResponseEntity<ApiResponse<DeleteProductResponse>> deleteProduct(
+            @PathVariable Long productId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[ProductController] 품목 삭제 요청 - userId: {}, productId: {}", userId, productId);
+        DeleteProductResponse response = productService.deleteProduct(productId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.DELETE_PRODUCT_SUCCESS.getMessage(), response)
         );
     }
 

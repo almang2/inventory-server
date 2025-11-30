@@ -10,11 +10,11 @@ import com.almang.inventory.inventory.service.InventoryService;
 import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.dto.request.CreateProductRequest;
 import com.almang.inventory.product.dto.request.UpdateProductRequest;
+import com.almang.inventory.product.dto.response.DeleteProductResponse;
 import com.almang.inventory.product.dto.response.ProductResponse;
 import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.user.domain.User;
-import com.almang.inventory.user.repository.UserRepository;
 import com.almang.inventory.vendor.domain.Vendor;
 import com.almang.inventory.vendor.repository.VendorRepository;
 import lombok.RequiredArgsConstructor;
@@ -69,6 +69,20 @@ public class ProductService {
         return ProductResponse.from(product);
     }
 
+    @Transactional
+    public DeleteProductResponse deleteProduct(Long productId, Long userId) {
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        User user = context.user();
+        Product product = findProductById(productId);
+        validateStoreAccess(product, user);
+
+        log.info("[ProductService] 품목 삭제 요청 - userId: {}, productId: {}", user.getId(), product.getId());
+        product.delete();
+
+        log.info("[ProductService] 품목 삭제 성공 - productId: {}", product.getId());
+        return new DeleteProductResponse(true);
+    }
+
     @Transactional(readOnly = true)
     public ProductResponse getProductDetail(Long productId, Long userId) {
         UserStoreContext context = userContextProvider.findUserAndStore(userId);
@@ -112,6 +126,7 @@ public class ProductService {
                 .costPrice(request.costPrice())
                 .retailPrice(request.retailPrice())
                 .wholesalePrice(request.wholesalePrice())
+                .deletedAt(null)
                 .build();
     }
 
@@ -122,13 +137,17 @@ public class ProductService {
         if (!vendor.getStore().getId().equals(user.getStore().getId())) {
             throw new BaseException(ErrorCode.VENDOR_ACCESS_DENIED);
         }
-
         return vendor;
     }
 
     private Product findProductById(Long id) {
-        return productRepository.findById(id)
+        Product product =  productRepository.findById(id)
                 .orElseThrow(() -> new BaseException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        if (product.getDeletedAt() != null) {
+            throw new BaseException(ErrorCode.PRODUCT_NOT_FOUND);
+        }
+        return product;
     }
 
     private void validateStoreAccess(Product product, User user) {

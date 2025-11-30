@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.global.monitoring.DiscordErrorNotifier;
 import com.almang.inventory.store.admin.dto.request.StoreAdminCreateRequest;
 import com.almang.inventory.store.admin.dto.response.StoreAdminCreateResponse;
 import com.almang.inventory.store.admin.service.StoreAdminService;
@@ -31,7 +32,7 @@ public class StoreAdminControllerTest {
 
     @MockitoBean StoreAdminService storeAdminService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
-
+    @MockitoBean private DiscordErrorNotifier discordErrorNotifier;
 
     @Test
     void 상점_관리자_계정_생성에_성공한다() throws Exception {

@@ -4,8 +4,11 @@ import com.almang.inventory.global.entity.BaseTimeEntity;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.vendor.domain.Vendor;
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.*;
 import java.math.BigDecimal;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 @Entity
 @Table(name = "products")
@@ -13,6 +16,8 @@ import java.math.BigDecimal;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@SQLDelete(sql = "UPDATE products SET deleted_at = NOW() WHERE product_id = ?")
+@Where(clause = "deleted_at IS NULL")
 public class Product extends BaseTimeEntity {
 
     @Id
@@ -58,6 +63,9 @@ public class Product extends BaseTimeEntity {
 
     @Column(name = "wholesale_price")
     private int wholesalePrice;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     public void updateVendor(Vendor vendor) {
         if (!this.vendor.getId().equals(vendor.getId())) {
@@ -105,5 +113,9 @@ public class Product extends BaseTimeEntity {
         if (activated != null) {
             this.activated = activated;
         }
+    }
+
+    public void delete() {
+        this.deletedAt = LocalDateTime.now();
     }
 }

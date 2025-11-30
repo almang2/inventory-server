@@ -15,6 +15,7 @@ import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.config.TestSecurityConfig;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.global.monitoring.DiscordErrorNotifier;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.order.domain.OrderStatus;
 import com.almang.inventory.order.dto.request.CreateOrderItemRequest;
@@ -28,6 +29,7 @@ import com.almang.inventory.order.service.OrderService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -51,6 +53,7 @@ class OrderControllerTest {
 
     @MockitoBean private OrderService orderService;
     @MockitoBean private JpaMetamodelMappingContext jpaMetamodelMappingContext;
+    @MockitoBean private DiscordErrorNotifier discordErrorNotifier;
 
     private UsernamePasswordAuthenticationToken auth() {
         CustomUserPrincipal principal = new CustomUserPrincipal(1L, "store_admin", List.of());
@@ -78,6 +81,7 @@ class OrderControllerTest {
                 100L,
                 10L,
                 10L,
+                LocalDateTime.now(),
                 "메시지입니다.",
                 OrderStatus.REQUEST,
                 3,
@@ -262,6 +266,7 @@ class OrderControllerTest {
                 orderId,
                 10L,
                 10L,
+                LocalDateTime.now(),
                 "조회 메시지 입니다",
                 OrderStatus.REQUEST,
                 3,
@@ -329,6 +334,7 @@ class OrderControllerTest {
                 1L,
                 10L,
                 10L,
+                LocalDateTime.now(),
                 "메시지1",
                 OrderStatus.REQUEST,
                 1,
@@ -344,6 +350,7 @@ class OrderControllerTest {
                 2L,
                 10L,
                 10L,
+                LocalDateTime.now(),
                 "메시지2",
                 OrderStatus.REQUEST,
                 2,
@@ -447,6 +454,7 @@ class OrderControllerTest {
                 orderId,
                 10L,
                 10L,
+                LocalDateTime.now(),
                 "수정된 메시지",
                 OrderStatus.IN_PRODUCTION,
                 5,

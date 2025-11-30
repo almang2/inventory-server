@@ -50,6 +50,9 @@ dependencies {
 
 	// Redis
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+	// Excel (Apache POI)
+	implementation 'org.apache.poi:poi-ooxml:5.2.3'
 }
 
 tasks.named('test') {

@@ -25,6 +25,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             Long storeId, String name, Pageable pageable
     );
 
+    boolean existsByVendorId(Long vendorId);
+
     // 상품 코드로 상품 찾기 (카페24 주문 처리용)
     Optional<Product> findByCode(String code);
 }

@@ -29,6 +29,7 @@ public enum ErrorCode {
     // VENDOR
     VENDOR_NOT_FOUND(HttpStatus.NOT_FOUND, "발주처를 찾을 수 없습니다."),
     VENDOR_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 상점의 발주처가 아닙니다."),
+    VENDOR_HAS_PRODUCTS(HttpStatus.CONFLICT, "해당 발주처를 사용하는 품목이 존재하여 삭제할 수 없습니다."),
 
     // PRODUCT
     PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND,"품목을 찾을 수 없습니다."),

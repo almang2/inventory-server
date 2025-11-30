@@ -36,6 +36,7 @@ import com.almang.inventory.vendor.domain.VendorChannel;
 import com.almang.inventory.vendor.repository.VendorRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -260,8 +261,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -318,7 +317,6 @@ class ReceiptServiceTest {
                 .store(store2)
                 .order(orderOfStore2)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -355,8 +353,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -426,8 +422,6 @@ class ReceiptServiceTest {
                 .store(store2)
                 .order(orderOfStore2)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -463,8 +457,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order1)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(1)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -484,8 +476,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order2)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(2)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -507,8 +497,6 @@ class ReceiptServiceTest {
                 .store(otherStore)
                 .order(otherOrder)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(1)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -549,8 +537,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order1)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(1)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -570,8 +556,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order2)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(1)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -617,8 +601,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(oldOrder)
                 .receiptDate(LocalDate.now().minusDays(7))
-                .totalBoxCount(1)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -629,8 +611,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(recentOrder)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(1)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -670,8 +650,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -693,8 +671,6 @@ class ReceiptServiceTest {
         UpdateReceiptItemRequest updateItem1 = new UpdateReceiptItemRequest(
                 item1.getId(),
                 saved.getId(),
-                2,
-                null,
                 10,
                 1100,
                 "수정 비고1"
@@ -703,8 +679,6 @@ class ReceiptServiceTest {
         UpdateReceiptItemRequest updateItem2 = new UpdateReceiptItemRequest(
                 item2.getId(),
                 saved.getId(),
-                3,
-                null,
                 5,
                 2100,
                 "수정 비고2"
@@ -714,8 +688,6 @@ class ReceiptServiceTest {
 
         UpdateReceiptRequest request = new UpdateReceiptRequest(
                 order.getId(),
-                null,
-                newTotalWeight,
                 ReceiptStatus.CONFIRMED,
                 true,
                 java.util.List.of(updateItem1, updateItem2)
@@ -730,27 +702,21 @@ class ReceiptServiceTest {
         assertThat(response.receiptId()).isEqualTo(saved.getId());
         assertThat(response.orderId()).isEqualTo(order.getId());
         assertThat(response.status()).isEqualTo(ReceiptStatus.CONFIRMED);
-        assertThat(response.totalWeightG()).isEqualTo(newTotalWeight);
-        assertThat(response.totalBoxCount()).isEqualTo(5);
         assertThat(response.receiptItems()).hasSize(2);
 
         Receipt updated = receiptRepository.findById(saved.getId())
                 .orElseThrow();
 
-        assertThat(updated.getTotalBoxCount()).isEqualTo(5);
         assertThat(updated.getStatus()).isEqualTo(ReceiptStatus.CONFIRMED);
-        assertThat(updated.getTotalWeightG()).isEqualTo(newTotalWeight);
 
         ReceiptItem updatedItem1 = updated.getItems().stream()
                 .filter(i -> i.getId().equals(item1.getId()))
                 .findFirst()
                 .orElseThrow();
 
-        assertThat(updatedItem1.getBoxCount()).isEqualTo(2);
         assertThat(updatedItem1.getActualQuantity()).isEqualTo(10);
         assertThat(updatedItem1.getUnitPrice()).isEqualTo(1100);
         assertThat(updatedItem1.getAmount()).isEqualTo(10 * 1100);
-        assertThat(updatedItem1.getErrorRate()).isNotNull();
     }
 
     @Test
@@ -763,9 +729,7 @@ class ReceiptServiceTest {
                 1L,
                 null,
                 null,
-                null,
-                null,
-                java.util.List.of()
+                List.of()
         );
 
         // when & then
@@ -786,9 +750,7 @@ class ReceiptServiceTest {
                 1L,
                 null,
                 null,
-                null,
-                null,
-                java.util.List.of()
+                List.of()
         );
 
         // when & then
@@ -811,8 +773,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order1)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -822,9 +782,7 @@ class ReceiptServiceTest {
                 order2.getId(),
                 null,
                 null,
-                null,
-                null,
-                java.util.List.of()
+                List.of()
         );
 
         // when & then
@@ -845,8 +803,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order1)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -866,8 +822,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order2)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -886,8 +840,6 @@ class ReceiptServiceTest {
         UpdateReceiptItemRequest wrongItemRequest = new UpdateReceiptItemRequest(
                 otherReceiptItem.getId(),
                 receipt1.getId(),
-                1,
-                null,
                 3,
                 1000,
                 "잘못된 수정 요청"
@@ -895,11 +847,9 @@ class ReceiptServiceTest {
 
         UpdateReceiptRequest request = new UpdateReceiptRequest(
                 receipt1.getOrder().getId(),
-                null,
-                null,
                 ReceiptStatus.PENDING,
                 true,
-                java.util.List.of(wrongItemRequest)
+                List.of(wrongItemRequest)
         );
 
         // when & then
@@ -927,8 +877,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(1)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -962,7 +910,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(1)
                 .status(ReceiptStatus.CONFIRMED)
                 .activated(true)
                 .build();
@@ -1015,8 +962,6 @@ class ReceiptServiceTest {
                 .store(store2)
                 .order(order2)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(1)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -1042,8 +987,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(1)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -1097,8 +1040,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -1127,8 +1068,6 @@ class ReceiptServiceTest {
                 .store(store2)
                 .order(order2)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(1)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -1165,7 +1104,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -1186,8 +1124,6 @@ class ReceiptServiceTest {
         UpdateReceiptItemRequest req = new UpdateReceiptItemRequest(
                 targetItem.getId(),
                 saved.getId(),
-                2,
-                BigDecimal.valueOf(1.234),
                 10,
                 1500,
                 "수정된 비고"
@@ -1199,16 +1135,13 @@ class ReceiptServiceTest {
 
         // then
         assertThat(response).isNotNull();
-        assertThat(response.boxCount()).isEqualTo(2);
         assertThat(response.actualQuantity()).isEqualTo(10);
         assertThat(response.unitPrice()).isEqualTo(1500);
         assertThat(response.amount()).isEqualTo(10 * 1500);
 
         ReceiptItem updated = receiptItemRepository.findById(targetItem.getId()).orElseThrow();
-        assertThat(updated.getBoxCount()).isEqualTo(2);
         assertThat(updated.getActualQuantity()).isEqualTo(10);
         assertThat(updated.getUnitPrice()).isEqualTo(1500);
-        assertThat(updated.getErrorRate()).isNotNull();
     }
 
     @Test
@@ -1218,7 +1151,7 @@ class ReceiptServiceTest {
         Long anyItemId = 1L;
 
         UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
-                anyItemId, 1L, 1, null, 5, 1000, "비고"
+                anyItemId, 1L, 5, 1000, "비고"
         );
 
         // when & then
@@ -1241,7 +1174,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order1)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -1260,7 +1192,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order2)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -1278,8 +1209,6 @@ class ReceiptServiceTest {
         UpdateReceiptItemRequest wrongRequest = new UpdateReceiptItemRequest(
                 otherReceiptItem.getId(),
                 savedReceipt1.getId(),
-                1,
-                null,
                 10,
                 2000,
                 "잘못 수정"
@@ -1305,7 +1234,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -1326,8 +1254,6 @@ class ReceiptServiceTest {
         UpdateReceiptItemRequest wrongReq = new UpdateReceiptItemRequest(
                 targetItem.getId(),
                 wrongReceiptId,
-                1,
-                null,
                 5,
                 1000,
                 "비고"
@@ -1353,15 +1279,12 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
 
         ReceiptItem item1 = ReceiptItem.builder()
                 .product(order.getItems().get(0).getProduct())
-                .boxCount(2)
                 .expectedQuantity(BigDecimal.valueOf(order.getItems().get(0).getQuantity()))
                 .amount(order.getItems().get(0).getAmount())
                 .unitPrice(order.getItems().get(0).getUnitPrice())
@@ -1369,7 +1292,6 @@ class ReceiptServiceTest {
 
         ReceiptItem item2 = ReceiptItem.builder()
                 .product(order.getItems().get(1).getProduct())
-                .boxCount(3)
                 .expectedQuantity(BigDecimal.valueOf(order.getItems().get(1).getQuantity()))
                 .amount(order.getItems().get(1).getAmount())
                 .unitPrice(order.getItems().get(1).getUnitPrice())
@@ -1377,7 +1299,6 @@ class ReceiptServiceTest {
 
         receipt.addItem(item1);
         receipt.addItem(item2);
-        receipt.updateTotalBoxCount(2 + 3);
 
         Receipt saved = receiptRepository.save(receipt);
         Long targetItemId = saved.getItems().get(0).getId();
@@ -1393,7 +1314,6 @@ class ReceiptServiceTest {
                 .extracting(ReceiptItem::getId)
                 .doesNotContain(targetItemId);
         assertThat(updated.getItems()).hasSize(1);
-        assertThat(updated.getTotalBoxCount()).isEqualTo(3);
         assertThat(response.success()).isTrue();
     }
 
@@ -1421,8 +1341,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -1451,8 +1369,6 @@ class ReceiptServiceTest {
                 .store(store2)
                 .order(order2)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(1)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -1509,7 +1425,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(1)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -1564,7 +1479,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(1)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -1624,7 +1538,6 @@ class ReceiptServiceTest {
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(1)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -1690,8 +1603,6 @@ class ReceiptServiceTest {
                 .store(store2)
                 .order(order2)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(1)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();

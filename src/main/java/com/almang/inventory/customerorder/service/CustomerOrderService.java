@@ -37,7 +37,8 @@ public class CustomerOrderService {
         // 1. 이미 존재하는 카페24 주문인지 확인 (중복 처리 방지)
         customerOrderRepository.findByCafe24OrderId(request.getCafe24OrderId())
                 .ifPresent(order -> {
-                    throw new BaseException(ErrorCode.DUPLICATE_CUSTOMER_ORDER, "Cafe24 Order ID already exists: " + request.getCafe24OrderId());
+                    throw new BaseException(ErrorCode.DUPLICATE_CUSTOMER_ORDER,
+                            "Cafe24 Order ID already exists: " + request.getCafe24OrderId());
                 });
 
         // 2. CustomerOrder 엔티티 생성
@@ -46,7 +47,9 @@ public class CustomerOrderService {
                 .orderAt(request.getOrderAt())
                 .isPaid(request.getIsPaid().equalsIgnoreCase("T")) // 'T'/'F' 문자열을 boolean으로 변환
                 .isCanceled(request.getIsCanceled().equalsIgnoreCase("T")) // 'T'/'F' 문자열을 boolean으로 변환
-                .paymentMethod(request.getPaymentMethodName() != null && !request.getPaymentMethodName().isEmpty() ? request.getPaymentMethodName().get(0) : null)
+                .paymentMethod(request.getPaymentMethodName() != null && !request.getPaymentMethodName().isEmpty()
+                        ? request.getPaymentMethodName().get(0)
+                        : null)
                 .paymentAmount(request.getPaymentAmount())
                 .billingName(request.getBillingName())
                 .memberId(request.getMemberId())
@@ -60,18 +63,20 @@ public class CustomerOrderService {
             for (CustomerOrderItemRequest itemRequest : request.getItems()) {
                 // 3.1. 상품 조회 (productCode 사용)
                 Product product = productRepository.findByCode(itemRequest.getProductCode())
-                        .orElseThrow(() -> new BaseException(ErrorCode.PRODUCT_NOT_FOUND, "Product not found with code: " + itemRequest.getProductCode()));
+                        .orElseThrow(() -> new BaseException(ErrorCode.PRODUCT_NOT_FOUND,
+                                "Product not found with code: " + itemRequest.getProductCode()));
 
                 // 3.2. Inventory 조회 (상품과 연결된 재고 정보)
                 Inventory inventory = inventoryRepository.findByProduct(product)
-                        .orElseThrow(() -> new BaseException(ErrorCode.INVENTORY_NOT_FOUND, "Inventory not found for product: " + product.getName()));
+                        .orElseThrow(() -> new BaseException(ErrorCode.INVENTORY_NOT_FOUND,
+                                "Inventory not found for product: " + product.getName()));
 
                 // 3.3. 재고 감소 로직 (Placeholder)
-                //      ========================================================================
-                //      TODO: 카페24 연동 정책에 따라 정확한 재고 감소 로직을 여기에 구현해야 합니다.
-                //      예: inventory.decreaseWarehouse(new BigDecimal(itemRequest.getQuantity()));
-                //      현재는 재고 감소 로직이 적용되지 않습니다.
-                //      ========================================================================
+                // ========================================================================
+                // TODO: 카페24 연동 정책에 따라 정확한 재고 감소 로직을 여기에 구현해야 합니다.
+                // 예: inventory.decreaseWarehouse(new BigDecimal(itemRequest.getQuantity()));
+                // 현재는 재고 감소 로직이 적용되지 않습니다.
+                // ========================================================================
                 log.warn("카페24 주문 ID {}의 상품 {} (수량 {})에 대한 재고 감소 로직이 정의되지 않았습니다.",
                         request.getCafe24OrderId(), itemRequest.getProductName(), itemRequest.getQuantity());
 
@@ -96,5 +101,54 @@ public class CustomerOrderService {
         return savedOrder.getId();
     }
 
-    // 추가적인 고객 주문 관련 비즈니스 로직은 여기에 구현될 수 있습니다. F_TEST
+    /**
+     * 새로운 주문을 저장하고 재고(출고 예정)를 업데이트합니다.
+     */
+    @Transactional
+    public CustomerOrder registerNewOrder(CustomerOrder customerOrder) {
+        // 1. 주문 저장
+        CustomerOrder savedOrder = customerOrderRepository.save(customerOrder);
+
+        // 2. 재고 업데이트 (출고 예정 수량 증가)
+        for (CustomerOrderItem item : savedOrder.getItems()) {
+            inventoryRepository.findByProduct(item.getProduct()).ifPresent(inventory -> {
+                inventory.increaseOutgoing(new BigDecimal(item.getQuantity()));
+            });
+        }
+
+        return savedOrder;
+    }
+
+    /**
+     * 주문 결제 완료 처리 및 재고 업데이트
+     */
+    @Transactional
+    public void processPaymentCompletion(CustomerOrder order, boolean wasPreviouslyRegistered) {
+        // 1. 결제 상태 업데이트
+        if (!order.isPaid()) {
+            order.updatePaidStatus(true);
+        }
+
+        // 2. 재고 업데이트
+        for (CustomerOrderItem item : order.getItems()) {
+            inventoryRepository.findByProduct(item.getProduct()).ifPresent(inventory -> {
+                BigDecimal quantity = new BigDecimal(item.getQuantity());
+
+                // 기존에 등록된 주문(N00)이었다면 출고 예정 수량을 차감
+                if (wasPreviouslyRegistered) {
+                    inventory.decreaseOutgoing(quantity);
+                }
+
+                // 창고 재고 차감
+                inventory.decreaseWarehouse(quantity);
+            });
+        }
+    }
+
+    /**
+     * Cafe24 주문 ID로 주문 조회
+     */
+    public Optional<CustomerOrder> findByCafe24OrderId(String cafe24OrderId) {
+        return customerOrderRepository.findByCafe24OrderId(cafe24OrderId);
+    }
 }

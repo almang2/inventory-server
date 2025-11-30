@@ -33,10 +33,10 @@ public class Product extends BaseTimeEntity {
     @JoinColumn(name = "vendor_id", nullable = false)
     private Vendor vendor;
 
-    @Column(name = "name", length = 30, nullable = false)
+    @Column(name = "name", length = 255, nullable = false)
     private String name;
 
-    @Column(name = "code", length = 30, nullable = false)
+    @Column(name = "code", length = 50, nullable = false)
     private String code;
 
     @Enumerated(EnumType.STRING)

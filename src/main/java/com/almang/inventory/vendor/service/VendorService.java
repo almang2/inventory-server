@@ -70,7 +70,7 @@ public class VendorService {
         Vendor vendor = findVendorByIdAndValidateAccess(vendorId, user);
 
         log.info("[VendorService] 발주처 삭제 요청 - userId: {}, vendorId: {}", userId, vendor.getId());
-        vendor.delete();
+        vendorRepository.delete(vendor);
 
         log.info("[VendorService] 발주처 삭제 성공 - vendorId: {}", vendor.getId());
         return new DeleteVendorResponse(true);

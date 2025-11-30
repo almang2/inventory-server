@@ -684,8 +684,6 @@ class ReceiptServiceTest {
                 "수정 비고2"
         );
 
-        BigDecimal newTotalWeight = BigDecimal.valueOf(123.456);
-
         UpdateReceiptRequest request = new UpdateReceiptRequest(
                 order.getId(),
                 ReceiptStatus.CONFIRMED,

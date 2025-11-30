@@ -6,12 +6,10 @@ import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.order.domain.Order;
 import com.almang.inventory.store.domain.Store;
 import jakarta.persistence.*;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.*;
-import org.springframework.security.core.parameters.P;
 
 @Entity
 @Table(name = "receipts")

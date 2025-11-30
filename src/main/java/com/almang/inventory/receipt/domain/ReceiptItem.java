@@ -4,7 +4,6 @@ import com.almang.inventory.global.entity.BaseTimeEntity;
 import com.almang.inventory.product.domain.Product;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import lombok.*;
 
 @Entity

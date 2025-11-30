@@ -2,7 +2,6 @@ package com.almang.inventory.receipt.dto.response;
 
 import com.almang.inventory.receipt.domain.Receipt;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 

@@ -9,12 +9,14 @@ import com.almang.inventory.global.util.PaginationUtil;
 import com.almang.inventory.order.template.repository.OrderTemplateRepository;
 import com.almang.inventory.order.template.domain.OrderTemplate;
 import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;
+import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.vendor.domain.Vendor;
 import com.almang.inventory.vendor.dto.request.CreateOrderTemplateRequest;
 import com.almang.inventory.vendor.dto.request.CreateVendorRequest;
 import com.almang.inventory.vendor.dto.request.UpdateVendorRequest;
+import com.almang.inventory.vendor.dto.response.DeleteVendorResponse;
 import com.almang.inventory.vendor.dto.response.VendorResponse;
 import com.almang.inventory.vendor.repository.VendorRepository;
 import java.util.List;
@@ -33,6 +35,7 @@ public class VendorService {
     private final VendorRepository vendorRepository;
     private final OrderTemplateRepository orderTemplateRepository;
     private final UserContextProvider userContextProvider;
+    private final ProductRepository productRepository;
 
     @Transactional
     public VendorResponse createVendor(CreateVendorRequest request, Long userId) {
@@ -60,6 +63,22 @@ public class VendorService {
 
         log.info("[VendorService] 발주처 수정 성공 - vendorId: {}", vendor.getId());
         return VendorResponse.from(vendor);
+    }
+
+    @Transactional
+    public DeleteVendorResponse deleteVendor(Long vendorId, Long userId) {
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        User user = context.user();
+        Vendor vendor = findVendorByIdAndValidateAccess(vendorId, user);
+
+        log.info("[VendorService] 발주처 삭제 요청 - userId: {}, vendorId: {}", userId, vendor.getId());
+        if (productRepository.existsByVendorId(vendor.getId())) {
+            throw new BaseException(ErrorCode.VENDOR_HAS_PRODUCTS);
+        }
+        vendorRepository.delete(vendor);
+
+        log.info("[VendorService] 발주처 삭제 성공 - vendorId: {}", vendor.getId());
+        return new DeleteVendorResponse(true);
     }
 
     @Transactional(readOnly = true)
@@ -125,6 +144,7 @@ public class VendorService {
                 .contactPoint(request.contactPoint())
                 .note(request.note())
                 .activated(true)
+                .deletedAt(null)
                 .build();
     }
 
@@ -144,7 +164,6 @@ public class VendorService {
         if (!vendor.getStore().getId().equals(user.getStore().getId())) {
             throw new BaseException(ErrorCode.VENDOR_ACCESS_DENIED);
         }
-
         return vendor;
     }
 

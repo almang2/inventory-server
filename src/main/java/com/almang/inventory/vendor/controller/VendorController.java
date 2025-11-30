@@ -8,6 +8,7 @@ import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;
 import com.almang.inventory.vendor.dto.request.CreateOrderTemplateRequest;
 import com.almang.inventory.vendor.dto.request.CreateVendorRequest;
 import com.almang.inventory.vendor.dto.request.UpdateVendorRequest;
+import com.almang.inventory.vendor.dto.response.DeleteVendorResponse;
 import com.almang.inventory.vendor.dto.response.VendorResponse;
 import com.almang.inventory.vendor.service.VendorService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -79,6 +81,21 @@ public class VendorController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.GET_VENDOR_DETAIL_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @DeleteMapping("/{vendorId}")
+    @Operation(summary = "발주처 삭제", description = "발주처를 삭제합니다.")
+    public ResponseEntity<ApiResponse<DeleteVendorResponse>> deleteVendor(
+            @PathVariable Long vendorId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[VendorController] 발주처 삭제 요청 - vendorId: {}, userId: {}", vendorId, userId);
+        DeleteVendorResponse response = vendorService.deleteVendor(vendorId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.DELETE_VENDOR_SUCCESS.getMessage(), response)
         );
     }
 

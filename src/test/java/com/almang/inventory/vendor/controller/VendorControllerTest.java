@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -22,6 +23,7 @@ import com.almang.inventory.vendor.domain.VendorChannel;
 import com.almang.inventory.vendor.dto.request.CreateOrderTemplateRequest;
 import com.almang.inventory.vendor.dto.request.CreateVendorRequest;
 import com.almang.inventory.vendor.dto.request.UpdateVendorRequest;
+import com.almang.inventory.vendor.dto.response.DeleteVendorResponse;
 import com.almang.inventory.vendor.dto.response.VendorResponse;
 import com.almang.inventory.vendor.service.VendorService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -606,6 +608,76 @@ class VendorControllerTest {
                         .value(ErrorCode.VENDOR_ACCESS_DENIED.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message")
                         .value(ErrorCode.VENDOR_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주처_삭제에_성공한다() throws Exception {
+        // given
+        Long vendorId = 1L;
+
+        DeleteVendorResponse response = new DeleteVendorResponse(true);
+
+        when(vendorService.deleteVendor(anyLong(), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/vendor/{vendorId}", vendorId)
+                        .with(authentication(auth())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.DELETE_VENDOR_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.success").value(true));
+    }
+
+    @Test
+    void 발주처_삭제_시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long vendorId = 1L;
+
+        when(vendorService.deleteVendor(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/vendor/{vendorId}", vendorId)
+                        .with(authentication(auth())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주처_삭제_시_존재하지_않는_발주처면_예외가_발생한다() throws Exception {
+        // given
+        Long vendorId = 9999L;
+
+        when(vendorService.deleteVendor(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.VENDOR_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/vendor/{vendorId}", vendorId)
+                        .with(authentication(auth())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.VENDOR_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.VENDOR_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주처_삭제_시_다른_상점_발주처면_예외가_발생한다() throws Exception {
+        // given
+        Long vendorId = 2L;
+
+        when(vendorService.deleteVendor(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.VENDOR_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/vendor/{vendorId}", vendorId)
+                        .with(authentication(auth())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(ErrorCode.VENDOR_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.VENDOR_ACCESS_DENIED.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

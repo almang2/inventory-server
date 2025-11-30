@@ -19,6 +19,7 @@ import com.almang.inventory.vendor.domain.VendorChannel;
 import com.almang.inventory.vendor.dto.request.CreateOrderTemplateRequest;
 import com.almang.inventory.vendor.dto.request.CreateVendorRequest;
 import com.almang.inventory.vendor.dto.request.UpdateVendorRequest;
+import com.almang.inventory.vendor.dto.response.DeleteVendorResponse;
 import com.almang.inventory.vendor.dto.response.VendorResponse;
 import com.almang.inventory.vendor.repository.VendorRepository;
 import java.math.BigDecimal;
@@ -837,5 +838,80 @@ class VendorServiceTest {
         assertThatThrownBy(() -> vendorService.getOrderTemplates(vendorOfStore2.getId(), userOfStore1.getId(), null))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 발주처_삭제에_성공한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Vendor vendor = newVendor(store);
+
+        // when
+        DeleteVendorResponse response = vendorService.deleteVendor(vendor.getId(), user.getId());
+
+        // then
+        assertThat(response.success()).isTrue();
+        assertThat(vendorRepository.findById(vendor.getId())).isEmpty();
+    }
+
+    @Test
+    void 존재하지_않는_발주처_삭제시_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Long notExistVendorId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> vendorService.deleteVendor(notExistVendorId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 다른_상점_발주처_삭제시_예외가_발생한다() {
+        // given
+        Store store1 = newStore();
+        Store store2 = newStore();
+
+        User userOfStore1 = newUser(store1);
+        User userOfStore2 = userRepository.save(
+                User.builder()
+                        .store(store2)
+                        .username("delete_vendor_store2")
+                        .password("password")
+                        .name("상점2 관리자")
+                        .role(UserRole.ADMIN)
+                        .build()
+        );
+
+        Vendor vendorOfStore2 = vendorRepository.save(
+                Vendor.builder()
+                        .store(store2)
+                        .name("상점2 발주처")
+                        .channel(VendorChannel.KAKAO)
+                        .contactPoint("010-2222-2222")
+                        .note("상점2 메모")
+                        .activated(true)
+                        .build()
+        );
+
+        // when & then
+        assertThatThrownBy(() -> vendorService.deleteVendor(vendorOfStore2.getId(), userOfStore1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 존재하지_않는_사용자로_발주처_삭제시_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor = newVendor(store);
+        Long notExistUserId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> vendorService.deleteVendor(vendor.getId(), notExistUserId))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
     }
 }

@@ -11,6 +11,7 @@ import com.almang.inventory.admin.service.AdminService;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.config.TestSecurityConfig;
+import com.almang.inventory.global.monitoring.DiscordErrorNotifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,7 @@ class AdminControllerTest {
 
     @MockitoBean private AdminService adminService;
     @MockitoBean private JpaMetamodelMappingContext jpaMetamodelMappingContext;
+    @MockitoBean private DiscordErrorNotifier discordErrorNotifier;
 
     @Test
     void 상점_생성에_성공한다() throws Exception {

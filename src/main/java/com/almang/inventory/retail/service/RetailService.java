@@ -51,25 +51,24 @@ public class RetailService {
                     continue;
 
                 // 엑셀 양식 가정:
-                // Cell 0: 상품 코드 (Product Code)
-                // Cell 1: 수량 (Quantity)
-                // Cell 2: 적용 일시 (Applied At) - 선택 사항, 없으면 현재 시간
+                // Cell 1: 상품 코드 (POS Code)
+                // Cell 3: 수량 (Quantity)
+                // Cell 4: 실매출 (Real Sales) - 현재 미사용
 
-                String productCode = getCellValueAsString(row.getCell(0));
-                if (productCode == null || productCode.isEmpty())
+                String posCode = getCellValueAsString(row.getCell(1));
+                if (posCode == null || posCode.isEmpty())
                     continue;
 
-                BigDecimal quantity = getCellValueAsBigDecimal(row.getCell(1));
+                BigDecimal quantity = getCellValueAsBigDecimal(row.getCell(3));
                 if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0)
                     continue;
 
                 LocalDateTime appliedAt = LocalDateTime.now(); // 기본값
-                // 날짜 파싱 로직이 필요하다면 추가 (Cell 2)
 
                 // 2. 상품 조회
-                Product product = productRepository.findByCode(productCode)
+                Product product = productRepository.findByPosCode(posCode)
                         .orElseThrow(() -> new BaseException(ErrorCode.PRODUCT_NOT_FOUND,
-                                "Product code not found: " + productCode));
+                                "POS code not found: " + posCode));
 
                 // 3. Retail 엔티티 생성
                 Retail retail = Retail.builder()

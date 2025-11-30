@@ -60,8 +60,8 @@ class RetailServiceTest {
 
         // 2. Mock Product
         String productCode = "P001";
-        Product product = Product.builder().id(1L).code(productCode).name("Test Product").build();
-        given(productRepository.findByCode(productCode)).willReturn(Optional.of(product));
+        Product product = Product.builder().id(1L).posCode(productCode).name("Test Product").build();
+        given(productRepository.findByPosCode(productCode)).willReturn(Optional.of(product));
 
         // 3. Mock Inventory
         Inventory inventory = Inventory.builder().id(1L).product(product).displayStock(BigDecimal.valueOf(100)).build();
@@ -73,13 +73,19 @@ class RetailServiceTest {
 
         // Header
         Row header = sheet.createRow(0);
-        header.createCell(0).setCellValue("Product Code");
-        header.createCell(1).setCellValue("Quantity");
+        header.createCell(0).setCellValue("No.");
+        header.createCell(1).setCellValue("Product Code");
+        header.createCell(2).setCellValue("Product Name");
+        header.createCell(3).setCellValue("Quantity");
+        header.createCell(4).setCellValue("Real Sales");
 
         // Data Row
         Row row = sheet.createRow(1);
-        row.createCell(0).setCellValue(productCode);
-        row.createCell(1).setCellValue(10); // Quantity 10
+        row.createCell(0).setCellValue(1);
+        row.createCell(1).setCellValue(productCode);
+        row.createCell(2).setCellValue("Test Product");
+        row.createCell(3).setCellValue(10); // Quantity 10
+        row.createCell(4).setCellValue(10000);
 
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         workbook.write(bos);

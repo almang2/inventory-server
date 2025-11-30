@@ -60,7 +60,7 @@ public class ProductService {
         log.info("[ProductService] 품목 수정 요청 - userId: {}, productId: {}", user.getId(), product.getId());
 
         product.updateVendor(vendor);
-        product.updateBasicInfo(request.name(), request.code(), request.unit());
+        product.updateBasicInfo(request.name(), request.cafe24Code(), request.posCode(), request.unit());
         product.updateWeights(request.boxWeightG(), request.unitPerBox(), request.unitWeightG());
         product.updatePrices(request.costPrice(), request.retailPrice(), request.wholesalePrice());
         product.updateActivation(request.isActivated());
@@ -96,8 +96,7 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public PageResponse<ProductResponse> getProductList(
-            Long userId, Integer page, Integer size, Boolean isActivate, String nameKeyword
-    ) {
+            Long userId, Integer page, Integer size, Boolean isActivate, String nameKeyword) {
         UserStoreContext context = userContextProvider.findUserAndStore(userId);
         Store store = context.store();
 
@@ -117,7 +116,8 @@ public class ProductService {
                 .store(user.getStore())
                 .vendor(vendor)
                 .name(request.name())
-                .code(request.code())
+                .cafe24Code(request.cafe24Code())
+                .posCode(request.posCode())
                 .unit(request.unit())
                 .boxWeightG(request.boxWeightG())
                 .unitPerBox(request.unitPerBox())
@@ -141,7 +141,7 @@ public class ProductService {
     }
 
     private Product findProductById(Long id) {
-        Product product =  productRepository.findById(id)
+        Product product = productRepository.findById(id)
                 .orElseThrow(() -> new BaseException(ErrorCode.PRODUCT_NOT_FOUND));
 
         if (product.getDeletedAt() != null) {
@@ -157,8 +157,7 @@ public class ProductService {
     }
 
     private Page<Product> findProductsByFilter(
-            Long storeId, Boolean isActivate, String nameKeyword, PageRequest pageable
-    ) {
+            Long storeId, Boolean isActivate, String nameKeyword, PageRequest pageable) {
         boolean hasName = nameKeyword != null && !nameKeyword.isBlank();
         boolean filterActivate = isActivate != null;
 
@@ -178,18 +177,15 @@ public class ProductService {
         // 3) 이름 검색
         if (!filterActivate) {
             return productRepository.findAllByStoreIdAndNameContainingIgnoreCase(
-                    storeId, nameKeyword, pageable
-            );
+                    storeId, nameKeyword, pageable);
         }
 
         // 4) 활성 + 이름 검색
         if (isActivate) {
             return productRepository.findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
-                    storeId, nameKeyword, pageable
-            );
+                    storeId, nameKeyword, pageable);
         }
         return productRepository.findAllByStoreIdAndActivatedFalseAndNameContainingIgnoreCase(
-                storeId, nameKeyword, pageable
-        );
+                storeId, nameKeyword, pageable);
     }
 }

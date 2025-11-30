@@ -35,1193 +35,1138 @@ import org.springframework.transaction.annotation.Transactional;
 @ActiveProfiles("test")
 public class ProductServiceTest {
 
-    @Autowired private ProductService productService;
-    @Autowired private ProductRepository productRepository;
-    @Autowired private UserRepository userRepository;
-    @Autowired private StoreRepository storeRepository;
-    @Autowired private VendorRepository vendorRepository;
-    @Autowired private InventoryRepository inventoryRepository;
-
-    private Store newStore() {
-        return storeRepository.save(
-                Store.builder()
-                        .name("테스트 상점")
-                        .isActivate(true)
-                        .defaultCountCheckThreshold(BigDecimal.valueOf(0.2))
-                        .build()
-        );
-    }
-
-    private Vendor newVendor(Store store) {
-        return vendorRepository.save(
-                Vendor.builder()
-                        .store(store)
-                        .name("테스트 발주처")
-                        .channel(VendorChannel.KAKAO)
-                        .contactPoint("010-0000-0000")
-                        .note("테스트 메모")
-                        .activated(true)
-                        .build()
-        );
-    }
-
-    private User newUser(Store store) {
-        return userRepository.save(
-                User.builder()
-                        .store(store)
-                        .username("tester")
-                        .password("password")
-                        .name("테스트 유저")
-                        .role(UserRole.ADMIN)
-                        .build()
-        );
-    }
-
-    @Test
-    void 품목_생성에_성공한다() {
-        // given
-        Store store = newStore();
-        Vendor vendor = newVendor(store);
-        User user = newUser(store);
-
-        CreateProductRequest request = new CreateProductRequest(
-                vendor.getId(),
-                "고체치약",
-                "P-001",
-                ProductUnit.G,
-                BigDecimal.valueOf(1000.0),
-                10,
-                BigDecimal.valueOf(100.0),
-                1000,
-                1500,
-                1200
-        );
-
-        // when
-        ProductResponse response = productService.createProduct(request, user.getId());
-
-        // then
-        assertThat(response.name()).isEqualTo("고체치약");
-        assertThat(response.code()).isEqualTo("P-001");
-        assertThat(response.unit()).isEqualTo(ProductUnit.G);
-        assertThat(response.boxWeightG()).isEqualByComparingTo("1000.0");
-        assertThat(response.unitPerBox()).isEqualTo(10);
-        assertThat(response.unitWeightG()).isEqualByComparingTo("100.0");
-        assertThat(response.costPrice()).isEqualTo(1000);
-        assertThat(response.retailPrice()).isEqualTo(1500);
-        assertThat(response.wholesalePrice()).isEqualTo(1200);
-        assertThat(response.storeId()).isEqualTo(store.getId());
-        assertThat(response.vendorId()).isEqualTo(vendor.getId());
-        assertThat(response.isActivated()).isTrue();
-
-        List<Inventory> inventories = inventoryRepository.findAll();
-        assertThat(inventories).hasSize(1);
-
-        Inventory inventory = inventories.get(0);
-        assertThat(inventory.getProduct().getId()).isEqualTo(response.productId());
-        assertThat(inventory.getDisplayStock()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(inventory.getWarehouseStock()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(inventory.getIncomingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(inventory.getOutgoingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(inventory.getReorderTriggerPoint())
-                .isEqualByComparingTo(store.getDefaultCountCheckThreshold());
-    }
-
-    @Test
-    void 사용자_존재하지_않으면_품목_생성시_예외가_발생한다() {
-        // given
-        Store store = newStore();
-        Vendor vendor = newVendor(store);
-
-        Long notExistUserId = 9999L;
-
-        CreateProductRequest request = new CreateProductRequest(
-                vendor.getId(),
-                "고체치약",
-                "P-001",
-                ProductUnit.G,
-                BigDecimal.valueOf(1000.0),
-                10,
-                BigDecimal.valueOf(100.0),
-                1000,
-                1500,
-                1200
-        );
-
-        // when & then
-        assertThatThrownBy(() -> productService.createProduct(request, notExistUserId))
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
-    }
-
-    @Test
-    void 발주처가_존재하지_않으면_품목_생성시_예외가_발생한다() {
-        // given
-        Store store = newStore();
-        User user = newUser(store);
-
-        Long notExistVendorId = 9999L;
-
-        CreateProductRequest request = new CreateProductRequest(
-                notExistVendorId,
-                "고체치약",
-                "P-001",
-                ProductUnit.G,
-                BigDecimal.valueOf(1000.0),
-                10,
-                BigDecimal.valueOf(100.0),
-                1000,
-                1500,
-                1200
-        );
-
-        // when & then
-        assertThatThrownBy(() -> productService.createProduct(request, user.getId()))
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.VENDOR_NOT_FOUND.getMessage());
-    }
-
-    @Test
-    void 다른_상점의_발주처로_품목_생성시_예외가_발생한다() {
-        // given
-        Store store1 = newStore();
-        Store store2 = storeRepository.save(
-                Store.builder()
-                        .name("다른 상점")
-                        .isActivate(true)
-                        .defaultCountCheckThreshold(BigDecimal.valueOf(0.2))
-                        .build()
-        );
-
-        Vendor vendorOfStore2 = newVendor(store2);
-        User userOfStore1 = newUser(store1);
-
-        CreateProductRequest request = new CreateProductRequest(
-                vendorOfStore2.getId(),  // 다른 상점의 발주처!
-                "고체치약",
-                "P-001",
-                ProductUnit.G,
-                BigDecimal.valueOf(1000.0),
-                10,
-                BigDecimal.valueOf(100.0),
-                1000,
-                1500,
-                1200
-        );
-
-        // when & then
-        assertThatThrownBy(() -> productService.createProduct(request, userOfStore1.getId()))
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
-    }
-
-    @Test
-    void 품목_수정에_성공한다() {
-        // given
-        Store store = newStore();
-        Vendor vendor1 = newVendor(store);
-        Vendor vendor2 = newVendor(store);
-        User user = newUser(store);
-
-        CreateProductRequest createRequest = new CreateProductRequest(
-                vendor1.getId(),
-                "고체치약",
-                "P-001",
-                ProductUnit.G,
-                BigDecimal.valueOf(900.0),
-                10,
-                BigDecimal.valueOf(90.0),
-                1000,
-                1500,
-                1200
-        );
-
-        ProductResponse created = productService.createProduct(createRequest, user.getId());
-
-        // when
-        UpdateProductRequest updateRequest = new UpdateProductRequest(
-                vendor2.getId(),
-                "수정된 고체치약",
-                "P-999",
-                ProductUnit.ML,
-                BigDecimal.valueOf(1200.0),
-                20,
-                BigDecimal.valueOf(110.0),
-                false,
-                2000,
-                2500,
-                2200
-        );
-
-        ProductResponse updated = productService.updateProduct(created.productId(), updateRequest, user.getId());
-
-        // then
-        assertThat(updated.name()).isEqualTo("수정된 고체치약");
-        assertThat(updated.code()).isEqualTo("P-999");
-        assertThat(updated.unit()).isEqualTo(ProductUnit.ML);
-        assertThat(updated.boxWeightG()).isEqualByComparingTo("1200.0");
-        assertThat(updated.unitPerBox()).isEqualTo(20);
-        assertThat(updated.unitWeightG()).isEqualByComparingTo("110.0");
-        assertThat(updated.isActivated()).isFalse();
-        assertThat(updated.costPrice()).isEqualTo(2000);
-        assertThat(updated.retailPrice()).isEqualTo(2500);
-        assertThat(updated.wholesalePrice()).isEqualTo(2200);
-        assertThat(updated.vendorId()).isEqualTo(vendor2.getId());
-    }
-
-    @Test
-    void 존재하지_않는_품목을_수정하려고_하면_예외가_발생한다() {
-        // given
-        Store store = newStore();
-        Vendor vendor = newVendor(store);
-        User user = newUser(store);
-
-        Long notExistProductId = 9999L;
-
-        UpdateProductRequest request = new UpdateProductRequest(
-                vendor.getId(),
-                "변경 이름",
-                "CODE",
-                ProductUnit.G,
-                BigDecimal.valueOf(1000.0),
-                10,
-                BigDecimal.valueOf(100.0),
-                true,
-                1000,
-                2000,
-                1500
-        );
-
-        // when & then
-        assertThatThrownBy(() -> productService.updateProduct(notExistProductId, request, user.getId()))
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
-    }
-
-    @Test
-    void 존재하지_않는_발주처로_수정시_예외가_발생한다() {
-        // given
-        Store store = newStore();
-        Vendor vendor = newVendor(store);
-        User user = newUser(store);
-
-        ProductResponse created = productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고체치약",
-                        "P-001",
-                        ProductUnit.G,
-                        BigDecimal.valueOf(900.0),
-                        10,
-                        BigDecimal.valueOf(90.0),
-                        1000,
-                        1500,
-                        1200
-                ),
-                user.getId()
-        );
-
-        Long notExistVendorId = 9999L;
-
-        UpdateProductRequest request = new UpdateProductRequest(
-                notExistVendorId,
-                "변경됨",
-                "NEW",
-                ProductUnit.G,
-                BigDecimal.valueOf(1000.0),
-                10,
-                BigDecimal.valueOf(100.0),
-                true,
-                2000,
-                3000,
-                2500
-        );
-
-        // when & then
-        assertThatThrownBy(() -> productService.updateProduct(created.productId(), request, user.getId()))
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.VENDOR_NOT_FOUND.getMessage());
-    }
-
-    @Test
-    void 다른_상점의_발주처로_수정하면_예외가_발생한다() {
-        // given
-        Store store1 = newStore();
-        Store store2 = newStore();
-
-        Vendor vendor1 = newVendor(store1);
-        Vendor vendorOfStore2 = newVendor(store2);
-        User user = newUser(store1);
-
-        ProductResponse created = productService.createProduct(
-                new CreateProductRequest(
-                        vendor1.getId(),
-                        "고체치약",
-                        "P-001",
-                        ProductUnit.G,
-                        BigDecimal.valueOf(900.0),
-                        10,
-                        BigDecimal.valueOf(90.0),
-                        1000,
-                        1500,
-                        1200
-                ),
-                user.getId()
-        );
-
-        UpdateProductRequest request = new UpdateProductRequest(
-                vendorOfStore2.getId(),
-                "변경됨",
-                "NEW",
-                ProductUnit.ML,
-                BigDecimal.valueOf(1000.0),
-                10,
-                BigDecimal.valueOf(100.0),
-                true,
-                2000,
-                3000,
-                2500
-        );
-
-        // when & then
-        assertThatThrownBy(() -> productService.updateProduct(created.productId(), request, user.getId()))
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
-    }
-
-    @Test
-    void 다른_상점의_품목을_수정하려고_하면_예외가_발생한다() {
-        // given
-        Store store1 = newStore();
-        Store store2 = newStore();
-
-        Vendor vendorOfStore1 = newVendor(store1);
-        Vendor vendorOfStore2 = newVendor(store2);
-
-        User userOfStore1 = newUser(store1);
-        User userOfStore2 = userRepository.save(
-                User.builder()
-                        .store(store2)
-                        .username("tester_store2")
-                        .password("password")
-                        .name("상점2 관리자")
-                        .role(UserRole.ADMIN)
-                        .build()
-        );
-
-        ProductResponse productOfStore2 = productService.createProduct(
-                new CreateProductRequest(
-                        vendorOfStore2.getId(),
-                        "고체치약",
-                        "P-001",
-                        ProductUnit.G,
-                        BigDecimal.valueOf(900.0),
-                        10,
-                        BigDecimal.valueOf(90.0),
-                        1000,
-                        1500,
-                        1200
-                ),
-                userOfStore2.getId()
-        );
-
-        // when & then
-        UpdateProductRequest request = new UpdateProductRequest(
-                vendorOfStore1.getId(),
-                "변경됨",
-                "NEW",
-                ProductUnit.ML,
-                BigDecimal.valueOf(1000.0),
-                10,
-                BigDecimal.valueOf(100.0),
-                true,
-                2000,
-                3000,
-                2500
-        );
-
-        assertThatThrownBy(() ->
-                productService.updateProduct(productOfStore2.productId(), request, userOfStore1.getId())
-        )
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.STORE_ACCESS_DENIED.getMessage());
-    }
-
-    @Test
-    void 품목_상세_조회에_성공한다() {
-        // given
-        Store store = newStore();
-        Vendor vendor = newVendor(store);
-        User user = newUser(store);
-
-        ProductResponse created = productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고체치약",
-                        "P-001",
-                        ProductUnit.G,
-                        BigDecimal.valueOf(900.0),
-                        10,
-                        BigDecimal.valueOf(90.0),
-                        1000,
-                        1500,
-                        1200
-                ),
-                user.getId()
-        );
-
-        // when
-        ProductResponse detail = productService.getProductDetail(created.productId(), user.getId());
-
-        // then
-        assertThat(detail.productId()).isEqualTo(created.productId());
-        assertThat(detail.name()).isEqualTo("고체치약");
-        assertThat(detail.code()).isEqualTo("P-001");
-        assertThat(detail.unit()).isEqualTo(ProductUnit.G);
-        assertThat(detail.boxWeightG()).isEqualByComparingTo("900.0");
-        assertThat(detail.unitPerBox()).isEqualTo(10);
-        assertThat(detail.unitWeightG()).isEqualByComparingTo("90.0");
-        assertThat(detail.costPrice()).isEqualTo(1000);
-        assertThat(detail.retailPrice()).isEqualTo(1500);
-        assertThat(detail.wholesalePrice()).isEqualTo(1200);
-        assertThat(detail.storeId()).isEqualTo(store.getId());
-        assertThat(detail.vendorId()).isEqualTo(vendor.getId());
-        assertThat(detail.isActivated()).isTrue();
-    }
-
-    @Test
-    void 존재하지_않는_품목_상세_조회시_예외가_발생한다() {
-        // given
-        Store store = newStore();
-        User user = newUser(store);
-        Long notExistProductId = 9999L;
-
-        // when & then
-        assertThatThrownBy(() -> productService.getProductDetail(notExistProductId, user.getId()))
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
-    }
-
-    @Test
-    void 다른_상점의_품목을_상세_조회하면_예외가_발생한다() {
-        // given
-        Store store1 = newStore();
-        Store store2 = newStore();
-
-        Vendor vendorOfStore2 = newVendor(store2);
-
-        User userOfStore1 = newUser(store1);
-        User userOfStore2 = userRepository.save(
-                User.builder()
-                        .store(store2)
-                        .username("detail_tester_store2")
-                        .password("password")
-                        .name("상점2 관리자(상세조회)")
-                        .role(UserRole.ADMIN)
-                        .build()
-        );
-
-        ProductResponse productOfStore2 = productService.createProduct(
-                new CreateProductRequest(
-                        vendorOfStore2.getId(),
-                        "고체치약",
-                        "P-001",
-                        ProductUnit.G,
-                        BigDecimal.valueOf(900.0),
-                        10,
-                        BigDecimal.valueOf(90.0),
-                        1000,
-                        1500,
-                        1200
-                ),
-                userOfStore2.getId()
-        );
-
-        // when & then
-        assertThatThrownBy(() ->
-                productService.getProductDetail(productOfStore2.productId(), userOfStore1.getId())
-        )
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.STORE_ACCESS_DENIED.getMessage());
-    }
-
-    @Test
-    void 품목_목록_전체_조회에_성공한다() {
-        // given
-        Store store = newStore();
-        Vendor vendor = newVendor(store);
-        User user = newUser(store);
-
-        productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고체치약",
-                        "P-001",
-                        ProductUnit.G,
-                        BigDecimal.valueOf(900.0),
-                        10,
-                        BigDecimal.valueOf(90.0),
-                        1000,
-                        1500,
-                        1200
-                ),
-                user.getId()
-        );
-        productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고무장갑",
-                        "P-002",
-                        ProductUnit.EA,
-                        null,
-                        1,
-                        null,
-                        500,
-                        800,
-                        600
-                ),
-                user.getId()
-        );
-        productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "세제",
-                        "P-003",
-                        ProductUnit.ML,
-                        BigDecimal.valueOf(1000.0),
-                        5,
-                        BigDecimal.valueOf(200.0),
-                        3000,
-                        4000,
-                        3500
-                ),
-                user.getId()
-        );
-
-        // when
-        PageResponse<ProductResponse> page =
-                productService.getProductList(user.getId(), 1, 10, null, null);
-
-        // then
-        assertThat(page.page()).isEqualTo(1);
-        assertThat(page.size()).isEqualTo(10);
-        assertThat(page.totalElements()).isEqualTo(3);
-        assertThat(page.content()).hasSize(3);
-    }
-
-    @Test
-    void 품목_목록_활성_필터_조회에_성공한다() {
-        // given
-        Store store = newStore();
-        Vendor vendor = newVendor(store);
-        User user = newUser(store);
-
-        // 활성 품목
-        ProductResponse active = productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고체치약",
-                        "P-001",
-                        ProductUnit.G,
-                        BigDecimal.valueOf(900.0),
-                        10,
-                        BigDecimal.valueOf(90.0),
-                        1000,
-                        1500,
-                        1200
-                ),
-                user.getId()
-        );
-
-        // 비활성으로 바꿀 품목
-        ProductResponse willBeInactive = productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고무장갑",
-                        "P-002",
-                        ProductUnit.EA,
-                        null,
-                        1,
-                        null,
-                        500,
-                        800,
-                        600
-                ),
-                user.getId()
-        );
-
-        // 고무장갑 비활성 처리
-        productService.updateProduct(
-                willBeInactive.productId(),
-                new UpdateProductRequest(
-                        vendor.getId(),
-                        willBeInactive.name(),
-                        willBeInactive.code(),
-                        willBeInactive.unit(),
-                        willBeInactive.boxWeightG(),
-                        willBeInactive.unitPerBox(),
-                        willBeInactive.unitWeightG(),
-                        false,
-                        willBeInactive.costPrice(),
-                        willBeInactive.retailPrice(),
-                        willBeInactive.wholesalePrice()
-                ),
-                user.getId()
-        );
-
-        // when
-        PageResponse<ProductResponse> page =
-                productService.getProductList(user.getId(), 1, 10, true, null);
-
-        // then
-        assertThat(page.totalElements()).isEqualTo(1);
-        assertThat(page.content()).hasSize(1);
-        assertThat(page.content().get(0).productId()).isEqualTo(active.productId());
-        assertThat(page.content().get(0).isActivated()).isTrue();
-    }
-
-    @Test
-    void 품목_목록_이름검색으로_조회에_성공한다() {
-        // given
-        Store store = newStore();
-        Vendor vendor = newVendor(store);
-        User user = newUser(store);
-
-        productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고체치약",
-                        "P-001",
-                        ProductUnit.G,
-                        BigDecimal.valueOf(900.0),
-                        10,
-                        BigDecimal.valueOf(90.0),
-                        1000,
-                        1500,
-                        1200
-                ),
-                user.getId()
-        );
-        productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고무장갑",
-                        "P-002",
-                        ProductUnit.EA,
-                        null,
-                        1,
-                        null,
-                        500,
-                        800,
-                        600
-                ),
-                user.getId()
-        );
-        productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "세제",
-                        "P-003",
-                        ProductUnit.ML,
-                        BigDecimal.valueOf(1000.0),
-                        5,
-                        BigDecimal.valueOf(200.0),
-                        3000,
-                        4000,
-                        3500
-                ),
-                user.getId()
-        );
-
-        // when
-        PageResponse<ProductResponse> page =
-                productService.getProductList(user.getId(), 1, 10, null, "고");
-
-        // then
-        assertThat(page.totalElements()).isEqualTo(2);
-        assertThat(page.content()).hasSize(2);
-        assertThat(page.content())
-                .extracting(ProductResponse::name)
-                .allMatch(name -> name.contains("고"));
-    }
-
-    @Test
-    void 품목_목록_활성_및_이름검색_동시_필터링_조회에_성공한다() {
-        // given
-        Store store = newStore();
-        Vendor vendor = newVendor(store);
-        User user = newUser(store);
-
-        ProductResponse activeMatch = productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고체치약",
-                        "P-001",
-                        ProductUnit.G,
-                        BigDecimal.valueOf(900.0),
-                        10,
-                        BigDecimal.valueOf(90.0),
-                        1000,
-                        1500,
-                        1200
-                ),
-                user.getId()
-        );
-
-        ProductResponse inactiveMatch = productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고무장갑",
-                        "P-002",
-                        ProductUnit.EA,
-                        null,
-                        1,
-                        null,
-                        500,
-                        800,
-                        600
-                ),
-                user.getId()
-        );
-
-        // 고무장갑 비활성 처리
-        productService.updateProduct(
-                inactiveMatch.productId(),
-                new UpdateProductRequest(
-                        vendor.getId(),
-                        inactiveMatch.name(),
-                        inactiveMatch.code(),
-                        inactiveMatch.unit(),
-                        inactiveMatch.boxWeightG(),
-                        inactiveMatch.unitPerBox(),
-                        inactiveMatch.unitWeightG(),
-                        false,
-                        inactiveMatch.costPrice(),
-                        inactiveMatch.retailPrice(),
-                        inactiveMatch.wholesalePrice()
-                ),
-                user.getId()
-        );
-
-        // when
-        PageResponse<ProductResponse> page =
-                productService.getProductList(user.getId(), 1, 10, true, "고");
-
-        // then
-        assertThat(page.totalElements()).isEqualTo(1);
-        assertThat(page.content()).hasSize(1);
-        ProductResponse only = page.content().get(0);
-        assertThat(only.productId()).isEqualTo(activeMatch.productId());
-        assertThat(only.name()).isEqualTo("고체치약");
-        assertThat(only.isActivated()).isTrue();
-    }
-
-    @Test
-    void 품목_목록_조회시_다른_상점_품목은_포함되지_않는다() {
-        // given
-        Store store1 = newStore();
-        Store store2 = newStore();
-
-        Vendor vendor1 = newVendor(store1);
-        Vendor vendor2 = newVendor(store2);
-
-        User user1 = newUser(store1);
-        User user2 = userRepository.save(
-                User.builder()
-                        .store(store2)
-                        .username("tester_store2")
-                        .password("password")
-                        .name("상점2 관리자")
-                        .role(UserRole.ADMIN)
-                        .build()
-        );
-
-        // store1의 품목 2개
-        productService.createProduct(
-                new CreateProductRequest(
-                        vendor1.getId(),
-                        "고체치약",
-                        "P-001",
-                        ProductUnit.G,
-                        BigDecimal.valueOf(900.0),
-                        10,
-                        BigDecimal.valueOf(90.0),
-                        1000,
-                        1500,
-                        1200
-                ),
-                user1.getId()
-        );
-        productService.createProduct(
-                new CreateProductRequest(
-                        vendor1.getId(),
-                        "고무장갑",
-                        "P-002",
-                        ProductUnit.EA,
-                        null,
-                        1,
-                        null,
-                        500,
-                        800,
-                        600
-                ),
-                user1.getId()
-        );
-
-        // store2의 품목 1개
-        productService.createProduct(
-                new CreateProductRequest(
-                        vendor2.getId(),
-                        "세제",
-                        "P-003",
-                        ProductUnit.ML,
-                        BigDecimal.valueOf(1000.0),
-                        5,
-                        BigDecimal.valueOf(200.0),
-                        3000,
-                        4000,
-                        3500
-                ),
-                user2.getId()
-        );
-
-        // when
-        PageResponse<ProductResponse> page =
-                productService.getProductList(user1.getId(), 1, 10, null, null);
-
-        // then
-        assertThat(page.totalElements()).isEqualTo(2);
-        assertThat(page.content()).hasSize(2);
-        assertThat(page.content())
-                .extracting(ProductResponse::storeId)
-                .containsOnly(store1.getId());
-    }
-
-    @Test
-    void 존재하지_않는_사용자_품목_목록_조회시_예외가_발생한다() {
-        // given
-        Long notExistUserId = 9999L;
-
-        // when & then
-        assertThatThrownBy(() ->
-                productService.getProductList(notExistUserId, 1, 10, null, null)
-        )
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
-    }
-
-    @Test
-    void 품목_목록_비활성_필터_조회에_성공한다() {
-        // given
-        Store store = newStore();
-        Vendor vendor = newVendor(store);
-        User user = newUser(store);
-
-        // 활성 품목
-        ProductResponse active = productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고체치약",
-                        "P-001",
-                        ProductUnit.G,
-                        BigDecimal.valueOf(900.0),
-                        10,
-                        BigDecimal.valueOf(90.0),
-                        1000,
-                        1500,
-                        1200
-                ),
-                user.getId()
-        );
-
-        // 비활성로 바꿀 품목
-        ProductResponse willBeInactive = productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고무장갑",
-                        "P-002",
-                        ProductUnit.EA,
-                        null,
-                        1,
-                        null,
-                        500,
-                        800,
-                        600
-                ),
-                user.getId()
-        );
-
-        // 고무장갑 비활성 처리
-        productService.updateProduct(
-                willBeInactive.productId(),
-                new UpdateProductRequest(
-                        vendor.getId(),
-                        willBeInactive.name(),
-                        willBeInactive.code(),
-                        willBeInactive.unit(),
-                        willBeInactive.boxWeightG(),
-                        willBeInactive.unitPerBox(),
-                        willBeInactive.unitWeightG(),
-                        false,
-                        willBeInactive.costPrice(),
-                        willBeInactive.retailPrice(),
-                        willBeInactive.wholesalePrice()
-                ),
-                user.getId()
-        );
-
-        // when
-        PageResponse<ProductResponse> page =
-                productService.getProductList(user.getId(), 1, 10, false, null);
-
-        // then
-        assertThat(page.totalElements()).isEqualTo(1);
-        assertThat(page.content()).hasSize(1);
-        ProductResponse only = page.content().get(0);
-        assertThat(only.productId()).isEqualTo(willBeInactive.productId());
-        assertThat(only.isActivated()).isFalse();
-    }
-
-    @Test
-    void 품목_목록_비활성_및_이름검색_동시_필터링_조회에_성공한다() {
-        // given
-        Store store = newStore();
-        Vendor vendor = newVendor(store);
-        User user = newUser(store);
-
-        // 활성 + 이름 매칭
-        productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고체치약",
-                        "P-001",
-                        ProductUnit.G,
-                        BigDecimal.valueOf(900.0),
-                        10,
-                        BigDecimal.valueOf(90.0),
-                        1000,
-                        1500,
-                        1200
-                ),
-                user.getId()
-        );
-
-        // 비활성 + 이름 매칭
-        ProductResponse inactiveMatch = productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고무장갑",
-                        "P-002",
-                        ProductUnit.EA,
-                        null,
-                        1,
-                        null,
-                        500,
-                        800,
-                        600
-                ),
-                user.getId()
-        );
-
-        // 비활성 + 이름 미매칭
-        ProductResponse inactiveNonMatch = productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "세제",
-                        "P-003",
-                        ProductUnit.ML,
-                        BigDecimal.valueOf(1000.0),
-                        5,
-                        BigDecimal.valueOf(200.0),
-                        3000,
-                        4000,
-                        3500
-                ),
-                user.getId()
-        );
-
-        // 고무장갑, 세제 둘 다 비활성 처리
-        productService.updateProduct(
-                inactiveMatch.productId(),
-                new UpdateProductRequest(
-                        vendor.getId(),
-                        inactiveMatch.name(),
-                        inactiveMatch.code(),
-                        inactiveMatch.unit(),
-                        inactiveMatch.boxWeightG(),
-                        inactiveMatch.unitPerBox(),
-                        inactiveMatch.unitWeightG(),
-                        false,
-                        inactiveMatch.costPrice(),
-                        inactiveMatch.retailPrice(),
-                        inactiveMatch.wholesalePrice()
-                ),
-                user.getId()
-        );
-
-        productService.updateProduct(
-                inactiveNonMatch.productId(),
-                new UpdateProductRequest(
-                        vendor.getId(),
-                        inactiveNonMatch.name(),
-                        inactiveNonMatch.code(),
-                        inactiveNonMatch.unit(),
-                        inactiveNonMatch.boxWeightG(),
-                        inactiveNonMatch.unitPerBox(),
-                        inactiveNonMatch.unitWeightG(),
-                        false,
-                        inactiveNonMatch.costPrice(),
-                        inactiveNonMatch.retailPrice(),
-                        inactiveNonMatch.wholesalePrice()
-                ),
-                user.getId()
-        );
-
-        // when
-        PageResponse<ProductResponse> page =
-                productService.getProductList(user.getId(), 1, 10, false, "고");
-
-        // then
-        assertThat(page.totalElements()).isEqualTo(1);
-        assertThat(page.content()).hasSize(1);
-        ProductResponse only = page.content().get(0);
-        assertThat(only.productId()).isEqualTo(inactiveMatch.productId());
-        assertThat(only.name()).isEqualTo("고무장갑");
-        assertThat(only.isActivated()).isFalse();
-    }
-
-    @Test
-    void 품목_삭제에_성공한다() {
-        // given
-        Store store = newStore();
-        Vendor vendor = newVendor(store);
-        User user = newUser(store);
-
-        ProductResponse created = productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고체치약",
-                        "P-001",
-                        ProductUnit.G,
-                        BigDecimal.valueOf(900.0),
-                        10,
-                        BigDecimal.valueOf(90.0),
-                        1000,
-                        1500,
-                        1200
-                ),
-                user.getId()
-        );
-
-        Long productId = created.productId();
-
-        // when
-        DeleteProductResponse deleteResponse = productService.deleteProduct(productId, user.getId());
-
-        // then
-        assertThat(deleteResponse.success()).isTrue();
-
-        assertThatThrownBy(() -> productService.getProductDetail(productId, user.getId()))
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
-
-        PageResponse<ProductResponse> page =
-                productService.getProductList(user.getId(), 1, 10, null, null);
-
-        assertThat(page.totalElements()).isZero();
-        assertThat(page.content()).isEmpty();
-    }
-
-    @Test
-    void 존재하지_않는_품목_삭제시_예외가_발생한다() {
-        // given
-        Store store = newStore();
-        User user = newUser(store);
-        Long notExistProductId = 9999L;
-
-        // when & then
-        assertThatThrownBy(() -> productService.deleteProduct(notExistProductId, user.getId()))
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
-    }
-
-    @Test
-    void 다른_상점의_품목을_삭제하려고_하면_예외가_발생한다() {
-        // given
-        Store store1 = newStore();
-        Store store2 = newStore();
-
-        Vendor vendor1 = newVendor(store1);
-        Vendor vendor2 = newVendor(store2);
-
-        User userOfStore1 = newUser(store1);
-        User userOfStore2 = userRepository.save(
-                User.builder()
-                        .store(store2)
-                        .username("delete_tester_store2")
-                        .password("password")
-                        .name("상점2 관리자(삭제)")
-                        .role(UserRole.ADMIN)
-                        .build()
-        );
-
-        ProductResponse productOfStore2 = productService.createProduct(
-                new CreateProductRequest(
-                        vendor2.getId(),
-                        "고체치약",
-                        "P-001",
-                        ProductUnit.G,
-                        BigDecimal.valueOf(900.0),
-                        10,
-                        BigDecimal.valueOf(90.0),
-                        1000,
-                        1500,
-                        1200
-                ),
-                userOfStore2.getId()
-        );
-
-        // when & then
-        assertThatThrownBy(() -> productService.deleteProduct(productOfStore2.productId(), userOfStore1.getId()))
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.STORE_ACCESS_DENIED.getMessage());
-    }
-
-    @Test
-    void 삭제된_품목은_목록_및_상세에서_조회되지_않는다() {
-        // given
-        Store store = newStore();
-        Vendor vendor = newVendor(store);
-        User user = newUser(store);
-
-        ProductResponse product = productService.createProduct(
-                new CreateProductRequest(
-                        vendor.getId(),
-                        "고체치약",
-                        "P-001",
-                        ProductUnit.G,
-                        BigDecimal.valueOf(900.0),
-                        10,
-                        BigDecimal.valueOf(90.0),
-                        1000,
-                        1500,
-                        1200
-                ),
-                user.getId()
-        );
-
-        productService.deleteProduct(product.productId(), user.getId());
-
-        // when & then
-        assertThatThrownBy(() -> productService.getProductDetail(product.productId(), user.getId()))
-                .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
-
-        // when & then
-        PageResponse<ProductResponse> page =
-                productService.getProductList(user.getId(), 1, 10, null, null);
-
-        assertThat(page.totalElements()).isZero();
-        assertThat(page.content()).isEmpty();
-    }
+        @Autowired
+        private ProductService productService;
+        @Autowired
+        private ProductRepository productRepository;
+        @Autowired
+        private UserRepository userRepository;
+        @Autowired
+        private StoreRepository storeRepository;
+        @Autowired
+        private VendorRepository vendorRepository;
+        @Autowired
+        private InventoryRepository inventoryRepository;
+
+        private Store newStore() {
+                return storeRepository.save(
+                                Store.builder()
+                                                .name("테스트 상점")
+                                                .isActivate(true)
+                                                .defaultCountCheckThreshold(BigDecimal.valueOf(0.2))
+                                                .build());
+        }
+
+        private Vendor newVendor(Store store) {
+                return vendorRepository.save(
+                                Vendor.builder()
+                                                .store(store)
+                                                .name("테스트 발주처")
+                                                .channel(VendorChannel.KAKAO)
+                                                .contactPoint("010-0000-0000")
+                                                .note("테스트 메모")
+                                                .activated(true)
+                                                .build());
+        }
+
+        private User newUser(Store store) {
+                return userRepository.save(
+                                User.builder()
+                                                .store(store)
+                                                .username("tester")
+                                                .password("password")
+                                                .name("테스트 유저")
+                                                .role(UserRole.ADMIN)
+                                                .build());
+        }
+
+        @Test
+        void 품목_생성에_성공한다() {
+                // given
+                Store store = newStore();
+                Vendor vendor = newVendor(store);
+                User user = newUser(store);
+
+                CreateProductRequest request = new CreateProductRequest(
+                                vendor.getId(),
+                                "고체치약",
+                                "C-001",
+                                "P-001",
+                                ProductUnit.G,
+                                BigDecimal.valueOf(1000.0),
+                                10,
+                                BigDecimal.valueOf(100.0),
+                                1000,
+                                1500,
+                                1200);
+
+                // when
+                ProductResponse response = productService.createProduct(request, user.getId());
+
+                // then
+                assertThat(response.name()).isEqualTo("고체치약");
+                assertThat(response.cafe24Code()).isEqualTo("C-001");
+                assertThat(response.posCode()).isEqualTo("P-001");
+                assertThat(response.unit()).isEqualTo(ProductUnit.G);
+                assertThat(response.boxWeightG()).isEqualByComparingTo("1000.0");
+                assertThat(response.unitPerBox()).isEqualTo(10);
+                assertThat(response.unitWeightG()).isEqualByComparingTo("100.0");
+                assertThat(response.costPrice()).isEqualTo(1000);
+                assertThat(response.retailPrice()).isEqualTo(1500);
+                assertThat(response.wholesalePrice()).isEqualTo(1200);
+                assertThat(response.storeId()).isEqualTo(store.getId());
+                assertThat(response.vendorId()).isEqualTo(vendor.getId());
+                assertThat(response.isActivated()).isTrue();
+
+                List<Inventory> inventories = inventoryRepository.findAll();
+                assertThat(inventories).hasSize(1);
+
+                Inventory inventory = inventories.get(0);
+                assertThat(inventory.getProduct().getId()).isEqualTo(response.productId());
+                assertThat(inventory.getDisplayStock()).isEqualByComparingTo(BigDecimal.ZERO);
+                assertThat(inventory.getWarehouseStock()).isEqualByComparingTo(BigDecimal.ZERO);
+                assertThat(inventory.getIncomingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
+                assertThat(inventory.getOutgoingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
+                assertThat(inventory.getReorderTriggerPoint())
+                                .isEqualByComparingTo(store.getDefaultCountCheckThreshold());
+        }
+
+        @Test
+        void 사용자_존재하지_않으면_품목_생성시_예외가_발생한다() {
+                // given
+                Store store = newStore();
+                Vendor vendor = newVendor(store);
+
+                Long notExistUserId = 9999L;
+
+                CreateProductRequest request = new CreateProductRequest(
+                                vendor.getId(),
+                                "고체치약",
+                                "C-001",
+                                "P-001",
+                                ProductUnit.G,
+                                BigDecimal.valueOf(1000.0),
+                                10,
+                                BigDecimal.valueOf(100.0),
+                                1000,
+                                1500,
+                                1200);
+
+                // when & then
+                assertThatThrownBy(() -> productService.createProduct(request, notExistUserId))
+                                .isInstanceOf(BaseException.class)
+                                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        void 발주처가_존재하지_않으면_품목_생성시_예외가_발생한다() {
+                // given
+                Store store = newStore();
+                User user = newUser(store);
+
+                Long notExistVendorId = 9999L;
+
+                CreateProductRequest request = new CreateProductRequest(
+                                notExistVendorId,
+                                "고체치약",
+                                "C-001",
+                                "P-001",
+                                ProductUnit.G,
+                                BigDecimal.valueOf(1000.0),
+                                10,
+                                BigDecimal.valueOf(100.0),
+                                1000,
+                                1500,
+                                1200);
+
+                // when & then
+                assertThatThrownBy(() -> productService.createProduct(request, user.getId()))
+                                .isInstanceOf(BaseException.class)
+                                .hasMessageContaining(ErrorCode.VENDOR_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        void 다른_상점의_발주처로_품목_생성시_예외가_발생한다() {
+                // given
+                Store store1 = newStore();
+                Store store2 = storeRepository.save(
+                                Store.builder()
+                                                .name("다른 상점")
+                                                .isActivate(true)
+                                                .defaultCountCheckThreshold(BigDecimal.valueOf(0.2))
+                                                .build());
+
+                Vendor vendorOfStore2 = newVendor(store2);
+                User userOfStore1 = newUser(store1);
+
+                CreateProductRequest request = new CreateProductRequest(
+                                vendorOfStore2.getId(), // 다른 상점의 발주처!
+                                "고체치약",
+                                "C-001",
+                                "P-001",
+                                ProductUnit.G,
+                                BigDecimal.valueOf(1000.0),
+                                10,
+                                BigDecimal.valueOf(100.0),
+                                1000,
+                                1500,
+                                1200);
+
+                // when & then
+                assertThatThrownBy(() -> productService.createProduct(request, userOfStore1.getId()))
+                                .isInstanceOf(BaseException.class)
+                                .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
+        }
+
+        @Test
+        void 품목_수정에_성공한다() {
+                // given
+                Store store = newStore();
+                Vendor vendor1 = newVendor(store);
+                Vendor vendor2 = newVendor(store);
+                User user = newUser(store);
+
+                CreateProductRequest createRequest = new CreateProductRequest(
+                                vendor1.getId(),
+                                "고체치약",
+                                "C-001",
+                                "P-001",
+                                ProductUnit.G,
+                                BigDecimal.valueOf(900.0),
+                                10,
+                                BigDecimal.valueOf(90.0),
+                                1000,
+                                1500,
+                                1200);
+
+                ProductResponse created = productService.createProduct(createRequest, user.getId());
+
+                // when
+                UpdateProductRequest updateRequest = new UpdateProductRequest(
+                                vendor2.getId(),
+                                "수정된 고체치약",
+                                "C-999",
+                                "P-999",
+                                ProductUnit.ML,
+                                BigDecimal.valueOf(1200.0),
+                                20,
+                                BigDecimal.valueOf(110.0),
+                                false,
+                                2000,
+                                2500,
+                                2200);
+
+                ProductResponse updated = productService.updateProduct(created.productId(), updateRequest,
+                                user.getId());
+
+                // then
+                assertThat(updated.name()).isEqualTo("수정된 고체치약");
+                assertThat(updated.cafe24Code()).isEqualTo("C-999");
+                assertThat(updated.posCode()).isEqualTo("P-999");
+                assertThat(updated.unit()).isEqualTo(ProductUnit.ML);
+                assertThat(updated.boxWeightG()).isEqualByComparingTo("1200.0");
+                assertThat(updated.unitPerBox()).isEqualTo(20);
+                assertThat(updated.unitWeightG()).isEqualByComparingTo("110.0");
+                assertThat(updated.isActivated()).isFalse();
+                assertThat(updated.costPrice()).isEqualTo(2000);
+                assertThat(updated.retailPrice()).isEqualTo(2500);
+                assertThat(updated.wholesalePrice()).isEqualTo(2200);
+                assertThat(updated.vendorId()).isEqualTo(vendor2.getId());
+        }
+
+        @Test
+        void 존재하지_않는_품목을_수정하려고_하면_예외가_발생한다() {
+                // given
+                Store store = newStore();
+                Vendor vendor = newVendor(store);
+                User user = newUser(store);
+
+                Long notExistProductId = 9999L;
+
+                UpdateProductRequest request = new UpdateProductRequest(
+                                vendor.getId(),
+                                "변경 이름",
+                                "C-CODE",
+                                "P-CODE",
+                                ProductUnit.G,
+                                BigDecimal.valueOf(1000.0),
+                                10,
+                                BigDecimal.valueOf(100.0),
+                                true,
+                                1000,
+                                2000,
+                                1500);
+
+                // when & then
+                assertThatThrownBy(() -> productService.updateProduct(notExistProductId, request, user.getId()))
+                                .isInstanceOf(BaseException.class)
+                                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        void 존재하지_않는_발주처로_수정시_예외가_발생한다() {
+                // given
+                Store store = newStore();
+                Vendor vendor = newVendor(store);
+                User user = newUser(store);
+
+                ProductResponse created = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고체치약",
+                                                "C-001",
+                                                "P-001",
+                                                ProductUnit.G,
+                                                BigDecimal.valueOf(900.0),
+                                                10,
+                                                BigDecimal.valueOf(90.0),
+                                                1000,
+                                                1500,
+                                                1200),
+                                user.getId());
+
+                Long notExistVendorId = 9999L;
+
+                UpdateProductRequest request = new UpdateProductRequest(
+                                notExistVendorId,
+                                "변경됨",
+                                "C-NEW",
+                                "P-NEW",
+                                ProductUnit.G,
+                                BigDecimal.valueOf(1000.0),
+                                10,
+                                BigDecimal.valueOf(100.0),
+                                true,
+                                2000,
+                                3000,
+                                2500);
+
+                // when & then
+                assertThatThrownBy(() -> productService.updateProduct(created.productId(), request, user.getId()))
+                                .isInstanceOf(BaseException.class)
+                                .hasMessageContaining(ErrorCode.VENDOR_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        void 다른_상점의_발주처로_수정하면_예외가_발생한다() {
+                // given
+                Store store1 = newStore();
+                Store store2 = newStore();
+
+                Vendor vendor1 = newVendor(store1);
+                Vendor vendorOfStore2 = newVendor(store2);
+                User user = newUser(store1);
+
+                ProductResponse created = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor1.getId(),
+                                                "고체치약",
+                                                "C-001",
+                                                "P-001",
+                                                ProductUnit.G,
+                                                BigDecimal.valueOf(900.0),
+                                                10,
+                                                BigDecimal.valueOf(90.0),
+                                                1000,
+                                                1500,
+                                                1200),
+                                user.getId());
+
+                UpdateProductRequest request = new UpdateProductRequest(
+                                vendorOfStore2.getId(),
+                                "변경됨",
+                                "C-NEW",
+                                "P-NEW",
+                                ProductUnit.ML,
+                                BigDecimal.valueOf(1000.0),
+                                10,
+                                BigDecimal.valueOf(100.0),
+                                true,
+                                2000,
+                                3000,
+                                2500);
+
+                // when & then
+                assertThatThrownBy(() -> productService.updateProduct(created.productId(), request, user.getId()))
+                                .isInstanceOf(BaseException.class)
+                                .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
+        }
+
+        @Test
+        void 다른_상점의_품목을_수정하려고_하면_예외가_발생한다() {
+                // given
+                Store store1 = newStore();
+                Store store2 = newStore();
+
+                Vendor vendorOfStore1 = newVendor(store1);
+                Vendor vendorOfStore2 = newVendor(store2);
+
+                User userOfStore1 = newUser(store1);
+                User userOfStore2 = userRepository.save(
+                                User.builder()
+                                                .store(store2)
+                                                .username("tester_store2")
+                                                .password("password")
+                                                .name("상점2 관리자")
+                                                .role(UserRole.ADMIN)
+                                                .build());
+
+                ProductResponse productOfStore2 = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendorOfStore2.getId(),
+                                                "고체치약",
+                                                "C-001",
+                                                "P-001",
+                                                ProductUnit.G,
+                                                BigDecimal.valueOf(900.0),
+                                                10,
+                                                BigDecimal.valueOf(90.0),
+                                                1000,
+                                                1500,
+                                                1200),
+                                userOfStore2.getId());
+
+                // when & then
+                UpdateProductRequest request = new UpdateProductRequest(
+                                vendorOfStore1.getId(),
+                                "변경됨",
+                                "C-NEW",
+                                "P-NEW",
+                                ProductUnit.ML,
+                                BigDecimal.valueOf(1000.0),
+                                10,
+                                BigDecimal.valueOf(100.0),
+                                true,
+                                2000,
+                                3000,
+                                2500);
+
+                assertThatThrownBy(() -> productService.updateProduct(productOfStore2.productId(), request,
+                                userOfStore1.getId()))
+                                .isInstanceOf(BaseException.class)
+                                .hasMessageContaining(ErrorCode.STORE_ACCESS_DENIED.getMessage());
+        }
+
+        @Test
+        void 품목_상세_조회에_성공한다() {
+                // given
+                Store store = newStore();
+                Vendor vendor = newVendor(store);
+                User user = newUser(store);
+
+                ProductResponse created = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고체치약",
+                                                "C-001",
+                                                "P-001",
+                                                ProductUnit.G,
+                                                BigDecimal.valueOf(900.0),
+                                                10,
+                                                BigDecimal.valueOf(90.0),
+                                                1000,
+                                                1500,
+                                                1200),
+                                user.getId());
+
+                // when
+                ProductResponse detail = productService.getProductDetail(created.productId(), user.getId());
+
+                // then
+                assertThat(detail.productId()).isEqualTo(created.productId());
+                assertThat(detail.name()).isEqualTo("고체치약");
+                assertThat(detail.cafe24Code()).isEqualTo("C-001");
+                assertThat(detail.posCode()).isEqualTo("P-001");
+                assertThat(detail.unit()).isEqualTo(ProductUnit.G);
+                assertThat(detail.boxWeightG()).isEqualByComparingTo("900.0");
+                assertThat(detail.unitPerBox()).isEqualTo(10);
+                assertThat(detail.unitWeightG()).isEqualByComparingTo("90.0");
+                assertThat(detail.costPrice()).isEqualTo(1000);
+                assertThat(detail.retailPrice()).isEqualTo(1500);
+                assertThat(detail.wholesalePrice()).isEqualTo(1200);
+                assertThat(detail.storeId()).isEqualTo(store.getId());
+                assertThat(detail.vendorId()).isEqualTo(vendor.getId());
+                assertThat(detail.isActivated()).isTrue();
+        }
+
+        @Test
+        void 존재하지_않는_품목_상세_조회시_예외가_발생한다() {
+                // given
+                Store store = newStore();
+                User user = newUser(store);
+                Long notExistProductId = 9999L;
+
+                // when & then
+                assertThatThrownBy(() -> productService.getProductDetail(notExistProductId, user.getId()))
+                                .isInstanceOf(BaseException.class)
+                                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        void 다른_상점의_품목을_상세_조회하면_예외가_발생한다() {
+                // given
+                Store store1 = newStore();
+                Store store2 = newStore();
+
+                Vendor vendorOfStore2 = newVendor(store2);
+
+                User userOfStore1 = newUser(store1);
+                User userOfStore2 = userRepository.save(
+                                User.builder()
+                                                .store(store2)
+                                                .username("detail_tester_store2")
+                                                .password("password")
+                                                .name("상점2 관리자(상세조회)")
+                                                .role(UserRole.ADMIN)
+                                                .build());
+
+                ProductResponse productOfStore2 = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendorOfStore2.getId(),
+                                                "고체치약",
+                                                "C-001",
+                                                "P-001",
+                                                ProductUnit.G,
+                                                BigDecimal.valueOf(900.0),
+                                                10,
+                                                BigDecimal.valueOf(90.0),
+                                                1000,
+                                                1500,
+                                                1200),
+                                userOfStore2.getId());
+
+                // when & then
+                assertThatThrownBy(() -> productService.getProductDetail(productOfStore2.productId(),
+                                userOfStore1.getId()))
+                                .isInstanceOf(BaseException.class)
+                                .hasMessageContaining(ErrorCode.STORE_ACCESS_DENIED.getMessage());
+        }
+
+        @Test
+        void 품목_목록_전체_조회에_성공한다() {
+                // given
+                Store store = newStore();
+                Vendor vendor = newVendor(store);
+                User user = newUser(store);
+
+                productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고체치약",
+                                                "C-001",
+                                                "P-001",
+                                                ProductUnit.G,
+                                                BigDecimal.valueOf(900.0),
+                                                10,
+                                                BigDecimal.valueOf(90.0),
+                                                1000,
+                                                1500,
+                                                1200),
+                                user.getId());
+                productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고무장갑",
+                                                "C-002",
+                                                "P-002",
+                                                ProductUnit.EA,
+                                                null,
+                                                1,
+                                                null,
+                                                500,
+                                                800,
+                                                600),
+                                user.getId());
+                productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "세제",
+                                                "C-003",
+                                                "P-003",
+                                                ProductUnit.ML,
+                                                BigDecimal.valueOf(1000.0),
+                                                5,
+                                                BigDecimal.valueOf(200.0),
+                                                3000,
+                                                4000,
+                                                3500),
+                                user.getId());
+
+                // when
+                PageResponse<ProductResponse> page = productService.getProductList(user.getId(), 1, 10, null, null);
+
+                // then
+                assertThat(page.page()).isEqualTo(1);
+                assertThat(page.size()).isEqualTo(10);
+                assertThat(page.totalElements()).isEqualTo(3);
+                assertThat(page.content()).hasSize(3);
+        }
+
+        @Test
+        void 품목_목록_활성_필터_조회에_성공한다() {
+                // given
+                Store store = newStore();
+                Vendor vendor = newVendor(store);
+                User user = newUser(store);
+
+                // 활성 품목
+                ProductResponse active = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고체치약",
+                                                "C-001",
+                                                "P-001",
+                                                ProductUnit.G,
+                                                BigDecimal.valueOf(900.0),
+                                                10,
+                                                BigDecimal.valueOf(90.0),
+                                                1000,
+                                                1500,
+                                                1200),
+                                user.getId());
+
+                // 비활성으로 바꿀 품목
+                ProductResponse willBeInactive = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고무장갑",
+                                                "C-002",
+                                                "P-002",
+                                                ProductUnit.EA,
+                                                null,
+                                                1,
+                                                null,
+                                                500,
+                                                800,
+                                                600),
+                                user.getId());
+
+                // 고무장갑 비활성 처리
+                productService.updateProduct(
+                                willBeInactive.productId(),
+                                new UpdateProductRequest(
+                                                vendor.getId(),
+                                                willBeInactive.name(),
+                                                willBeInactive.cafe24Code(),
+                                                willBeInactive.posCode(),
+                                                willBeInactive.unit(),
+                                                willBeInactive.boxWeightG(),
+                                                willBeInactive.unitPerBox(),
+                                                willBeInactive.unitWeightG(),
+                                                false,
+                                                willBeInactive.costPrice(),
+                                                willBeInactive.retailPrice(),
+                                                willBeInactive.wholesalePrice()),
+                                user.getId());
+
+                // when
+                PageResponse<ProductResponse> page = productService.getProductList(user.getId(), 1, 10, true, null);
+
+                // then
+                assertThat(page.totalElements()).isEqualTo(1);
+                assertThat(page.content()).hasSize(1);
+                assertThat(page.content().get(0).productId()).isEqualTo(active.productId());
+                assertThat(page.content().get(0).isActivated()).isTrue();
+        }
+
+        @Test
+        void 품목_목록_이름검색으로_조회에_성공한다() {
+                // given
+                Store store = newStore();
+                Vendor vendor = newVendor(store);
+                User user = newUser(store);
+
+                productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고체치약",
+                                                "C-001",
+                                                "P-001",
+                                                ProductUnit.G,
+                                                BigDecimal.valueOf(900.0),
+                                                10,
+                                                BigDecimal.valueOf(90.0),
+                                                1000,
+                                                1500,
+                                                1200),
+                                user.getId());
+                productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고무장갑",
+                                                "C-002",
+                                                "P-002",
+                                                ProductUnit.EA,
+                                                null,
+                                                1,
+                                                null,
+                                                500,
+                                                800,
+                                                600),
+                                user.getId());
+                productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "세제",
+                                                "C-003",
+                                                "P-003",
+                                                ProductUnit.ML,
+                                                BigDecimal.valueOf(1000.0),
+                                                5,
+                                                BigDecimal.valueOf(200.0),
+                                                3000,
+                                                4000,
+                                                3500),
+                                user.getId());
+
+                // when
+                PageResponse<ProductResponse> page = productService.getProductList(user.getId(), 1, 10, null, "고");
+
+                // then
+                assertThat(page.totalElements()).isEqualTo(2);
+                assertThat(page.content()).hasSize(2);
+                assertThat(page.content())
+                                .extracting(ProductResponse::name)
+                                .allMatch(name -> name.contains("고"));
+        }
+
+        @Test
+        void 품목_목록_활성_및_이름검색_동시_필터링_조회에_성공한다() {
+                // given
+                Store store = newStore();
+                Vendor vendor = newVendor(store);
+                User user = newUser(store);
+
+                ProductResponse activeMatch = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고체치약",
+                                                "C-001",
+                                                "P-001",
+                                                ProductUnit.G,
+                                                BigDecimal.valueOf(900.0),
+                                                10,
+                                                BigDecimal.valueOf(90.0),
+                                                1000,
+                                                1500,
+                                                1200),
+                                user.getId());
+
+                ProductResponse inactiveMatch = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고무장갑",
+                                                "C-002",
+                                                "P-002",
+                                                ProductUnit.EA,
+                                                null,
+                                                1,
+                                                null,
+                                                500,
+                                                800,
+                                                600),
+                                user.getId());
+
+                // 고무장갑 비활성 처리
+                productService.updateProduct(
+                                inactiveMatch.productId(),
+                                new UpdateProductRequest(
+                                                vendor.getId(),
+                                                inactiveMatch.name(),
+                                                inactiveMatch.cafe24Code(),
+                                                inactiveMatch.posCode(),
+                                                inactiveMatch.unit(),
+                                                inactiveMatch.boxWeightG(),
+                                                inactiveMatch.unitPerBox(),
+                                                inactiveMatch.unitWeightG(),
+                                                false,
+                                                inactiveMatch.costPrice(),
+                                                inactiveMatch.retailPrice(),
+                                                inactiveMatch.wholesalePrice()),
+                                user.getId());
+
+                // when
+                PageResponse<ProductResponse> page = productService.getProductList(user.getId(), 1, 10, true, "고");
+
+                // then
+                assertThat(page.totalElements()).isEqualTo(1);
+                assertThat(page.content()).hasSize(1);
+                ProductResponse only = page.content().get(0);
+                assertThat(only.productId()).isEqualTo(activeMatch.productId());
+                assertThat(only.name()).isEqualTo("고체치약");
+                assertThat(only.isActivated()).isTrue();
+        }
+
+        @Test
+        void 품목_목록_조회시_다른_상점_품목은_포함되지_않는다() {
+                // given
+                Store store1 = newStore();
+                Store store2 = newStore();
+
+                Vendor vendor1 = newVendor(store1);
+                Vendor vendor2 = newVendor(store2);
+
+                User user1 = newUser(store1);
+                User user2 = userRepository.save(
+                                User.builder()
+                                                .store(store2)
+                                                .username("tester_store2")
+                                                .password("password")
+                                                .name("상점2 관리자")
+                                                .role(UserRole.ADMIN)
+                                                .build());
+
+                // store1의 품목 2개
+                productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor1.getId(),
+                                                "고체치약",
+                                                "P-001",
+                                                ProductUnit.G,
+                                                BigDecimal.valueOf(900.0),
+                                                10,
+                                                BigDecimal.valueOf(90.0),
+                                                1000,
+                                                1500,
+                                                1200),
+                                user1.getId());
+                productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor1.getId(),
+                                                "고무장갑",
+                                                "P-002",
+                                                ProductUnit.EA,
+                                                null,
+                                                1,
+                                                null,
+                                                500,
+                                                800,
+                                                600),
+                                user1.getId());
+
+                // store2의 품목 1개
+                productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor2.getId(),
+                                                "세제",
+                                                "P-003",
+                                                ProductUnit.ML,
+                                                BigDecimal.valueOf(1000.0),
+                                                5,
+                                                BigDecimal.valueOf(200.0),
+                                                3000,
+                                                4000,
+                                                3500),
+                                user2.getId());
+
+                // when
+                PageResponse<ProductResponse> page = productService.getProductList(user1.getId(), 1, 10, null, null);
+
+                // then
+                assertThat(page.totalElements()).isEqualTo(2);
+                assertThat(page.content()).hasSize(2);
+                assertThat(page.content())
+                                .extracting(ProductResponse::storeId)
+                                .containsOnly(store1.getId());
+        }
+
+        @Test
+        void 존재하지_않는_사용자_품목_목록_조회시_예외가_발생한다() {
+                // given
+                Long notExistUserId = 9999L;
+
+                // when & then
+                assertThatThrownBy(() -> productService.getProductList(notExistUserId, 1, 10, null, null))
+                                .isInstanceOf(BaseException.class)
+                                .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        void 품목_목록_비활성_필터_조회에_성공한다() {
+                // given
+                Store store = newStore();
+                Vendor vendor = newVendor(store);
+                User user = newUser(store);
+
+                // 활성 품목
+                ProductResponse active = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고체치약",
+                                                "P-001",
+                                                ProductUnit.G,
+                                                BigDecimal.valueOf(900.0),
+                                                10,
+                                                BigDecimal.valueOf(90.0),
+                                                1000,
+                                                1500,
+                                                1200),
+                                user.getId());
+
+                // 비활성로 바꿀 품목
+                ProductResponse willBeInactive = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고무장갑",
+                                                "P-002",
+                                                ProductUnit.EA,
+                                                null,
+                                                1,
+                                                null,
+                                                500,
+                                                800,
+                                                600),
+                                user.getId());
+
+                // 고무장갑 비활성 처리
+                productService.updateProduct(
+                                willBeInactive.productId(),
+                                new UpdateProductRequest(
+                                                vendor.getId(),
+                                                willBeInactive.name(),
+                                                willBeInactive.code(),
+                                                willBeInactive.unit(),
+                                                willBeInactive.boxWeightG(),
+                                                willBeInactive.unitPerBox(),
+                                                willBeInactive.unitWeightG(),
+                                                false,
+                                                willBeInactive.costPrice(),
+                                                willBeInactive.retailPrice(),
+                                                willBeInactive.wholesalePrice()),
+                                user.getId());
+
+                // when
+                PageResponse<ProductResponse> page = productService.getProductList(user.getId(), 1, 10, false, null);
+
+                // then
+                assertThat(page.totalElements()).isEqualTo(1);
+                assertThat(page.content()).hasSize(1);
+                ProductResponse only = page.content().get(0);
+                assertThat(only.productId()).isEqualTo(willBeInactive.productId());
+                assertThat(only.isActivated()).isFalse();
+        }
+
+        @Test
+        void 품목_목록_비활성_및_이름검색_동시_필터링_조회에_성공한다() {
+                // given
+                Store store = newStore();
+                Vendor vendor = newVendor(store);
+                User user = newUser(store);
+
+                // 활성 + 이름 매칭
+                productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고체치약",
+                                                "P-001",
+                                                ProductUnit.G,
+                                                BigDecimal.valueOf(900.0),
+                                                10,
+                                                BigDecimal.valueOf(90.0),
+                                                1000,
+                                                1500,
+                                                1200),
+                                user.getId());
+
+                // 비활성 + 이름 매칭
+                ProductResponse inactiveMatch = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고무장갑",
+                                                "P-002",
+                                                ProductUnit.EA,
+                                                null,
+                                                1,
+                                                null,
+                                                500,
+                                                800,
+                                                600),
+                                user.getId());
+
+                // 비활성 + 이름 미매칭
+                ProductResponse inactiveNonMatch = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "세제",
+                                                "P-003",
+                                                ProductUnit.ML,
+                                                BigDecimal.valueOf(1000.0),
+                                                5,
+                                                BigDecimal.valueOf(200.0),
+                                                3000,
+                                                4000,
+                                                3500),
+                                user.getId());
+
+                // 고무장갑, 세제 둘 다 비활성 처리
+                productService.updateProduct(
+                                inactiveMatch.productId(),
+                                new UpdateProductRequest(
+                                                vendor.getId(),
+                                                inactiveMatch.name(),
+                                                inactiveMatch.code(),
+                                                inactiveMatch.unit(),
+                                                inactiveMatch.boxWeightG(),
+                                                inactiveMatch.unitPerBox(),
+                                                inactiveMatch.unitWeightG(),
+                                                false,
+                                                inactiveMatch.costPrice(),
+                                                inactiveMatch.retailPrice(),
+                                                inactiveMatch.wholesalePrice()),
+                                user.getId());
+
+                productService.updateProduct(
+                                inactiveNonMatch.productId(),
+                                new UpdateProductRequest(
+                                                vendor.getId(),
+                                                inactiveNonMatch.name(),
+                                                inactiveNonMatch.code(),
+                                                inactiveNonMatch.unit(),
+                                                inactiveNonMatch.boxWeightG(),
+                                                inactiveNonMatch.unitPerBox(),
+                                                inactiveNonMatch.unitWeightG(),
+                                                false,
+                                                inactiveNonMatch.costPrice(),
+                                                inactiveNonMatch.retailPrice(),
+                                                inactiveNonMatch.wholesalePrice()),
+                                user.getId());
+
+                // when
+                PageResponse<ProductResponse> page = productService.getProductList(user.getId(), 1, 10, false, "고");
+
+                // then
+                assertThat(page.totalElements()).isEqualTo(1);
+                assertThat(page.content()).hasSize(1);
+                ProductResponse only = page.content().get(0);
+                assertThat(only.productId()).isEqualTo(inactiveMatch.productId());
+                assertThat(only.name()).isEqualTo("고무장갑");
+                assertThat(only.isActivated()).isFalse();
+        }
+
+        @Test
+        void 품목_삭제에_성공한다() {
+                // given
+                Store store = newStore();
+                Vendor vendor = newVendor(store);
+                User user = newUser(store);
+
+                ProductResponse created = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고체치약",
+                                                "P-001",
+                                                ProductUnit.G,
+                                                BigDecimal.valueOf(900.0),
+                                                10,
+                                                BigDecimal.valueOf(90.0),
+                                                1000,
+                                                1500,
+                                                1200),
+                                user.getId());
+
+                Long productId = created.productId();
+
+                // when
+                DeleteProductResponse deleteResponse = productService.deleteProduct(productId, user.getId());
+
+                // then
+                assertThat(deleteResponse.success()).isTrue();
+
+                assertThatThrownBy(() -> productService.getProductDetail(productId, user.getId()))
+                                .isInstanceOf(BaseException.class)
+                                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
+
+                PageResponse<ProductResponse> page = productService.getProductList(user.getId(), 1, 10, null, null);
+
+                assertThat(page.totalElements()).isZero();
+                assertThat(page.content()).isEmpty();
+        }
+
+        @Test
+        void 존재하지_않는_품목_삭제시_예외가_발생한다() {
+                // given
+                Store store = newStore();
+                User user = newUser(store);
+                Long notExistProductId = 9999L;
+
+                // when & then
+                assertThatThrownBy(() -> productService.deleteProduct(notExistProductId, user.getId()))
+                                .isInstanceOf(BaseException.class)
+                                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        void 다른_상점의_품목을_삭제하려고_하면_예외가_발생한다() {
+                // given
+                Store store1 = newStore();
+                Store store2 = newStore();
+
+                Vendor vendor1 = newVendor(store1);
+                Vendor vendor2 = newVendor(store2);
+
+                User userOfStore1 = newUser(store1);
+                User userOfStore2 = userRepository.save(
+                                User.builder()
+                                                .store(store2)
+                                                .username("delete_tester_store2")
+                                                .password("password")
+                                                .name("상점2 관리자(삭제)")
+                                                .role(UserRole.ADMIN)
+                                                .build());
+
+                ProductResponse productOfStore2 = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor2.getId(),
+                                                "고체치약",
+                                                "P-001",
+                                                ProductUnit.G,
+                                                BigDecimal.valueOf(900.0),
+                                                10,
+                                                BigDecimal.valueOf(90.0),
+                                                1000,
+                                                1500,
+                                                1200),
+                                userOfStore2.getId());
+
+                // when & then
+                assertThatThrownBy(
+                                () -> productService.deleteProduct(productOfStore2.productId(), userOfStore1.getId()))
+                                .isInstanceOf(BaseException.class)
+                                .hasMessageContaining(ErrorCode.STORE_ACCESS_DENIED.getMessage());
+        }
+
+        @Test
+        void 삭제된_품목은_목록_및_상세에서_조회되지_않는다() {
+                // given
+                Store store = newStore();
+                Vendor vendor = newVendor(store);
+                User user = newUser(store);
+
+                ProductResponse product = productService.createProduct(
+                                new CreateProductRequest(
+                                                vendor.getId(),
+                                                "고체치약",
+                                                "P-001",
+                                                ProductUnit.G,
+                                                BigDecimal.valueOf(900.0),
+                                                10,
+                                                BigDecimal.valueOf(90.0),
+                                                1000,
+                                                1500,
+                                                1200),
+                                user.getId());
+
+                productService.deleteProduct(product.productId(), user.getId());
+
+                // when & then
+                assertThatThrownBy(() -> productService.getProductDetail(product.productId(), user.getId()))
+                                .isInstanceOf(BaseException.class)
+                                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
+
+                // when & then
+                PageResponse<ProductResponse> page = productService.getProductList(user.getId(), 1, 10, null, null);
+
+                assertThat(page.totalElements()).isZero();
+                assertThat(page.content()).isEmpty();
+        }
 }

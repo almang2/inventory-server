@@ -6,8 +6,6 @@ import java.math.BigDecimal;
 public record UpdateReceiptItemRequest(
         @NotNull Long receiptItemId,
         Long receiptId,
-        Integer boxCount,
-        BigDecimal measuredWeight,
         Integer actualQuantity,
         Integer unitPrice,
         String note

@@ -8,8 +8,6 @@ import java.util.List;
 
 public record UpdateReceiptRequest(
         @NotNull Long orderId,
-        Integer totalBoxCount,
-        BigDecimal totalWeightG,
         ReceiptStatus status,
         Boolean activated,
         @Valid List<UpdateReceiptItemRequest> receiptItems

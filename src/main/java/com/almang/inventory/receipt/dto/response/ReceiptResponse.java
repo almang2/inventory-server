@@ -11,8 +11,6 @@ public record ReceiptResponse(
         Long storeId,
         Long orderId,
         LocalDate receiptDate,
-        Integer totalBoxCount,
-        BigDecimal totalWeightG,
         ReceiptStatus status,
         boolean activated,
         List<ReceiptItemResponse> receiptItems
@@ -23,8 +21,6 @@ public record ReceiptResponse(
                 receipt.getStore().getId(),
                 receipt.getOrder().getId(),
                 receipt.getReceiptDate(),
-                receipt.getTotalBoxCount(),
-                receipt.getTotalWeightG(),
                 receipt.getStatus(),
                 receipt.isActivated(),
                 receipt.getItems().stream()

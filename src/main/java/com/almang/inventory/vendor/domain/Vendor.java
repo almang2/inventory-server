@@ -3,7 +3,10 @@ package com.almang.inventory.vendor.domain;
 import com.almang.inventory.global.entity.BaseTimeEntity;
 import com.almang.inventory.store.domain.Store;
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 @Entity
 @Table(name = "vendors")
@@ -11,6 +14,8 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@SQLDelete(sql = "UPDATE vendors SET deleted_at = NOW() WHERE vendor_id = ?")
+@Where(clause = "deleted_at IS NULL")
 public class Vendor extends BaseTimeEntity {
 
     @Id
@@ -38,6 +43,9 @@ public class Vendor extends BaseTimeEntity {
     @Column(name = "is_activate", nullable = false)
     private boolean activated;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     public void updateVendorInfo(
             String name, VendorChannel channel, String contactPoint, String note, Boolean activated
     ) {
@@ -56,5 +64,9 @@ public class Vendor extends BaseTimeEntity {
         if (activated != null) {
             this.activated = activated;
         }
+    }
+
+    public void delete() {
+        this.deletedAt = LocalDateTime.now();
     }
 }

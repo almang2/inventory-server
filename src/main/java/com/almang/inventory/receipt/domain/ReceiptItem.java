@@ -28,12 +28,6 @@ public class ReceiptItem extends BaseTimeEntity {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @Column(name = "box_count")
-    private Integer boxCount;
-
-    @Column(name = "measured_weight", precision = 8, scale = 3)
-    private BigDecimal measuredWeight;
-
     @Column(name = "expected_quantity", precision = 8, scale = 3)
     private BigDecimal expectedQuantity;
 
@@ -46,9 +40,6 @@ public class ReceiptItem extends BaseTimeEntity {
     @Column(name = "amount")
     private Integer amount;
 
-    @Column(name = "error_rate", precision = 6, scale = 3)
-    private BigDecimal errorRate;
-
     @Column(name = "note", columnDefinition = "TEXT")
     private String note;
 
@@ -57,15 +48,8 @@ public class ReceiptItem extends BaseTimeEntity {
     }
 
     public void update(
-            Integer boxCount, BigDecimal measuredWeight,
             Integer actualQuantity, Integer unitPrice, String note
     ) {
-        if (boxCount != null) {
-            this.boxCount = boxCount;
-        }
-        if (measuredWeight != null) {
-            this.measuredWeight = measuredWeight;
-        }
         if (actualQuantity != null) {
             this.actualQuantity = actualQuantity;
         }
@@ -75,22 +59,8 @@ public class ReceiptItem extends BaseTimeEntity {
         if (note != null) {
             this.note = note;
         }
-
         if (this.actualQuantity != null && this.unitPrice != null) {
             this.amount = this.actualQuantity * this.unitPrice;
         }
-        calculateErrorRate();
-    }
-
-    private void calculateErrorRate() {
-        if (expectedQuantity == null || actualQuantity == null || expectedQuantity.compareTo(BigDecimal.ZERO) == 0) {
-            this.errorRate = null;
-            return;
-        }
-
-        BigDecimal actualQuantityToBigDecimal = BigDecimal.valueOf(actualQuantity);
-        this.errorRate = actualQuantityToBigDecimal
-                .subtract(expectedQuantity)
-                .divide(expectedQuantity, 3, RoundingMode.HALF_UP);
     }
 }

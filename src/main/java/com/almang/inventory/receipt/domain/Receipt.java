@@ -37,12 +37,6 @@ public class Receipt extends BaseTimeEntity {
     @Column(name = "receipt_date", nullable = false)
     private LocalDate receiptDate;
 
-    @Column(name = "total_box_count", nullable = false)
-    private Integer totalBoxCount;
-
-    @Column(name = "total_weight_g", precision = 8, scale = 3)
-    private BigDecimal totalWeightG;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private ReceiptStatus status;
@@ -59,21 +53,9 @@ public class Receipt extends BaseTimeEntity {
         item.setReceipt(this);
     }
 
-    public void updateTotalBoxCount(Integer totalBoxCount) {
-        if (totalBoxCount != null) {
-            this.totalBoxCount = totalBoxCount;
-        }
-    }
-
     public void update(
-            Integer totalBoxCount, BigDecimal totalWeightG, ReceiptStatus status, Boolean activated
+            ReceiptStatus status, Boolean activated
     ) {
-        if (totalBoxCount != null) {
-            this.totalBoxCount = totalBoxCount;
-        }
-        if (totalWeightG != null) {
-            this.totalWeightG = totalWeightG;
-        }
         if (status != null) {
             this.status = status;
         }

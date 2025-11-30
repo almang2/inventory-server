@@ -35,6 +35,7 @@ public enum SuccessMessage {
     GET_VENDOR_DETAIL_SUCCESS("발주처 상세 조회 성공"),
     GET_VENDOR_LIST_SUCCESS("발주처 목록 조회 성공"),
     GET_VENDOR_ORDER_TEMPLATE_SUCCESS("발주처 발주 템플릿 조회 성공"),
+    DELETE_VENDOR_SUCCESS("발주처 삭제 성공"),
 
     // ORDER
     CREATE_ORDER_TEMPLATE_SUCCESS("발주 템플릿 등록 성공"),

@@ -7,6 +7,8 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.*;
 import java.math.BigDecimal;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 @Entity
 @Table(name = "products")
@@ -14,6 +16,8 @@ import java.math.BigDecimal;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@SQLDelete(sql = "UPDATE products SET deleted_at = NOW() WHERE product_id = ?")
+@Where(clause = "deleted_at IS NULL")
 public class Product extends BaseTimeEntity {
 
     @Id

@@ -126,6 +126,7 @@ public class ProductService {
                 .costPrice(request.costPrice())
                 .retailPrice(request.retailPrice())
                 .wholesalePrice(request.wholesalePrice())
+                .deletedAt(null)
                 .build();
     }
 
@@ -136,7 +137,6 @@ public class ProductService {
         if (!vendor.getStore().getId().equals(user.getStore().getId())) {
             throw new BaseException(ErrorCode.VENDOR_ACCESS_DENIED);
         }
-
         return vendor;
     }
 

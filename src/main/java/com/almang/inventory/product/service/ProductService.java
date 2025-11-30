@@ -15,7 +15,6 @@ import com.almang.inventory.product.dto.response.ProductResponse;
 import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.user.domain.User;
-import com.almang.inventory.user.repository.UserRepository;
 import com.almang.inventory.vendor.domain.Vendor;
 import com.almang.inventory.vendor.repository.VendorRepository;
 import lombok.RequiredArgsConstructor;
@@ -75,6 +74,7 @@ public class ProductService {
         UserStoreContext context = userContextProvider.findUserAndStore(userId);
         User user = context.user();
         Product product = findProductById(productId);
+        validateStoreAccess(product, user);
 
         log.info("[ProductService] 품목 삭제 요청 - userId: {}, productId: {}", user.getId(), product.getId());
         product.delete();

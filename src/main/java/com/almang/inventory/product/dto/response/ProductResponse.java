@@ -7,7 +7,8 @@ import java.math.BigDecimal;
 public record ProductResponse(
         Long productId,
         String name,
-        String code,
+        String cafe24Code,
+        String posCode,
         ProductUnit unit,
         BigDecimal boxWeightG,
         boolean isActivated,
@@ -17,13 +18,13 @@ public record ProductResponse(
         int retailPrice,
         int wholesalePrice,
         Long storeId,
-        Long vendorId
-) {
+        Long vendorId) {
     public static ProductResponse from(Product product) {
         return new ProductResponse(
                 product.getId(),
                 product.getName(),
-                product.getCode(),
+                product.getCafe24Code(),
+                product.getPosCode(),
                 product.getUnit(),
                 product.getBoxWeightG(),
                 product.isActivated(),
@@ -33,7 +34,6 @@ public record ProductResponse(
                 product.getRetailPrice(),
                 product.getWholesalePrice(),
                 product.getStore().getId(),
-                product.getVendor().getId()
-        );
+                product.getVendor().getId());
     }
 }

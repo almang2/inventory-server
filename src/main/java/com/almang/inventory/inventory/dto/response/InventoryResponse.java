@@ -8,13 +8,13 @@ public record InventoryResponse(
         Long inventoryId,
         Long productId,
         String productName,
-        String productCode,
+        String cafe24Code,
+        String posCode,
         BigDecimal displayStock,
         BigDecimal warehouseStock,
         BigDecimal outgoingReserved,
         BigDecimal incomingReserved,
-        BigDecimal reorderTriggerPoint
-) {
+        BigDecimal reorderTriggerPoint) {
     public static InventoryResponse from(Inventory inventory) {
         Product product = inventory.getProduct();
 
@@ -22,12 +22,12 @@ public record InventoryResponse(
                 inventory.getId(),
                 product.getId(),
                 product.getName(),
-                product.getCode(),
+                product.getCafe24Code(),
+                product.getPosCode(),
                 inventory.getDisplayStock(),
                 inventory.getWarehouseStock(),
                 inventory.getOutgoingReserved(),
                 inventory.getIncomingReserved(),
-                inventory.getReorderTriggerPoint()
-        );
+                inventory.getReorderTriggerPoint());
     }
 }

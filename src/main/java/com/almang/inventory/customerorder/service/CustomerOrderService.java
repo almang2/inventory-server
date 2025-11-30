@@ -7,7 +7,6 @@ import com.almang.inventory.customerorder.dto.request.CustomerOrderRequest;
 import com.almang.inventory.customerorder.repository.CustomerOrderRepository;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
-import com.almang.inventory.inventory.domain.Inventory;
 import com.almang.inventory.inventory.repository.InventoryRepository;
 import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.repository.ProductRepository;
@@ -15,12 +14,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -37,7 +30,8 @@ public class CustomerOrderService {
         // 1. 이미 존재하는 카페24 주문인지 확인 (중복 처리 방지)
         customerOrderRepository.findByCafe24OrderId(request.getCafe24OrderId())
                 .ifPresent(order -> {
-                    throw new BaseException(ErrorCode.DUPLICATE_CUSTOMER_ORDER, "Cafe24 Order ID already exists: " + request.getCafe24OrderId());
+                    throw new BaseException(ErrorCode.DUPLICATE_CUSTOMER_ORDER,
+                            "Cafe24 Order ID already exists: " + request.getCafe24OrderId());
                 });
 
         // 2. CustomerOrder 엔티티 생성
@@ -46,7 +40,9 @@ public class CustomerOrderService {
                 .orderAt(request.getOrderAt())
                 .isPaid(request.getIsPaid().equalsIgnoreCase("T")) // 'T'/'F' 문자열을 boolean으로 변환
                 .isCanceled(request.getIsCanceled().equalsIgnoreCase("T")) // 'T'/'F' 문자열을 boolean으로 변환
-                .paymentMethod(request.getPaymentMethodName() != null && !request.getPaymentMethodName().isEmpty() ? request.getPaymentMethodName().get(0) : null)
+                .paymentMethod(request.getPaymentMethodName() != null && !request.getPaymentMethodName().isEmpty()
+                        ? request.getPaymentMethodName().get(0)
+                        : null)
                 .paymentAmount(request.getPaymentAmount())
                 .billingName(request.getBillingName())
                 .memberId(request.getMemberId())
@@ -58,20 +54,23 @@ public class CustomerOrderService {
         // 3. CustomerOrderItem 처리 및 재고 처리 (감소 로직은 Placeholder)
         if (request.getItems() != null && !request.getItems().isEmpty()) {
             for (CustomerOrderItemRequest itemRequest : request.getItems()) {
-                // 3.1. 상품 조회 (productCode 사용)
-                Product product = productRepository.findByCode(itemRequest.getProductCode())
-                        .orElseThrow(() -> new BaseException(ErrorCode.PRODUCT_NOT_FOUND, "Product not found with code: " + itemRequest.getProductCode()));
+                // 3.1. 상품 조회 (cafe24Code 사용)
+                Product product = productRepository.findByCafe24Code(itemRequest.getProductCode())
+                        .orElseThrow(() -> new BaseException(ErrorCode.PRODUCT_NOT_FOUND,
+                                "Product not found with code: " + itemRequest.getProductCode()));
 
                 // 3.2. Inventory 조회 (상품과 연결된 재고 정보)
-                Inventory inventory = inventoryRepository.findByProduct(product)
-                        .orElseThrow(() -> new BaseException(ErrorCode.INVENTORY_NOT_FOUND, "Inventory not found for product: " + product.getName()));
+                // Inventory inventory = inventoryRepository.findByProduct(product)
+                // .orElseThrow(() -> new BaseException(ErrorCode.INVENTORY_NOT_FOUND,
+                // "Inventory not found for product: " + product.getName()));
+                // TODO: 재고 조회 및 감소 로직 구현 필요
 
                 // 3.3. 재고 감소 로직 (Placeholder)
-                //      ========================================================================
-                //      TODO: 카페24 연동 정책에 따라 정확한 재고 감소 로직을 여기에 구현해야 합니다.
-                //      예: inventory.decreaseWarehouse(new BigDecimal(itemRequest.getQuantity()));
-                //      현재는 재고 감소 로직이 적용되지 않습니다.
-                //      ========================================================================
+                // ========================================================================
+                // TODO: 카페24 연동 정책에 따라 정확한 재고 감소 로직을 여기에 구현해야 합니다.
+                // 예: inventory.decreaseWarehouse(new BigDecimal(itemRequest.getQuantity()));
+                // 현재는 재고 감소 로직이 적용되지 않습니다.
+                // ========================================================================
                 log.warn("카페24 주문 ID {}의 상품 {} (수량 {})에 대한 재고 감소 로직이 정의되지 않았습니다.",
                         request.getCafe24OrderId(), itemRequest.getProductName(), itemRequest.getQuantity());
 

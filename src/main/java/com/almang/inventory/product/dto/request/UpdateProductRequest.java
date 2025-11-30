@@ -7,15 +7,16 @@ import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 
 public record UpdateProductRequest(
-        @NotNull Long vendorId,
-        String name,
-        String code,
-        ProductUnit unit,
-        BigDecimal boxWeightG,
-        @Positive Integer unitPerBox,
-        BigDecimal unitWeightG,
-        Boolean isActivated,
-        @Min(0) Integer costPrice,
-        @Min(0) Integer retailPrice,
-        @Min(0) Integer wholesalePrice
-) {}
+                @NotNull Long vendorId,
+                String name,
+                String cafe24Code,
+                String posCode,
+                ProductUnit unit,
+                BigDecimal boxWeightG,
+                @Positive Integer unitPerBox,
+                BigDecimal unitWeightG,
+                Boolean isActivated,
+                @Min(0) Integer costPrice,
+                @Min(0) Integer retailPrice,
+                @Min(0) Integer wholesalePrice) {
+}

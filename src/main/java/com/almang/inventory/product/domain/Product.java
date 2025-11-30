@@ -33,11 +33,14 @@ public class Product extends BaseTimeEntity {
     @JoinColumn(name = "vendor_id", nullable = false)
     private Vendor vendor;
 
-    @Column(name = "name", length = 30, nullable = false)
+    @Column(name = "name", length = 255, nullable = false)
     private String name;
 
-    @Column(name = "code", length = 30, nullable = false)
-    private String code;
+    @Column(name = "cafe24_code", length = 50, nullable = false)
+    private String cafe24Code;
+
+    @Column(name = "pos_code", length = 50, nullable = false)
+    private String posCode;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "unit", nullable = false)
@@ -73,12 +76,15 @@ public class Product extends BaseTimeEntity {
         }
     }
 
-    public void updateBasicInfo(String name, String code, ProductUnit unit) {
+    public void updateBasicInfo(String name, String cafe24Code, String posCode, ProductUnit unit) {
         if (name != null) {
             this.name = name;
         }
-        if (code != null) {
-            this.code = code;
+        if (cafe24Code != null) {
+            this.cafe24Code = cafe24Code;
+        }
+        if (posCode != null) {
+            this.posCode = posCode;
         }
         if (unit != null) {
             this.unit = unit;

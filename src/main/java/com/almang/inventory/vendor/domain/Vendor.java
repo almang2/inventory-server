@@ -65,8 +65,4 @@ public class Vendor extends BaseTimeEntity {
             this.activated = activated;
         }
     }
-
-    public void delete() {
-        this.deletedAt = LocalDateTime.now();
-    }
 }

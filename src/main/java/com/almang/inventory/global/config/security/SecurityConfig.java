@@ -60,26 +60,30 @@ public class SecurityConfig {
             "/docs/**",
             "/health",
             "/error",
-            "/favicon.ico"
+            "/favicon.ico",
+
+            // Cafe24 OAuth
+            "/api/v1/cafe24/oauth/**",
+            "/api/v1/cafe24/orders/test",
+            "/api/v1/cafe24/customerorders/test"
     };
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
-                .cors(c -> {})
+                .cors(c -> {
+                })
                 .csrf(AbstractHttpConfigurer::disable)
-                .headers(h -> h.frameOptions(FrameOptionsConfig::sameOrigin)) // H2 콘솔 접근 시 iframe 사용 허용 (동일 출처만 허용하여 보안 유지)
+                .headers(h -> h.frameOptions(FrameOptionsConfig::sameOrigin)) // H2 콘솔 접근 시 iframe 사용 허용 (동일 출처만 허용하여 보안
+                                                                              // 유지)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // 공개 엔드포인트
                         .requestMatchers(PUBLIC_APIS).permitAll()
                         // 카페24 주문 수신 엔드포인트 (인증 제외)
                         .requestMatchers(HttpMethod.POST, "/api/v1/customer-orders").permitAll()
-                        // 카페24 OAuth 콜백 엔드포인트 (인증 제외 - 카페24에서 외부적으로 호출)
-                        .requestMatchers(HttpMethod.GET, "/api/v1/cafe24/oauth/callback").permitAll()
                         // 다른 엔드포인트는 인증 필요
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint(jwtAuthEntryPoint))
                 .addFilterBefore(tokenAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
@@ -98,7 +102,7 @@ public class SecurityConfig {
         config.setAllowCredentials(true);
         config.setAllowedOrigins(List.of("http://localhost:3000", "https://almang.vercel.app")); // 프론트엔드 경로
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization","Content-Type","X-Requested-With"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

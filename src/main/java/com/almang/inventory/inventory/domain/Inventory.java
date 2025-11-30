@@ -10,15 +10,9 @@ import lombok.*;
 import java.math.BigDecimal;
 
 @Entity
-@Table(
-        name = "inventories",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_inventory_product",
-                        columnNames = {"product_id"}
-                )
-        }
-)
+@Table(name = "inventories", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_inventory_product", columnNames = { "product_id" })
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -98,13 +92,36 @@ public class Inventory extends BaseTimeEntity {
         this.displayStock = this.displayStock.subtract(quantity);
     }
 
+    // 출고 예정 추가
+    public void increaseOutgoing(BigDecimal quantity) {
+        this.outgoingReserved = this.outgoingReserved.add(quantity);
+    }
+
+    // 출고 예정 차감
+    public void decreaseOutgoing(BigDecimal quantity) {
+        if (this.outgoingReserved.compareTo(quantity) < 0) {
+            // throw new BaseException(ErrorCode.OUTGOING_STOCK_NOT_ENOUGH); // 필요시 예외 처리
+            // 일단 0보다 작아지면 0으로 설정하거나, 그냥 차감 (비즈니스 로직에 따라 결정)
+            // 여기서는 예외 없이 차감하되 음수가 될 수 있음을 허용하거나, 0으로 보정할 수 있음.
+            // 요구사항에 명시되지 않았으므로 일단 차감.
+        }
+        this.outgoingReserved = this.outgoingReserved.subtract(quantity);
+    }
+
+    // 창고 재고 차감
+    public void decreaseWarehouse(BigDecimal quantity) {
+        if (this.warehouseStock.compareTo(quantity) < 0) {
+            throw new BaseException(ErrorCode.WAREHOUSE_STOCK_NOT_ENOUGH);
+        }
+        this.warehouseStock = this.warehouseStock.subtract(quantity);
+    }
+
     public void updateManually(
             BigDecimal displayStock,
             BigDecimal warehouseStock,
             BigDecimal outgoingReserved,
             BigDecimal incomingReserved,
-            BigDecimal reorderTriggerPoint
-    ) {
+            BigDecimal reorderTriggerPoint) {
         if (displayStock != null) {
             this.displayStock = displayStock;
         }

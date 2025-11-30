@@ -3,7 +3,7 @@ package com.almang.inventory.user.auth.controller;
 import com.almang.inventory.global.api.ApiResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.config.properties.Cafe24Properties;
-import com.almang.inventory.user.auth.service.Cafe24AuthService;
+import com.almang.inventory.cafe24.service.Cafe24TokenService;
 import com.almang.inventory.user.auth.service.RedisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +27,7 @@ import java.util.UUID;
 public class Cafe24AuthController {
 
     private final Cafe24Properties cafe24Properties;
-    private final Cafe24AuthService cafe24AuthService;
+    private final Cafe24TokenService cafe24TokenService;
     private final RedisService redisService; // state 저장을 위한 RedisService
 
     /**
@@ -42,7 +42,7 @@ public class Cafe24AuthController {
         redisService.saveCafe24OAuthState(state); // Redis에 저장 (10분 후 자동 만료)
 
         String authUrl = UriComponentsBuilder.fromUriString(cafe24Properties.getOauthUrl())
-                .pathSegment("authorize")
+                .pathSegment("api", "v2", "oauth", "authorize")
                 .queryParam("response_type", "code")
                 .queryParam("client_id", cafe24Properties.getClientId())
                 .queryParam("redirect_uri", cafe24Properties.getRedirectUri())
@@ -65,9 +65,9 @@ public class Cafe24AuthController {
             @RequestParam("code") String code,
             @RequestParam(value = "state", required = false) String state, // CSRF 방지용 state 값
             @RequestParam(value = "error", required = false) String error,
-            @RequestParam(value = "error_description", required = false) String errorDescription
-    ) {
-        log.info("카페24 OAuth 콜백 수신: code={}, state={}, error={}, errorDescription={}", code, state, error, errorDescription);
+            @RequestParam(value = "error_description", required = false) String errorDescription) {
+        log.info("카페24 OAuth 콜백 수신: code={}, state={}, error={}, errorDescription={}", code, state, error,
+                errorDescription);
 
         // CSRF 방지: state 값 검증 (Redis에서 확인)
         if (state == null || !redisService.hasCafe24OAuthState(state)) {
@@ -82,7 +82,7 @@ public class Cafe24AuthController {
             headers.setLocation(errorRedirectUri);
             return new ResponseEntity<>(headers, HttpStatus.FOUND);
         }
-        
+
         // state 검증 성공 후 Redis에서 제거 (일회성 보장)
         redisService.deleteCafe24OAuthState(state);
 
@@ -99,19 +99,41 @@ public class Cafe24AuthController {
             return new ResponseEntity<>(headers, HttpStatus.FOUND); // 302 Found (리다이렉트)
         }
 
-        // 인증 코드를 사용하여 Access Token 교환 (Cafe24AuthService에 위임)
-        String accessToken = cafe24AuthService.exchangeCodeForAccessToken(code);
+        try {
+            // 인증 코드를 사용하여 Access Token 교환 및 저장 (Cafe24TokenService에 위임)
+            cafe24TokenService.exchangeCodeForToken(code);
 
-        // Access Token 획득 성공 후 프론트엔드로 리다이렉트
-        URI successRedirectUri = UriComponentsBuilder.fromUriString(cafe24Properties.getOauthSuccessRedirectUrl())
-                .queryParam("success", "true")
-                .queryParam("accessToken", accessToken) // 보안상 Access Token을 URL에 직접 노출하는 것은 지양해야 합니다.
-                                                        // 실제로는 서버 세션에 저장하거나, 별도의 보안 메커니즘을 통해 전달해야 합니다.
-                .build()
-                .toUri();
+            // 성공 시 프론트엔드로 리다이렉트
+            URI successRedirectUri = UriComponentsBuilder.fromUriString(cafe24Properties.getOauthSuccessRedirectUrl())
+                    .queryParam("success", "true")
+                    .build()
+                    .toUri();
             HttpHeaders headers = new HttpHeaders();
             headers.setLocation(successRedirectUri);
-            // 클라이언트에게 리다이렉트 지시. 성공 메시지는 API 응답이 아니라 리다이렉션 URL의 쿼리 파라미터로 전달됩니다.
             return new ResponseEntity<>(headers, HttpStatus.FOUND); // 302 Found (리다이렉트)
+
+        } catch (Exception e) {
+            log.error("Cafe24 토큰 교환 실패", e);
+            URI errorRedirectUri = UriComponentsBuilder.fromUriString(cafe24Properties.getOauthSuccessRedirectUrl())
+                    .queryParam("success", "false")
+                    .queryParam("message", "토큰 교환 실패")
+                    .build()
+                    .toUri();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setLocation(errorRedirectUri);
+            return new ResponseEntity<>(headers, HttpStatus.FOUND);
+        }
+
+    }
+
+    @GetMapping("/success")
+    public ResponseEntity<String> success(@RequestParam(value = "success", required = false) String success,
+            @RequestParam(value = "message", required = false) String message) {
+        if ("true".equals(success)) {
+            return ResponseEntity.ok("Cafe24 OAuth Authentication Successful!");
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Authentication Failed: " + (message != null ? message : "Unknown error"));
+        }
     }
 }

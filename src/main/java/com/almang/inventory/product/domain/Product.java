@@ -4,6 +4,7 @@ import com.almang.inventory.global.entity.BaseTimeEntity;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.vendor.domain.Vendor;
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.*;
 import java.math.BigDecimal;
 
@@ -59,6 +60,9 @@ public class Product extends BaseTimeEntity {
     @Column(name = "wholesale_price")
     private int wholesalePrice;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     public void updateVendor(Vendor vendor) {
         if (!this.vendor.getId().equals(vendor.getId())) {
             this.vendor = vendor;
@@ -105,5 +109,9 @@ public class Product extends BaseTimeEntity {
         if (activated != null) {
             this.activated = activated;
         }
+    }
+
+    public void delete() {
+        this.deletedAt = LocalDateTime.now();
     }
 }

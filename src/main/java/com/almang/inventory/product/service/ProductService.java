@@ -10,6 +10,7 @@ import com.almang.inventory.inventory.service.InventoryService;
 import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.dto.request.CreateProductRequest;
 import com.almang.inventory.product.dto.request.UpdateProductRequest;
+import com.almang.inventory.product.dto.response.DeleteProductResponse;
 import com.almang.inventory.product.dto.response.ProductResponse;
 import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.store.domain.Store;
@@ -67,6 +68,19 @@ public class ProductService {
 
         log.info("[ProductService] 품목 수정 성공 - productId: {}", product.getId());
         return ProductResponse.from(product);
+    }
+
+    @Transactional
+    public DeleteProductResponse deleteProduct(Long productId, Long userId) {
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        User user = context.user();
+        Product product = findProductById(productId);
+
+        log.info("[ProductService] 품목 삭제 요청 - userId: {}, productId: {}", user.getId(), product.getId());
+        product.delete();
+
+        log.info("[ProductService] 품목 삭제 성공 - productId: {}", product.getId());
+        return new DeleteProductResponse(true);
     }
 
     @Transactional(readOnly = true)
@@ -127,8 +141,13 @@ public class ProductService {
     }
 
     private Product findProductById(Long id) {
-        return productRepository.findById(id)
+        Product product =  productRepository.findById(id)
                 .orElseThrow(() -> new BaseException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        if (product.getDeletedAt() != null) {
+            throw new BaseException(ErrorCode.PRODUCT_NOT_FOUND);
+        }
+        return product;
     }
 
     private void validateStoreAccess(Product product, User user) {

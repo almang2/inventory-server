@@ -9,6 +9,9 @@ import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.order.template.repository.OrderTemplateRepository;
 import com.almang.inventory.order.template.domain.OrderTemplate;
 import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;
+import com.almang.inventory.product.domain.Product;
+import com.almang.inventory.product.domain.ProductUnit;
+import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.store.repository.StoreRepository;
 import com.almang.inventory.user.domain.User;
@@ -40,6 +43,7 @@ class VendorServiceTest {
     @Autowired private UserRepository userRepository;
     @Autowired private StoreRepository storeRepository;
     @Autowired private OrderTemplateRepository orderTemplateRepository;
+    @Autowired private ProductRepository productRepository;
 
     private Store newStore() {
         return storeRepository.save(
@@ -72,6 +76,22 @@ class VendorServiceTest {
                         .contactPoint("010-1111-1111")
                         .note("원본 메모")
                         .activated(true)
+                        .build()
+        );
+    }
+
+    private Product newProduct(Store store, Vendor vendor) {
+        return productRepository.save(
+                Product.builder()
+                        .store(store)
+                        .vendor(vendor)
+                        .name("테스트 품목")
+                        .code("TEST-001")
+                        .unit(ProductUnit.EA)
+                        .activated(true)
+                        .costPrice(1000)
+                        .retailPrice(1500)
+                        .wholesalePrice(1200)
                         .build()
         );
     }
@@ -913,5 +933,19 @@ class VendorServiceTest {
         assertThatThrownBy(() -> vendorService.deleteVendor(vendor.getId(), notExistUserId))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 연관_품목이_존재하면_발주처_삭제시_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Vendor vendor = newVendor(store);
+        newProduct(store, vendor);
+
+        // when & then
+        assertThatThrownBy(() -> vendorService.deleteVendor(vendor.getId(), user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_HAS_PRODUCTS.getMessage());
     }
 }

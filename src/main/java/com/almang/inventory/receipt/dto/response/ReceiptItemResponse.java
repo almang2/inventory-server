@@ -7,13 +7,10 @@ public record ReceiptItemResponse(
         Long receiptItemId,
         Long receiptId,
         Long productId,
-        Integer boxCount,
-        BigDecimal measuredWeight,
         BigDecimal expectedQuantity,
         Integer actualQuantity,
         Integer unitPrice,
         Integer amount,
-        BigDecimal errorRate,
         String note
 ) {
     public static ReceiptItemResponse from(ReceiptItem receiptItem) {
@@ -21,13 +18,10 @@ public record ReceiptItemResponse(
                 receiptItem.getId(),
                 receiptItem.getReceipt().getId(),
                 receiptItem.getProduct().getId(),
-                receiptItem.getBoxCount(),
-                receiptItem.getMeasuredWeight(),
                 receiptItem.getExpectedQuantity(),
                 receiptItem.getActualQuantity(),
                 receiptItem.getUnitPrice(),
                 receiptItem.getAmount(),
-                receiptItem.getErrorRate(),
                 receiptItem.getNote()
         );
     }

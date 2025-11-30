@@ -24,13 +24,10 @@ import com.almang.inventory.receipt.dto.response.ReceiptResponse;
 import com.almang.inventory.receipt.repository.ReceiptItemRepository;
 import com.almang.inventory.receipt.repository.ReceiptRepository;
 import com.almang.inventory.store.domain.Store;
-import com.almang.inventory.user.domain.User;
-import com.almang.inventory.user.repository.UserRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -128,7 +125,7 @@ public class ReceiptService {
         validateReceiptOrderNotChanged(receipt, request.orderId());
 
         // 입고 정보 업데이트
-        receipt.update(request.totalBoxCount(), request.totalWeightG(), request.status(), request.activated());
+        receipt.update(request.status(), request.activated());
 
         // 입고 상세 항목 업데이트
         updateReceiptItems(receipt, request);
@@ -209,10 +206,8 @@ public class ReceiptService {
         ReceiptItem receiptItem = findReceiptItemByIdAndValidateAccess(receiptItemId, receipt);
 
         receiptItem.update(
-                request.boxCount(), request.measuredWeight(),
                 request.actualQuantity(), request.unitPrice(), request.note()
         );
-        receipt.updateTotalBoxCount(calculateTotalBoxCount(receipt.getItems()));
 
         log.info("[ReceiptService] 입고 아이템 수정 성공 - receiptItemId: {}", receiptItem.getId());
         return ReceiptItemResponse.from(receiptItem);
@@ -230,7 +225,6 @@ public class ReceiptService {
         ReceiptItem receiptItem = findReceiptItemByIdAndValidateAccess(receiptItemId, receipt);
 
         receipt.getItems().remove(receiptItem);
-        receipt.updateTotalBoxCount(calculateTotalBoxCount(receipt.getItems()));
 
         log.info("[ReceiptService] 입고 아이템 삭제 성공 - receiptItemId: {}", receiptItemId);
         return new DeleteReceiptItemResponse(true);
@@ -251,8 +245,6 @@ public class ReceiptService {
                 .store(store)
                 .order(order)
                 .receiptDate(LocalDate.now())
-                .totalBoxCount(0)
-                .totalWeightG(null)
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
                 .build();
@@ -261,13 +253,10 @@ public class ReceiptService {
     private ReceiptItem toReceiptItemEntity(OrderItem orderItem) {
         return ReceiptItem.builder()
                 .product(orderItem.getProduct())
-                .boxCount(null)
-                .measuredWeight(null)
                 .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
                 .actualQuantity(null)
                 .unitPrice(orderItem.getUnitPrice())
                 .amount(orderItem.getQuantity() * orderItem.getUnitPrice())
-                .errorRate(null)
                 .note(null)
                 .build();
     }
@@ -357,11 +346,9 @@ public class ReceiptService {
             ReceiptItem receiptItem =
                     findReceiptItemByIdAndValidateAccess(receiptItemRequest.receiptItemId(), receipt);
             receiptItem.update(
-                    receiptItemRequest.boxCount(), receiptItemRequest.measuredWeight(),
                     receiptItemRequest.actualQuantity(), receiptItemRequest.unitPrice(), receiptItemRequest.note()
             );
         }
-        receipt.updateTotalBoxCount(calculateTotalBoxCount(receipt.getItems()));
     }
 
     private ReceiptItem findReceiptItemByIdAndValidateAccess(Long receiptItemId, Receipt receipt) {
@@ -372,13 +359,5 @@ public class ReceiptService {
             throw new BaseException(ErrorCode.RECEIPT_ITEM_ACCESS_DENIED);
         }
         return receiptItem;
-    }
-
-    private int calculateTotalBoxCount(List<ReceiptItem> receiptItems) {
-        return receiptItems.stream()
-                .map(ReceiptItem::getBoxCount)
-                .filter(Objects::nonNull)
-                .mapToInt(Integer::intValue)
-                .sum();
     }
 }

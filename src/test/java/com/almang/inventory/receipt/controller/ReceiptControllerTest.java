@@ -72,12 +72,9 @@ class ReceiptControllerTest {
                         1000L,
                         1L,
                         10L,
-                        null,
-                        null,
                         BigDecimal.valueOf(5),
                         null,
                         5000,
-                        null,
                         null,
                         "비고입니다."
                 );
@@ -87,8 +84,6 @@ class ReceiptControllerTest {
                 10L,
                 orderId,
                 LocalDate.now(),
-                0,
-                null,
                 ReceiptStatus.PENDING,
                 true,
                 List.of(item)
@@ -194,12 +189,9 @@ class ReceiptControllerTest {
                 1000L,
                 1L,
                 10L,
-                null,
-                null,
                 BigDecimal.valueOf(5),
                 null,
                 5000,
-                null,
                 null,
                 "비고입니다."
         );
@@ -209,8 +201,6 @@ class ReceiptControllerTest {
                 10L,
                 orderId,
                 LocalDate.now(),
-                0,
-                null,
                 ReceiptStatus.PENDING,
                 true,
                 List.of(item)
@@ -316,12 +306,9 @@ class ReceiptControllerTest {
                 1000L,
                 1L,
                 10L,
-                null,
-                null,
                 BigDecimal.valueOf(5),
                 null,
                 5000,
-                null,
                 null,
                 "비고입니다."
         );
@@ -331,8 +318,6 @@ class ReceiptControllerTest {
                 10L,
                 200L,
                 LocalDate.now(),
-                0,
-                null,
                 ReceiptStatus.PENDING,
                 true,
                 List.of(item)
@@ -416,25 +401,17 @@ class ReceiptControllerTest {
         // given
         ReceiptItemResponse item1 = new ReceiptItemResponse(
                 1001L, 1L, 101L,
-                null, null,
-                BigDecimal.valueOf(5),
-                null, 5000, null,
-                null, "비고1"
+                BigDecimal.valueOf(5), null, 5000, null, "비고1"
         );
 
         ReceiptItemResponse item2 = new ReceiptItemResponse(
                 1002L, 1L, 102L,
-                null, null,
-                BigDecimal.valueOf(3),
-                null, 3000, null,
-                null, "비고2"
+                BigDecimal.valueOf(3), null, 3000, null, "비고2"
         );
 
         ReceiptResponse r1 = new ReceiptResponse(
                 1L, 10L, 100L,
                 LocalDate.now(),
-                0,
-                null,
                 ReceiptStatus.PENDING,
                 true,
                 List.of(item1)
@@ -443,8 +420,6 @@ class ReceiptControllerTest {
         ReceiptResponse r2 = new ReceiptResponse(
                 2L, 10L, 101L,
                 LocalDate.now(),
-                0,
-                null,
                 ReceiptStatus.PENDING,
                 true,
                 List.of(item2)
@@ -518,8 +493,6 @@ class ReceiptControllerTest {
         UpdateReceiptItemRequest updateItem = new UpdateReceiptItemRequest(
                 1000L,
                 receiptId,
-                2,
-                BigDecimal.valueOf(1.234),
                 10,
                 1100,
                 "수정 비고입니다."
@@ -527,8 +500,6 @@ class ReceiptControllerTest {
 
         UpdateReceiptRequest request = new UpdateReceiptRequest(
                 orderId,
-                null,
-                BigDecimal.valueOf(10.000),
                 ReceiptStatus.CONFIRMED,
                 true,
                 List.of(updateItem)
@@ -538,13 +509,10 @@ class ReceiptControllerTest {
                 1000L,
                 1L,
                 10L,
-                2,
-                BigDecimal.valueOf(1.234),
                 BigDecimal.valueOf(5),
                 10,
                 11000,
                 110000,
-                BigDecimal.valueOf(1.000),
                 "수정 비고입니다."
         );
 
@@ -553,8 +521,6 @@ class ReceiptControllerTest {
                 10L,
                 orderId,
                 LocalDate.now(),
-                2,
-                BigDecimal.valueOf(10.000),
                 ReceiptStatus.CONFIRMED,
                 true,
                 List.of(itemResponse)
@@ -578,10 +544,8 @@ class ReceiptControllerTest {
                 .andExpect(jsonPath("$.data.orderId").value(orderId))
                 .andExpect(jsonPath("$.data.status").value(ReceiptStatus.CONFIRMED.name()))
                 .andExpect(jsonPath("$.data.activated").value(true))
-                .andExpect(jsonPath("$.data.totalBoxCount").value(2))
                 .andExpect(jsonPath("$.data.receiptItems[0].receiptItemId").value(1000L))
                 .andExpect(jsonPath("$.data.receiptItems[0].productId").value(10L))
-                .andExpect(jsonPath("$.data.receiptItems[0].boxCount").value(2))
                 .andExpect(jsonPath("$.data.receiptItems[0].amount").value(110000));
     }
 
@@ -592,8 +556,6 @@ class ReceiptControllerTest {
 
         UpdateReceiptRequest request = new UpdateReceiptRequest(
                 200L,
-                null,
-                null,
                 null,
                 null,
                 List.of()
@@ -624,8 +586,6 @@ class ReceiptControllerTest {
                 200L,
                 null,
                 null,
-                null,
-                null,
                 List.of()
         );
 
@@ -652,8 +612,6 @@ class ReceiptControllerTest {
 
         UpdateReceiptRequest request = new UpdateReceiptRequest(
                 999L,
-                null,
-                null,
                 null,
                 null,
                 List.of()
@@ -683,8 +641,6 @@ class ReceiptControllerTest {
         UpdateReceiptItemRequest wrongItem = new UpdateReceiptItemRequest(
                 9999L,
                 receiptId,
-                1,
-                null,
                 5,
                 1000,
                 "잘못된 아이템"
@@ -692,8 +648,6 @@ class ReceiptControllerTest {
 
         UpdateReceiptRequest request = new UpdateReceiptRequest(
                 200L,
-                null,
-                null,
                 null,
                 null,
                 List.of(wrongItem)
@@ -793,13 +747,10 @@ class ReceiptControllerTest {
                 receiptItemId,
                 receiptId,
                 10L,
-                2,
-                BigDecimal.valueOf(1.234),
                 BigDecimal.valueOf(5),
                 10,
                 5000,
                 50000,
-                BigDecimal.valueOf(1.000),
                 "비고입니다."
         );
 
@@ -816,7 +767,6 @@ class ReceiptControllerTest {
                 .andExpect(jsonPath("$.data.receiptItemId").value(receiptItemId))
                 .andExpect(jsonPath("$.data.receiptId").value(receiptId))
                 .andExpect(jsonPath("$.data.productId").value(10L))
-                .andExpect(jsonPath("$.data.boxCount").value(2))
                 .andExpect(jsonPath("$.data.amount").value(50000));
     }
 
@@ -886,8 +836,6 @@ class ReceiptControllerTest {
         UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
                 receiptItemId,
                 receiptId,
-                2,
-                BigDecimal.valueOf(1.234),
                 10,
                 1500,
                 "수정 비고입니다."
@@ -897,13 +845,10 @@ class ReceiptControllerTest {
                 receiptItemId,
                 receiptId,
                 10L,
-                2,
-                BigDecimal.valueOf(1.234),
                 BigDecimal.valueOf(5),
                 10,
                 1500,
                 15000,
-                BigDecimal.valueOf(0.0),
                 "수정 비고입니다."
         );
 
@@ -923,7 +868,6 @@ class ReceiptControllerTest {
                 .andExpect(jsonPath("$.data.receiptItemId").value(receiptItemId))
                 .andExpect(jsonPath("$.data.receiptId").value(receiptId))
                 .andExpect(jsonPath("$.data.productId").value(10L))
-                .andExpect(jsonPath("$.data.boxCount").value(2))
                 .andExpect(jsonPath("$.data.actualQuantity").value(10))
                 .andExpect(jsonPath("$.data.unitPrice").value(1500))
                 .andExpect(jsonPath("$.data.amount").value(15000));
@@ -938,8 +882,6 @@ class ReceiptControllerTest {
         UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
                 receiptItemId,
                 receiptId,
-                2,
-                BigDecimal.valueOf(1.234),
                 10,
                 1500,
                 "수정 비고입니다."
@@ -970,8 +912,6 @@ class ReceiptControllerTest {
         UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
                 receiptItemId,
                 receiptId,
-                2,
-                BigDecimal.valueOf(1.234),
                 10,
                 1500,
                 "수정 비고입니다."
@@ -1002,8 +942,6 @@ class ReceiptControllerTest {
         UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
                 receiptItemId,
                 receiptId,
-                2,
-                BigDecimal.valueOf(1.234),
                 10,
                 1500,
                 "수정 비고입니다."
@@ -1034,8 +972,6 @@ class ReceiptControllerTest {
         UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
                 receiptItemId,
                 receiptId,
-                2,
-                BigDecimal.valueOf(1.234),
                 10,
                 1500,
                 "수정 비고입니다."
@@ -1066,8 +1002,6 @@ class ReceiptControllerTest {
         UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
                 receiptItemId,
                 receiptId,
-                2,
-                BigDecimal.valueOf(1.234),
                 10,
                 1500,
                 "수정 비고입니다."

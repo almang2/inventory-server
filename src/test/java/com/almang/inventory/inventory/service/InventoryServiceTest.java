@@ -104,7 +104,7 @@ class InventoryServiceTest {
         Vendor vendor = newVendor(store, "발주처");
         Product product = newProduct(store, vendor, "상품1", "P001");
 
-        inventoryService.createInventory(product);
+        inventoryService.createInventory(product, BigDecimal.valueOf(30));
 
         Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
                 .orElseThrow();
@@ -158,7 +158,7 @@ class InventoryServiceTest {
         Product product1 = newProduct(store, vendor, "상품1", "P001");
         Product product2 = newProduct(store, vendor, "상품2", "P002");
 
-        inventoryService.createInventory(product1);
+        inventoryService.createInventory(product1, BigDecimal.valueOf(30));
         Inventory inventory = inventoryRepository.findByProduct_Id(product1.getId())
                 .orElseThrow();
 
@@ -187,7 +187,7 @@ class InventoryServiceTest {
         Vendor vendor2 = newVendor(store2, "발주처2");
         Product product2 = newProduct(store2, vendor2, "상품2", "P002");
 
-        inventoryService.createInventory(product2);
+        inventoryService.createInventory(product2, BigDecimal.valueOf(30));
         Inventory inventoryOfStore2 = inventoryRepository.findByProduct_Id(product2.getId())
                 .orElseThrow();
 
@@ -257,7 +257,7 @@ class InventoryServiceTest {
         Vendor vendor = newVendor(store, "발주처");
         Product product = newProduct(store, vendor, "상품1", "P001");
 
-        inventoryService.createInventory(product);
+        inventoryService.createInventory(product, BigDecimal.valueOf(30));
 
         Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
                 .orElseThrow();
@@ -289,7 +289,7 @@ class InventoryServiceTest {
         Vendor vendor2 = newVendor(store2, "발주처2");
         Product product2 = newProduct(store2, vendor2, "상품2", "P002");
 
-        inventoryService.createInventory(product2);
+        inventoryService.createInventory(product2, BigDecimal.valueOf(30));
         Inventory inventoryOfStore2 = inventoryRepository.findByProduct_Id(product2.getId())
                 .orElseThrow();
 
@@ -307,7 +307,7 @@ class InventoryServiceTest {
         Vendor vendor = newVendor(store, "발주처");
         Product product = newProduct(store, vendor, "상품1", "P001");
 
-        inventoryService.createInventory(product);
+        inventoryService.createInventory(product, BigDecimal.valueOf(30));
 
         Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
                 .orElseThrow();
@@ -338,7 +338,7 @@ class InventoryServiceTest {
         Vendor vendor2 = newVendor(store2, "발주처2");
         Product product2 = newProduct(store2, vendor2, "상품2", "P002");
 
-        inventoryService.createInventory(product2);
+        inventoryService.createInventory(product2, BigDecimal.valueOf(30));
 
         // when & then
         assertThatThrownBy(() -> inventoryService.getInventoryByProduct(product2.getId(), user1.getId()))
@@ -357,14 +357,14 @@ class InventoryServiceTest {
         Product product2 = newProduct(store, vendor, "상품B", "P002");
         Product product3 = newProduct(store, vendor, "상품C", "P003");
 
-        inventoryService.createInventory(product1);
-        inventoryService.createInventory(product2);
-        inventoryService.createInventory(product3);
+        inventoryService.createInventory(product1, BigDecimal.valueOf(30));
+        inventoryService.createInventory(product2, BigDecimal.valueOf(30));
+        inventoryService.createInventory(product3, BigDecimal.valueOf(30));
 
         Store otherStore = newStore("다른상점");
         Vendor otherVendor = newVendor(otherStore, "다른발주처");
         Product otherProduct = newProduct(otherStore, otherVendor, "다른상품", "PX01");
-        inventoryService.createInventory(otherProduct);
+        inventoryService.createInventory(otherProduct, BigDecimal.valueOf(30));
 
         // when
         PageResponse<InventoryResponse> pageResponse =
@@ -398,9 +398,9 @@ class InventoryServiceTest {
         Product other1 = newProduct(store, vendor, "고무장갑 M", "P002");
         Product other2 = newProduct(store, vendor, "실리콘 용기 540ml", "P003");
 
-        inventoryService.createInventory(target);
-        inventoryService.createInventory(other1);
-        inventoryService.createInventory(other2);
+        inventoryService.createInventory(target, BigDecimal.valueOf(30));
+        inventoryService.createInventory(other1, BigDecimal.valueOf(30));
+        inventoryService.createInventory(other2, BigDecimal.valueOf(30));
 
         // when
         PageResponse<InventoryResponse> pageResponse =
@@ -425,8 +425,8 @@ class InventoryServiceTest {
         Product displayProduct = newProduct(store, vendor, "매대상품", "P001");
         Product warehouseProduct = newProduct(store, vendor, "창고상품", "P002");
 
-        inventoryService.createInventory(displayProduct);
-        inventoryService.createInventory(warehouseProduct);
+        inventoryService.createInventory(displayProduct, BigDecimal.valueOf(30));
+        inventoryService.createInventory(warehouseProduct, BigDecimal.valueOf(30));
 
         Inventory displayInventory = inventoryRepository.findByProduct_Id(displayProduct.getId())
                 .orElseThrow();
@@ -479,9 +479,9 @@ class InventoryServiceTest {
         Product p1 = newProduct(store, vendor, "고무장갑", "P001");
         Product p2 = newProduct(store, vendor, "실리콘 용기", "P002");
 
-        inventoryService.createInventory(p3);
-        inventoryService.createInventory(p1);
-        inventoryService.createInventory(p2);
+        inventoryService.createInventory(p3, BigDecimal.valueOf(30));
+        inventoryService.createInventory(p1, BigDecimal.valueOf(30));
+        inventoryService.createInventory(p2, BigDecimal.valueOf(30));
 
         // when: sort=productName
         PageResponse<InventoryResponse> response =
@@ -505,7 +505,7 @@ class InventoryServiceTest {
         Vendor vendor = newVendor(store, "발주처");
         Product product = newProduct(store, vendor, "이동상품", "P001");
 
-        inventoryService.createInventory(product);
+        inventoryService.createInventory(product, BigDecimal.valueOf(30));
         Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
                 .orElseThrow();
 
@@ -544,7 +544,7 @@ class InventoryServiceTest {
         Vendor vendor = newVendor(store, "발주처2");
         Product product = newProduct(store, vendor, "이동상품2", "P002");
 
-        inventoryService.createInventory(product);
+        inventoryService.createInventory(product, BigDecimal.valueOf(30));
         Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
                 .orElseThrow();
 
@@ -585,7 +585,7 @@ class InventoryServiceTest {
         Vendor vendor2 = newVendor(store2, "발주처2");
         Product product2 = newProduct(store2, vendor2, "상품2", "P002");
 
-        inventoryService.createInventory(product2);
+        inventoryService.createInventory(product2, BigDecimal.valueOf(30));
         Inventory inventoryOfStore2 = inventoryRepository.findByProduct_Id(product2.getId())
                 .orElseThrow();
 
@@ -607,7 +607,7 @@ class InventoryServiceTest {
         Vendor vendor = newVendor(store, "발주처");
         Product product = newProduct(store, vendor, "이동상품", "P001");
 
-        inventoryService.createInventory(product);
+        inventoryService.createInventory(product, BigDecimal.valueOf(30));
         Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
                 .orElseThrow();
 
@@ -645,7 +645,7 @@ class InventoryServiceTest {
         Vendor vendor = newVendor(store, "발주처2");
         Product product = newProduct(store, vendor, "이동상품2", "P002");
 
-        inventoryService.createInventory(product);
+        inventoryService.createInventory(product, BigDecimal.valueOf(30));
         Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
                 .orElseThrow();
 

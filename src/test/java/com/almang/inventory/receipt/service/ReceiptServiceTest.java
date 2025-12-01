@@ -157,7 +157,7 @@ class ReceiptServiceTest {
                         .warehouseStock(BigDecimal.ZERO)
                         .outgoingReserved(BigDecimal.ZERO)
                         .incomingReserved(BigDecimal.ZERO)
-                        .reorderTriggerPoint(null)
+                        .reorderTriggerPoint(BigDecimal.valueOf(30))
                         .build()
         );
     }

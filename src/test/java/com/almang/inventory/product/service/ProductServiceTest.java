@@ -94,7 +94,8 @@ public class ProductServiceTest {
                 BigDecimal.valueOf(100.0),
                 1000,
                 1500,
-                1200
+                1200,
+                BigDecimal.valueOf(30)
         );
 
         // when
@@ -124,7 +125,7 @@ public class ProductServiceTest {
         assertThat(inventory.getIncomingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(inventory.getOutgoingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(inventory.getReorderTriggerPoint())
-                .isEqualByComparingTo(store.getDefaultCountCheckThreshold());
+                .isEqualByComparingTo(BigDecimal.valueOf(30));
     }
 
     @Test
@@ -145,7 +146,8 @@ public class ProductServiceTest {
                 BigDecimal.valueOf(100.0),
                 1000,
                 1500,
-                1200
+                1200,
+                BigDecimal.valueOf(30)
         );
 
         // when & then
@@ -172,7 +174,8 @@ public class ProductServiceTest {
                 BigDecimal.valueOf(100.0),
                 1000,
                 1500,
-                1200
+                1200,
+                BigDecimal.valueOf(30)
         );
 
         // when & then
@@ -206,7 +209,8 @@ public class ProductServiceTest {
                 BigDecimal.valueOf(100.0),
                 1000,
                 1500,
-                1200
+                1200,
+                BigDecimal.valueOf(30)
         );
 
         // when & then
@@ -233,7 +237,8 @@ public class ProductServiceTest {
                 BigDecimal.valueOf(90.0),
                 1000,
                 1500,
-                1200
+                1200,
+                BigDecimal.valueOf(30)
         );
 
         ProductResponse created = productService.createProduct(createRequest, user.getId());
@@ -316,7 +321,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(90.0),
                         1000,
                         1500,
-                        1200
+                        1200,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -364,7 +370,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(90.0),
                         1000,
                         1500,
-                        1200
+                        1200,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -420,7 +427,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(90.0),
                         1000,
                         1500,
-                        1200
+                        1200,
+                        BigDecimal.valueOf(30)
                 ),
                 userOfStore2.getId()
         );
@@ -465,7 +473,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(90.0),
                         1000,
                         1500,
-                        1200
+                        1200,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -532,7 +541,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(90.0),
                         1000,
                         1500,
-                        1200
+                        1200,
+                        BigDecimal.valueOf(30)
                 ),
                 userOfStore2.getId()
         );
@@ -563,7 +573,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(90.0),
                         1000,
                         1500,
-                        1200
+                        1200,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -578,7 +589,8 @@ public class ProductServiceTest {
                         null,
                         500,
                         800,
-                        600
+                        600,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -593,7 +605,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(200.0),
                         3000,
                         4000,
-                        3500
+                        3500,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -628,7 +641,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(90.0),
                         1000,
                         1500,
-                        1200
+                        1200,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -645,7 +659,8 @@ public class ProductServiceTest {
                         null,
                         500,
                         800,
-                        600
+                        600,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -698,7 +713,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(90.0),
                         1000,
                         1500,
-                        1200
+                        1200,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -713,7 +729,8 @@ public class ProductServiceTest {
                         null,
                         500,
                         800,
-                        600
+                        600,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -728,7 +745,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(200.0),
                         3000,
                         4000,
-                        3500
+                        3500,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -763,7 +781,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(90.0),
                         1000,
                         1500,
-                        1200
+                        1200,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -779,7 +798,8 @@ public class ProductServiceTest {
                         null,
                         500,
                         800,
-                        600
+                        600,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -848,7 +868,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(90.0),
                         1000,
                         1500,
-                        1200
+                        1200,
+                        BigDecimal.valueOf(30)
                 ),
                 user1.getId()
         );
@@ -863,7 +884,8 @@ public class ProductServiceTest {
                         null,
                         500,
                         800,
-                        600
+                        600,
+                        BigDecimal.valueOf(30)
                 ),
                 user1.getId()
         );
@@ -880,7 +902,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(200.0),
                         3000,
                         4000,
-                        3500
+                        3500,
+                        BigDecimal.valueOf(30)
                 ),
                 user2.getId()
         );
@@ -929,7 +952,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(90.0),
                         1000,
                         1500,
-                        1200
+                        1200,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -946,7 +970,8 @@ public class ProductServiceTest {
                         null,
                         500,
                         800,
-                        600
+                        600,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -1001,7 +1026,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(90.0),
                         1000,
                         1500,
-                        1200
+                        1200,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -1018,7 +1044,8 @@ public class ProductServiceTest {
                         null,
                         500,
                         800,
-                        600
+                        600,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -1035,7 +1062,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(200.0),
                         3000,
                         4000,
-                        3500
+                        3500,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -1108,7 +1136,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(90.0),
                         1000,
                         1500,
-                        1200
+                        1200,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );
@@ -1176,7 +1205,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(90.0),
                         1000,
                         1500,
-                        1200
+                        1200,
+                        BigDecimal.valueOf(30)
                 ),
                 userOfStore2.getId()
         );
@@ -1205,7 +1235,8 @@ public class ProductServiceTest {
                         BigDecimal.valueOf(90.0),
                         1000,
                         1500,
-                        1200
+                        1200,
+                        BigDecimal.valueOf(30)
                 ),
                 user.getId()
         );

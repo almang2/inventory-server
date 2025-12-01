@@ -106,7 +106,7 @@ class OrderServiceTest {
                         .wholesalePrice(1200)
                         .build()
         );
-        inventoryService.createInventory(product);
+        inventoryService.createInventory(product, BigDecimal.valueOf(30));
 
         return product;
     }

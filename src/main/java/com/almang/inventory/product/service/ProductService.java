@@ -42,7 +42,7 @@ public class ProductService {
         log.info("[ProductService] 품목 생성 요청 - userId: {}", user.getId());
         Product product = toEntity(request, user);
         Product saved = productRepository.save(product);
-        inventoryService.createInventory(saved);
+        inventoryService.createInventory(saved, request.reorderTriggerPoint());
 
         log.info("[ProductService] 품목 생성 성공 - productId: {}", saved.getId());
         return ProductResponse.from(saved);

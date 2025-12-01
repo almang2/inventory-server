@@ -33,9 +33,9 @@ public class InventoryService {
     private final UserContextProvider userContextProvider;
 
     @Transactional
-    public void createInventory(Product product) {
+    public void createInventory(Product product, BigDecimal reorderTriggerPoint) {
         log.info("[InventoryService] 재고 생성 요청 - productId: {}", product.getId());
-        Inventory inventory = toInventoryEntity(product);
+        Inventory inventory = toInventoryEntity(product, reorderTriggerPoint);
         inventoryRepository.save(inventory);
         log.info("[InventoryService] 재고 생성 성공 - inventoryId: {}", inventory.getId());
     }
@@ -185,14 +185,15 @@ public class InventoryService {
         return InventoryResponse.from(inventory);
     }
 
-    private Inventory toInventoryEntity(Product product) {
+    private Inventory toInventoryEntity(Product product, BigDecimal reorderTriggerPoint) {
         return Inventory.builder()
                 .product(product)
                 .displayStock(BigDecimal.ZERO)
                 .warehouseStock(BigDecimal.ZERO)
                 .outgoingReserved(BigDecimal.ZERO)
                 .incomingReserved(BigDecimal.ZERO)
-                .reorderTriggerPoint(product.getStore().getDefaultCountCheckThreshold())
+                .reorderTriggerPoint(reorderTriggerPoint)
+                .deletedAt(null)
                 .build();
     }
 

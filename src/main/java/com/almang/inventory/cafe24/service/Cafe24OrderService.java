@@ -27,8 +27,7 @@ public class Cafe24OrderService {
     private final ProductRepository productRepository;
     private final com.almang.inventory.store.repository.StoreRepository storeRepository;
     private final com.almang.inventory.vendor.repository.VendorRepository vendorRepository;
-    private final com.almang.inventory.customerorder.service.CustomerOrderService customerOrderService; // Injected
-                                                                                                        // CustomerOrderService
+    private final com.almang.inventory.customerorder.service.CustomerOrderService customerOrderService;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -163,7 +162,7 @@ public class Cafe24OrderService {
 
     private Product createNewProduct(JsonNode itemNode, String variantCode, String productCode) {
         // 1. Store 조회 또는 생성
-        com.almang.inventory.store.domain.Store store = storeRepository.findAll().stream().findFirst()
+        com.almang.inventory.store.domain.Store newStore = storeRepository.findAll().stream().findFirst()
                 .orElseGet(() -> storeRepository.save(com.almang.inventory.store.domain.Store.builder()
                         .name("Default Store")
                         .isActivate(true)
@@ -173,7 +172,7 @@ public class Cafe24OrderService {
         // 2. Vendor 조회 또는 생성
         com.almang.inventory.vendor.domain.Vendor vendor = vendorRepository.findAll().stream().findFirst()
                 .orElseGet(() -> vendorRepository.save(com.almang.inventory.vendor.domain.Vendor.builder()
-                        .store(store)
+                        .store(newStore)
                         .name("Default Vendor")
                         .channel(com.almang.inventory.vendor.domain.VendorChannel.WEB)
                         .contactPoint("000-0000-0000")
@@ -186,7 +185,7 @@ public class Cafe24OrderService {
         BigDecimal price = new BigDecimal(itemNode.path("product_price").asText("0"));
 
         return productRepository.save(Product.builder()
-                .store(store)
+                .store(newStore)
                 .vendor(vendor)
                 .name(name)
                 .code(code)

@@ -5,6 +5,7 @@ import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.product.domain.Product;
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -47,8 +48,11 @@ public class Inventory extends BaseTimeEntity {
     @Column(name = "incoming_reserved", precision = 10, scale = 3, nullable = false)
     private BigDecimal incomingReserved;
 
-    @Column(name = "reorder_trigger_point", precision = 3, scale = 2)
+    @Column(name = "reorder_trigger_point", precision = 10, scale = 3, nullable = false)
     private BigDecimal reorderTriggerPoint;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     // 입고 예정 추가
     public void increaseIncoming(BigDecimal quantity) {

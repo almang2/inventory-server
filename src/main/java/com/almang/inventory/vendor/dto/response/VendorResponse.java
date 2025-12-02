@@ -7,7 +7,10 @@ public record VendorResponse(
         Long vendorId,
         String name,
         VendorChannel channel,
-        String contactPoint,
+        String phoneNumber,
+        String email,
+        String webPage,
+        String orderMethod,
         String note,
         boolean activated,
         Long storeId
@@ -17,7 +20,10 @@ public record VendorResponse(
                 vendor.getId(),
                 vendor.getName(),
                 vendor.getChannel(),
-                vendor.getContactPoint(),
+                vendor.getPhoneNumber(),
+                vendor.getEmail(),
+                vendor.getWebPage(),
+                vendor.getOrderMethod(),
                 vendor.getNote(),
                 vendor.isActivated(),
                 vendor.getStore().getId()

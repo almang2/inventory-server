@@ -1,5 +1,6 @@
 package com.almang.inventory.vendor.controller;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -67,6 +68,9 @@ class VendorControllerTest {
                 "테스트 발주처",
                 VendorChannel.KAKAO,
                 "010-1111-2222",
+                null,
+                null,
+                "주문 방법",
                 "비고"
         );
 
@@ -75,6 +79,9 @@ class VendorControllerTest {
                 "테스트 발주처",
                 VendorChannel.KAKAO,
                 "010-1111-2222",
+                null,
+                null,
+                "주문 방법",
                 "비고",
                 true,
                 1L
@@ -95,7 +102,10 @@ class VendorControllerTest {
                 .andExpect(jsonPath("$.data.vendorId").value(1L))
                 .andExpect(jsonPath("$.data.name").value("테스트 발주처"))
                 .andExpect(jsonPath("$.data.channel").value(VendorChannel.KAKAO.name()))
-                .andExpect(jsonPath("$.data.contactPoint").value("010-1111-2222"))
+                .andExpect(jsonPath("$.data.phoneNumber").value("010-1111-2222"))
+                .andExpect(jsonPath("$.data.email", nullValue()))
+                .andExpect(jsonPath("$.data.webPage", nullValue()))
+                .andExpect(jsonPath("$.data.orderMethod").value("주문 방법"))
                 .andExpect(jsonPath("$.data.note").value("비고"))
                 .andExpect(jsonPath("$.data.storeId").value(1L))
                 .andExpect(jsonPath("$.data.activated").value(true));
@@ -108,6 +118,9 @@ class VendorControllerTest {
                 "테스트 발주처",
                 VendorChannel.KAKAO,
                 "010-1111-2222",
+                null,
+                null,
+                "주문 방법",
                 "비고"
         );
 
@@ -133,6 +146,9 @@ class VendorControllerTest {
                 "",
                 null,
                 "",
+                null,
+                null,
+                null,
                 "비고"
         );
 
@@ -157,7 +173,10 @@ class VendorControllerTest {
         UpdateVendorRequest request = new UpdateVendorRequest(
                 "수정된 발주처",
                 VendorChannel.EMAIL,
+                null,
                 "vendor-updated@test.com",
+                null,
+                "주문 방법",
                 "수정 메모",
                 false
         );
@@ -166,7 +185,10 @@ class VendorControllerTest {
                 vendorId,
                 "수정된 발주처",
                 VendorChannel.EMAIL,
+                null,
                 "vendor-updated@test.com",
+                null,
+                "주문 방법",
                 "수정 메모",
                 false,
                 1L
@@ -187,7 +209,8 @@ class VendorControllerTest {
                 .andExpect(jsonPath("$.data.vendorId").value(vendorId))
                 .andExpect(jsonPath("$.data.name").value("수정된 발주처"))
                 .andExpect(jsonPath("$.data.channel").value("EMAIL"))
-                .andExpect(jsonPath("$.data.contactPoint").value("vendor-updated@test.com"))
+                .andExpect(jsonPath("$.data.email").value("vendor-updated@test.com"))
+                .andExpect(jsonPath("$.data.orderMethod").value("주문 방법"))
                 .andExpect(jsonPath("$.data.note").value("수정 메모"))
                 .andExpect(jsonPath("$.data.activated").value(false));
     }
@@ -201,6 +224,9 @@ class VendorControllerTest {
                 "수정 요청",
                 VendorChannel.KAKAO,
                 "010-9999-9999",
+                null,
+                null,
+                "주문 방법",
                 "존재하지 않는 발주처",
                 true
         );
@@ -227,6 +253,9 @@ class VendorControllerTest {
                 "1234567890123456789012345678901",
                 VendorChannel.EMAIL,
                 "",
+                null,
+                null,
+                null,
                 "메모",
                 true
         );
@@ -254,6 +283,9 @@ class VendorControllerTest {
                 "테스트 발주처",
                 VendorChannel.KAKAO,
                 "010-1111-2222",
+                null,
+                null,
+                "주문 방법",
                 "메모",
                 true,
                 1L
@@ -273,7 +305,10 @@ class VendorControllerTest {
                 .andExpect(jsonPath("$.data.vendorId").value(vendorId))
                 .andExpect(jsonPath("$.data.name").value("테스트 발주처"))
                 .andExpect(jsonPath("$.data.channel").value("KAKAO"))
-                .andExpect(jsonPath("$.data.contactPoint").value("010-1111-2222"))
+                .andExpect(jsonPath("$.data.phoneNumber").value("010-1111-2222"))
+                .andExpect(jsonPath("$.data.email", nullValue()))
+                .andExpect(jsonPath("$.data.webPage", nullValue()))
+                .andExpect(jsonPath("$.data.orderMethod").value("주문 방법"))
                 .andExpect(jsonPath("$.data.note").value("메모"))
                 .andExpect(jsonPath("$.data.storeId").value(1L))
                 .andExpect(jsonPath("$.data.activated").value(true));
@@ -303,8 +338,12 @@ class VendorControllerTest {
         // given
         PageResponse<VendorResponse> response = new PageResponse<>(
                 List.of(
-                        new VendorResponse(1L, "테스트1", VendorChannel.KAKAO, "010-1111-1111", "메모1", true, 1L),
-                        new VendorResponse(2L, "테스트2", VendorChannel.EMAIL, "010-2222-2222", "메모2", true, 1L)
+                        new VendorResponse(
+                                1L, "테스트1", VendorChannel.KAKAO, "010-1111-1111", null, null, "주문 방법","메모1", true, 1L
+                        ),
+                        new VendorResponse(
+                                2L, "테스트2", VendorChannel.EMAIL, "010-2222-2222", null, null, "주문 방법", "메모2", true, 1L
+                        )
                 ),
                 1,
                 20,
@@ -335,7 +374,9 @@ class VendorControllerTest {
         // given
         PageResponse<VendorResponse> response = new PageResponse<>(
                 List.of(
-                        new VendorResponse(1L, "활성 발주처", VendorChannel.KAKAO, "010-3333-3333", "메모", true, 1L)
+                        new VendorResponse(
+                                1L, "활성 발주처", VendorChannel.KAKAO, "010-3333-3333", null, null, "주문 방법", "메모", true, 1L
+                        )
                 ),
                 1,
                 20,
@@ -366,7 +407,7 @@ class VendorControllerTest {
         // given
         PageResponse<VendorResponse> response = new PageResponse<>(
                 List.of(
-                        new VendorResponse(1L, "사과 공장", VendorChannel.KAKAO, "010-4444-4444", "메모", true, 1L)
+                        new VendorResponse(1L, "사과 공장", VendorChannel.KAKAO, "010-4444-4444",null, null, "주문 방법", "메모", true, 1L)
                 ),
                 1,
                 20,
@@ -401,6 +442,9 @@ class VendorControllerTest {
                                 "비활성 발주처",
                                 VendorChannel.KAKAO,
                                 "010-3333-3333",
+                                null,
+                                null,
+                                "주문 방법",
                                 "메모",
                                 false,
                                 1L

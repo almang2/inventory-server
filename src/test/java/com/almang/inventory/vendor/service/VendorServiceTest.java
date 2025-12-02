@@ -72,7 +72,10 @@ class VendorServiceTest {
                         .store(store)
                         .name("기존 발주처")
                         .channel(VendorChannel.KAKAO)
-                        .contactPoint("010-1111-1111")
+                        .phoneNumber("010-1111-1111")
+                        .email(null)
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("원본 메모")
                         .activated(true)
                         .build()
@@ -105,6 +108,9 @@ class VendorServiceTest {
                 "테스트 발주처",
                 VendorChannel.KAKAO,
                 "010-0000-0000",
+                null,
+                null,
+                "주문 방법",
                 "비고 메모"
         );
 
@@ -114,7 +120,10 @@ class VendorServiceTest {
         // then
         assertThat(response.name()).isEqualTo("테스트 발주처");
         assertThat(response.channel()).isEqualTo(VendorChannel.KAKAO);
-        assertThat(response.contactPoint()).isEqualTo("010-0000-0000");
+        assertThat(response.phoneNumber()).isEqualTo("010-0000-0000");
+        assertThat(response.email()).isNull();
+        assertThat(response.webPage()).isNull();
+        assertThat(response.orderMethod()).isEqualTo("주문 방법");
         assertThat(response.note()).isEqualTo("비고 메모");
         assertThat(response.storeId()).isEqualTo(store.getId());
         assertThat(response.activated()).isTrue();
@@ -134,6 +143,9 @@ class VendorServiceTest {
                 "테스트 발주처",
                 VendorChannel.KAKAO,
                 "010-0000-0000",
+                null,
+                null,
+                "주문 방법",
                 "비고 메모"
         );
 
@@ -152,7 +164,10 @@ class VendorServiceTest {
         CreateVendorRequest request = new CreateVendorRequest(
                 "비고없는 발주처",
                 VendorChannel.EMAIL,
+                null,
                 "vendor@test.com",
+                null,
+                "주문 방법",
                 null
         );
 
@@ -162,7 +177,10 @@ class VendorServiceTest {
         // then
         assertThat(response.name()).isEqualTo("비고없는 발주처");
         assertThat(response.channel()).isEqualTo(VendorChannel.EMAIL);
-        assertThat(response.contactPoint()).isEqualTo("vendor@test.com");
+        assertThat(response.phoneNumber()).isNull();
+        assertThat(response.email()).isEqualTo("vendor@test.com");
+        assertThat(response.webPage()).isNull();
+        assertThat(response.orderMethod()).isEqualTo("주문 방법");
         assertThat(response.note()).isNull();
         assertThat(response.storeId()).isEqualTo(store.getId());
         assertThat(response.activated()).isTrue();
@@ -178,7 +196,10 @@ class VendorServiceTest {
         UpdateVendorRequest request = new UpdateVendorRequest(
                 "수정된 발주처",
                 VendorChannel.EMAIL,
+                null,
                 "vendor-updated@test.com",
+                null,
+                null,
                 "수정된 메모",
                 false
         );
@@ -190,7 +211,8 @@ class VendorServiceTest {
         assertThat(response.vendorId()).isEqualTo(vendor.getId());
         assertThat(response.name()).isEqualTo("수정된 발주처");
         assertThat(response.channel()).isEqualTo(VendorChannel.EMAIL);
-        assertThat(response.contactPoint()).isEqualTo("vendor-updated@test.com");
+        assertThat(response.phoneNumber()).isEqualTo("010-1111-1111");
+        assertThat(response.email()).isEqualTo("vendor-updated@test.com");
         assertThat(response.note()).isEqualTo("수정된 메모");
         assertThat(response.activated()).isFalse();
 
@@ -198,7 +220,7 @@ class VendorServiceTest {
                 .orElseThrow();
         assertThat(updated.getName()).isEqualTo("수정된 발주처");
         assertThat(updated.getChannel()).isEqualTo(VendorChannel.EMAIL);
-        assertThat(updated.getContactPoint()).isEqualTo("vendor-updated@test.com");
+        assertThat(updated.getEmail()).isEqualTo("vendor-updated@test.com");
         assertThat(updated.getNote()).isEqualTo("수정된 메모");
         assertThat(updated.isActivated()).isFalse();
     }
@@ -214,6 +236,9 @@ class VendorServiceTest {
                 "수정_시도",
                 VendorChannel.KAKAO,
                 "010-9999-9999",
+                null,
+                null,
+                null,
                 "수정 메모",
                 true
         );
@@ -246,7 +271,10 @@ class VendorServiceTest {
                         .store(store2)
                         .name("상점2 발주처")
                         .channel(VendorChannel.KAKAO)
-                        .contactPoint("010-2222-2222")
+                        .phoneNumber("010-2222-2222")
+                        .email(null)
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("상점2 메모")
                         .activated(true)
                         .build()
@@ -255,7 +283,10 @@ class VendorServiceTest {
         UpdateVendorRequest request = new UpdateVendorRequest(
                 "불법 수정 시도",
                 VendorChannel.EMAIL,
+                null,
                 "hacker@test.com",
+                null,
+                null,
                 "해킹 시도",
                 false
         );
@@ -280,7 +311,10 @@ class VendorServiceTest {
         assertThat(response.vendorId()).isEqualTo(vendor.getId());
         assertThat(response.name()).isEqualTo("기존 발주처");
         assertThat(response.channel()).isEqualTo(VendorChannel.KAKAO);
-        assertThat(response.contactPoint()).isEqualTo("010-1111-1111");
+        assertThat(response.phoneNumber()).isEqualTo("010-1111-1111");
+        assertThat(response.email()).isNull();
+        assertThat(response.webPage()).isNull();
+        assertThat(response.orderMethod()).isEqualTo("주문 방법");
         assertThat(response.note()).isEqualTo("원본 메모");
         assertThat(response.storeId()).isEqualTo(store.getId());
         assertThat(response.activated()).isTrue();
@@ -321,7 +355,10 @@ class VendorServiceTest {
                         .store(store2)
                         .name("상점2 발주처")
                         .channel(VendorChannel.KAKAO)
-                        .contactPoint("010-2222-2222")
+                        .phoneNumber("010-2222-2222")
+                        .email(null)
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("상점2 메모")
                         .activated(true)
                         .build()
@@ -345,7 +382,10 @@ class VendorServiceTest {
                         .store(store)
                         .name("두번째 발주처")
                         .channel(VendorChannel.EMAIL)
-                        .contactPoint("email@test.com")
+                        .phoneNumber(null)
+                        .email("email@test.com")
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("메모")
                         .activated(true)
                         .build()
@@ -373,7 +413,10 @@ class VendorServiceTest {
                         .store(store)
                         .name("활성 발주처")
                         .channel(VendorChannel.KAKAO)
-                        .contactPoint("010-1111-1111")
+                        .phoneNumber("010-1111-1111")
+                        .email(null)
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("메모")
                         .activated(true)
                         .build()
@@ -384,7 +427,10 @@ class VendorServiceTest {
                         .store(store)
                         .name("비활성 발주처")
                         .channel(VendorChannel.EMAIL)
-                        .contactPoint("email@test.com")
+                        .phoneNumber(null)
+                        .email("email@test.com")
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("메모2")
                         .activated(false)
                         .build()
@@ -412,7 +458,10 @@ class VendorServiceTest {
                         .store(store)
                         .name("사과 공장")
                         .channel(VendorChannel.KAKAO)
-                        .contactPoint("010-1111-2222")
+                        .phoneNumber("010-1111-2222")
+                        .email(null)
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("메모")
                         .activated(true)
                         .build()
@@ -423,7 +472,10 @@ class VendorServiceTest {
                         .store(store)
                         .name("바나나 공장")
                         .channel(VendorChannel.EMAIL)
-                        .contactPoint("010-3333-4444")
+                        .phoneNumber("010-3333-4444")
+                        .email(null)
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("메모2")
                         .activated(true)
                         .build()
@@ -450,7 +502,10 @@ class VendorServiceTest {
                         .store(store)
                         .name("사과 공장")
                         .channel(VendorChannel.KAKAO)
-                        .contactPoint("010-1111-2222")
+                        .phoneNumber("010-1111-2222")
+                        .email(null)
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("메모")
                         .activated(true)
                         .build()
@@ -461,7 +516,10 @@ class VendorServiceTest {
                         .store(store)
                         .name("사과 비활성 공장")
                         .channel(VendorChannel.EMAIL)
-                        .contactPoint("010-3333-4444")
+                        .phoneNumber("010-3333-4444")
+                        .email(null)
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("메모2")
                         .activated(false)
                         .build()
@@ -489,7 +547,10 @@ class VendorServiceTest {
                         .store(store)
                         .name("활성 발주처")
                         .channel(VendorChannel.KAKAO)
-                        .contactPoint("010-1111-1111")
+                        .phoneNumber("010-1111-1111")
+                        .email(null)
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("메모")
                         .activated(true)
                         .build()
@@ -500,7 +561,10 @@ class VendorServiceTest {
                         .store(store)
                         .name("비활성 발주처")
                         .channel(VendorChannel.EMAIL)
-                        .contactPoint("email@test.com")
+                        .phoneNumber(null)
+                        .email("email@test.com")
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("메모2")
                         .activated(false)
                         .build()
@@ -528,7 +592,10 @@ class VendorServiceTest {
                         .store(store)
                         .name("사과 활성 공장")
                         .channel(VendorChannel.KAKAO)
-                        .contactPoint("010-1111-1111")
+                        .phoneNumber("010-1111-1111")
+                        .email(null)
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("메모1")
                         .activated(true)
                         .build()
@@ -539,7 +606,10 @@ class VendorServiceTest {
                         .store(store)
                         .name("사과 비활성 공장")
                         .channel(VendorChannel.EMAIL)
-                        .contactPoint("010-2222-2222")
+                        .phoneNumber("010-2222-2222")
+                        .email(null)
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("메모2")
                         .activated(false)
                         .build()
@@ -645,7 +715,10 @@ class VendorServiceTest {
                         .store(store2)
                         .name("상점2 발주처")
                         .channel(VendorChannel.KAKAO)
-                        .contactPoint("010-2222-2222")
+                        .phoneNumber("010-2222-2222")
+                        .email(null)
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("상점2 메모")
                         .activated(true)
                         .build()
@@ -838,7 +911,10 @@ class VendorServiceTest {
                         .store(store2)
                         .name("상점2 발주처")
                         .channel(VendorChannel.KAKAO)
-                        .contactPoint("010-2222-2222")
+                        .phoneNumber("010-2222-2222")
+                        .email(null)
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("상점2 메모")
                         .activated(true)
                         .build()
@@ -909,7 +985,10 @@ class VendorServiceTest {
                         .store(store2)
                         .name("상점2 발주처")
                         .channel(VendorChannel.KAKAO)
-                        .contactPoint("010-2222-2222")
+                        .phoneNumber("010-2222-2222")
+                        .email(null)
+                        .webPage(null)
+                        .orderMethod("주문 방법")
                         .note("상점2 메모")
                         .activated(true)
                         .build()

@@ -43,7 +43,12 @@ public class RetailService {
 
     @Transactional
     public RetailUploadResult processRetailExcel(MultipartFile file) {
-        // 1. 상점 조회 (없으면 null)
+        // 1. 상점 조회
+        // Store는 선택적(optional) 필드입니다. Retail 엔티티의 store 필드는 nullable=true로 설정되어 있으며,
+        // Store가 없는 경우에도 Retail 데이터를 저장할 수 있습니다.
+        // - Store가 있을 때: storeId와 soldDate로 중복 체크, 해당 Store에 속한 Retail만 조회
+        // - Store가 없을 때: soldDate로만 중복 체크, 모든 Retail 조회 가능
+        // 현재는 시스템에 단일 Store만 존재한다고 가정하여 첫 번째 Store를 조회합니다.
         Store store = storeRepository.findAll().stream().findFirst().orElse(null);
 
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {

@@ -8,6 +8,9 @@ import jakarta.validation.constraints.Size;
 public record CreateVendorRequest(
         @NotBlank @Size(max = 30) String name,
         @NotNull VendorChannel channel,
-        @NotBlank @Size(max = 30) String contactPoint,
+        @Size(max = 30) String phoneNumber,
+        @Size(max = 30) String email,
+        String webPage,
+        String orderMethod,
         String note
 ) {}

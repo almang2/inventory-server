@@ -177,8 +177,8 @@ public class RetailService {
             return new RetailUploadResult(retails.size(), skippedProducts);
 
         } catch (IOException e) {
-            log.error("Failed to parse Excel file", e);
-            throw new RuntimeException("Failed to parse Excel file", e);
+            log.error("[RetailService] 엑셀 파일 파싱 중 오류가 발생했습니다.", e);
+            throw new BaseException(ErrorCode.INTERNAL_SERVER_ERROR, "엑셀 파일 파싱 중 오류가 발생했습니다.", e);
         }
     }
 

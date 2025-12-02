@@ -34,8 +34,17 @@ public class Vendor extends BaseTimeEntity {
     @Column(name = "channel", nullable = false)
     private VendorChannel channel;
 
-    @Column(name = "contact_point", length = 30, nullable = false)
-    private String contactPoint;
+    @Column(name = "phone_number", length = 30)
+    private String phoneNumber;
+
+    @Column(name = "email", length = 30)
+    private String email;
+
+    @Column(name = "web_page")
+    private String webPage;
+
+    @Column(name = "order_method")
+    private String orderMethod;
 
     @Column(name = "note")
     private String note;
@@ -46,18 +55,31 @@ public class Vendor extends BaseTimeEntity {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    public void updateVendorInfo(
-            String name, VendorChannel channel, String contactPoint, String note, Boolean activated
-    ) {
+    public void updateBasicInfo(String name, String orderMethod) {
         if (name != null && !name.isBlank()) {
             this.name = name;
         }
+        if (orderMethod != null && !orderMethod.isBlank()) {
+            this.orderMethod = orderMethod;
+        }
+    }
+
+    public void updateContactInfo(VendorChannel channel, String phoneNumber, String email, String webPage) {
         if (channel != null) {
             this.channel = channel;
         }
-        if (contactPoint != null && !contactPoint.isBlank()) {
-            this.contactPoint = contactPoint;
+        if (phoneNumber != null && !phoneNumber.isBlank()) {
+            this.phoneNumber = phoneNumber;
         }
+        if (email != null && !email.isBlank()) {
+            this.email = email;
+        }
+        if (webPage != null && !webPage.isBlank()) {
+            this.webPage = webPage;
+        }
+    }
+
+    public void updateMeta(String note, Boolean activated) {
         if (note != null) {
             this.note = note;
         }

@@ -136,7 +136,7 @@ public class RetailService {
                     continue;  // 상품이 없으면 해당 행 스킵하고 계속 진행
                 }
 
-                // 3. 재고 레코드 확인
+                // 3. 재고 레코드 확인 및 재고 차감
                 // 품목 생성 시 자동으로 재고 레코드가 생성되므로, 재고 레코드가 없는 경우는 매우 드뭅니다
                 // 재고 차감 시 마이너스 방지 검증(decreaseDisplay)이 있으므로, 재고 레코드가 없으면 스킵
                 var inventoryOpt = inventoryRepository.findByProduct(product);
@@ -148,7 +148,24 @@ public class RetailService {
                     continue;  // 재고 레코드가 없으면 해당 행 스킵하고 계속 진행
                 }
 
-                // 4. Retail 엔티티 생성
+                // 재고 차감을 먼저 시도 (성공한 경우에만 Retail 엔티티 생성)
+                // 재고 부족 시 예외를 catch하여 해당 상품만 스킵하고 나머지는 계속 처리
+                Inventory inventory = inventoryOpt.get();
+                try {
+                    inventory.decreaseDisplay(quantity);
+                } catch (BaseException e) {
+                    // 재고 부족 시 해당 상품을 스킵하고 계속 진행
+                    // decreaseDisplay() 메서드는 DISPLAY_STOCK_NOT_ENOUGH 예외를 던짐
+                    BigDecimal currentStock = inventory.getDisplayStock();
+                    String skippedInfo = String.format("%s (%s) - 재고 부족 (필요: %s, 현재: %s)", 
+                            code, productName, quantity, currentStock);
+                    skippedProducts.add(skippedInfo);
+                    log.warn("[RetailService] 재고 부족으로 스킵합니다 - productCode: {}, productName: {}, required: {}, available: {}", 
+                            code, productName, quantity, currentStock);
+                    continue;  // 재고 부족이면 해당 행 스킵하고 계속 진행
+                }
+
+                // 4. 재고 차감 성공 시 Retail 엔티티 생성 및 추가
                 Retail retail = Retail.builder()
                         .store(store)
                         .product(product)
@@ -159,10 +176,6 @@ public class RetailService {
                         .actualSales(actualSales)  // 실매출
                         .build();
                 retails.add(retail);
-
-                // 5. 재고 차감 (매대 재고 차감)
-                // decreaseDisplay() 메서드에서 재고 부족 시 예외를 던지므로 마이너스 방지됨
-                inventoryOpt.get().decreaseDisplay(quantity);
             }
 
             // 5. Retail 저장

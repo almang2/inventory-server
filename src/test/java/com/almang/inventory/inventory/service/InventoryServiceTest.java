@@ -8,6 +8,7 @@ import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.inventory.domain.Inventory;
 import com.almang.inventory.inventory.domain.InventoryMoveDirection;
+import com.almang.inventory.inventory.domain.InventoryStatus;
 import com.almang.inventory.inventory.dto.request.MoveInventoryRequest;
 import com.almang.inventory.inventory.dto.request.UpdateInventoryRequest;
 import com.almang.inventory.inventory.dto.response.InventoryResponse;
@@ -137,6 +138,7 @@ class InventoryServiceTest {
         assertThat(response.outgoingReserved()).isEqualByComparingTo(newOutgoing);
         assertThat(response.incomingReserved()).isEqualByComparingTo(newIncoming);
         assertThat(response.reorderTriggerPoint()).isEqualByComparingTo(newReorderTrigger);
+        assertThat(response.inventoryStatus()).isEqualTo(InventoryStatus.NORMAL);
 
         Inventory updated = inventoryRepository.findById(inventory.getId())
                 .orElseThrow();
@@ -673,5 +675,98 @@ class InventoryServiceTest {
                 .orElseThrow();
         assertThat(after.getDisplayStock()).isEqualByComparingTo(BigDecimal.valueOf(3));
         assertThat(after.getWarehouseStock()).isEqualByComparingTo(BigDecimal.ONE);
+    }
+
+    @Test
+    void 재고_상태가_정상으로_계산된다() {
+        // given
+        Store store = newStore("상태상점1");
+        User user = newUser(store, "statusUser1");
+        Vendor vendor = newVendor(store, "발주처1");
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        inventoryService.createInventory(product, BigDecimal.valueOf(3));
+
+        Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        UpdateInventoryRequest update = new UpdateInventoryRequest(
+                product.getId(),
+                BigDecimal.valueOf(2),
+                BigDecimal.valueOf(5),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(3)
+        );
+        inventoryService.updateInventory(inventory.getId(), update, user.getId());
+
+        // when
+        InventoryResponse response =
+                inventoryService.getInventory(inventory.getId(), user.getId());
+
+        // then
+        assertThat(response.inventoryStatus()).isEqualTo(InventoryStatus.NORMAL);
+    }
+
+    @Test
+    void 재고_상태가_주문필요로_계산된다() {
+        // given
+        Store store = newStore("상태상점2");
+        User user = newUser(store, "statusUser2");
+        Vendor vendor = newVendor(store, "발주처2");
+        Product product = newProduct(store, vendor, "상품2", "P002");
+
+        inventoryService.createInventory(product, BigDecimal.valueOf(5)); // 임계치 5
+
+        Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        UpdateInventoryRequest update = new UpdateInventoryRequest(
+                product.getId(),
+                BigDecimal.valueOf(2),
+                BigDecimal.valueOf(3),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(5)
+        );
+        inventoryService.updateInventory(inventory.getId(), update, user.getId());
+
+        // when
+        InventoryResponse response =
+                inventoryService.getInventory(inventory.getId(), user.getId());
+
+        // then
+        assertThat(response.inventoryStatus()).isEqualTo(InventoryStatus.LOW);
+    }
+
+    @Test
+    void 재고_상태가_품절로_계산된다() {
+        // given
+        Store store = newStore("상태상점3");
+        User user = newUser(store, "statusUser3");
+        Vendor vendor = newVendor(store, "발주처3");
+        Product product = newProduct(store, vendor, "상품3", "P003");
+
+        inventoryService.createInventory(product, BigDecimal.valueOf(5)); // 임계치 5
+
+        Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        UpdateInventoryRequest update = new UpdateInventoryRequest(
+                product.getId(),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(5)
+        );
+        inventoryService.updateInventory(inventory.getId(), update, user.getId());
+
+        // when
+        InventoryResponse response =
+                inventoryService.getInventory(inventory.getId(), user.getId());
+
+        // then
+        assertThat(response.inventoryStatus()).isEqualTo(InventoryStatus.OUT_OF_STOCK);
     }
 }

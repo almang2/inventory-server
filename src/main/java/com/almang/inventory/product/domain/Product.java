@@ -6,7 +6,6 @@ import com.almang.inventory.vendor.domain.Vendor;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.*;
-import java.math.BigDecimal;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
@@ -43,26 +42,17 @@ public class Product extends BaseTimeEntity {
     @Column(name = "unit", nullable = false)
     private ProductUnit unit;
 
-    @Column(name = "box_weight_g", precision = 8, scale = 3)
-    private BigDecimal boxWeightG;
-
-    @Column(name = "unit_per_box")
-    private Integer unitPerBox;
-
-    @Column(name = "unit_weight_g", precision = 8, scale = 3)
-    private BigDecimal unitWeightG;
-
     @Column(name = "is_activate", nullable = false)
     private boolean activated;
 
     @Column(name = "cost_price")
-    private int costPrice;
+    private Integer costPrice;
 
     @Column(name = "retail_price")
-    private int retailPrice;
+    private Integer retailPrice;
 
     @Column(name = "wholesale_price")
-    private int wholesalePrice;
+    private Integer wholesalePrice;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
@@ -82,18 +72,6 @@ public class Product extends BaseTimeEntity {
         }
         if (unit != null) {
             this.unit = unit;
-        }
-    }
-
-    public void updateWeights(BigDecimal boxWeightG, Integer unitPerBox, BigDecimal unitWeightG) {
-        if (boxWeightG != null) {
-            this.boxWeightG = boxWeightG;
-        }
-        if (unitPerBox != null) {
-            this.unitPerBox = unitPerBox;
-        }
-        if (unitWeightG != null) {
-            this.unitWeightG = unitWeightG;
         }
     }
 

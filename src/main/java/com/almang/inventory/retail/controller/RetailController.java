@@ -35,7 +35,12 @@ public class RetailController {
 
     @Operation(summary = "엑셀 파일 업로드", description = "엑셀 파일을 업로드하여 소매 판매 내역을 등록하고 재고를 차감합니다.")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> uploadRetailExcel(@RequestPart("file") MultipartFile file) {
+    public ResponseEntity<?> uploadRetailExcel(
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal,
+            @RequestPart("file") MultipartFile file) {
+        Long userId = userPrincipal.getId();
+        log.info("[RetailController] 엑셀 파일 업로드 요청 - userId: {}, filename: {}", userId, file.getOriginalFilename());
+        
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Please select a file to upload"));
         }
@@ -54,8 +59,11 @@ public class RetailController {
                 response.put("warning", String.format("%d개의 상품이 스킵되었습니다.", result.skippedProducts().size()));
             }
             
+            log.info("[RetailController] 엑셀 파일 업로드 성공 - userId: {}, processedCount: {}, skippedCount: {}", 
+                    userId, result.processedCount(), result.skippedProducts().size());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            log.error("[RetailController] 엑셀 파일 업로드 실패 - userId: {}, error: {}", userId, e.getMessage(), e);
             return ResponseEntity.internalServerError().body(Map.of("success", false, "error", e.getMessage()));
         }
     }

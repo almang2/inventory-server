@@ -37,6 +37,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RetailService {
 
+    private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
+
     private final RetailRepository retailRepository;
     private final ProductRepository productRepository;
     private final StoreRepository storeRepository;
@@ -61,7 +63,7 @@ public class RetailService {
 
             // 판매일자: 업로드 시점의 날짜 사용 (당일매출종합현황이므로 오늘 날짜)
             // Asia/Seoul 타임존을 명시적으로 사용하여 서버 타임존과 무관하게 일관된 날짜 계산
-            LocalDate soldDate = LocalDate.now(ZoneId.of("Asia/Seoul"));
+            LocalDate soldDate = LocalDate.now(SEOUL_ZONE);
 
             // 중복 체크: 같은 날짜에 이미 데이터가 있는지 확인
             // 기존 데이터가 있으면 소프트 삭제(deletedAt 설정)를 통해 논리적 삭제 처리
@@ -287,7 +289,8 @@ public class RetailService {
                     store.getId(), startDate, endDate, pageable);
         } else {
             // 날짜 조건 없이 최근 데이터 조회 (최근 30일)
-            LocalDate defaultEndDate = LocalDate.now();
+            // Asia/Seoul 타임존을 명시적으로 사용하여 서버 타임존과 무관하게 일관된 날짜 계산
+            LocalDate defaultEndDate = LocalDate.now(SEOUL_ZONE);
             LocalDate defaultStartDate = defaultEndDate.minusDays(30);
             retailPage = retailRepository.findAllByStoreIdAndSoldDateBetween(
                     store.getId(), defaultStartDate, defaultEndDate, pageable);

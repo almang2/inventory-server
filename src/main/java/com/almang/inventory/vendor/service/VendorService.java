@@ -57,9 +57,9 @@ public class VendorService {
         Vendor vendor = findVendorByIdAndValidateAccess(vendorId, user);
 
         log.info("[VendorService] 발주처 수정 요청 - userId: {}, vendorId: {}", userId, vendor.getId());
-        vendor.updateVendorInfo(
-                request.name(), request.channel(), request.contactPoint(), request.note(), request.activated()
-        );
+        vendor.updateBasicInfo(request.name(), request.orderMethod());
+        vendor.updateContactInfo(request.channel(), request.phoneNumber(), request.email(), request.webPage());
+        vendor.updateMeta(request.note(), request.activated());
 
         log.info("[VendorService] 발주처 수정 성공 - vendorId: {}", vendor.getId());
         return VendorResponse.from(vendor);
@@ -141,7 +141,10 @@ public class VendorService {
                 .store(user.getStore())
                 .name(request.name())
                 .channel(request.channel())
-                .contactPoint(request.contactPoint())
+                .phoneNumber(request.phoneNumber())
+                .email(request.email())
+                .webPage(request.webPage())
+                .orderMethod(request.orderMethod())
                 .note(request.note())
                 .activated(true)
                 .deletedAt(null)

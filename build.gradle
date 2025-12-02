@@ -54,6 +54,8 @@ dependencies {
 	// Apache POI (Excel 파일 처리)
 	implementation 'org.apache.poi:poi:5.2.5'
 	implementation 'org.apache.poi:poi-ooxml:5.2.5'
+	implementation 'org.apache.poi:poi-scratchpad:5.2.5'  // .xls 파일 지원
+
 }
 
 tasks.named('test') {

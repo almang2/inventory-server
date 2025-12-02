@@ -41,8 +41,20 @@ public class RetailController {
         }
 
         try {
-            retailService.processRetailExcel(file);
-            return ResponseEntity.ok(Map.of("success", true, "message", "Retail data processed successfully"));
+            RetailService.RetailUploadResult result = retailService.processRetailExcel(file);
+            
+            Map<String, Object> response = new java.util.HashMap<>();
+            response.put("success", true);
+            response.put("message", "Retail data processed successfully");
+            response.put("processedCount", result.processedCount());
+            response.put("skippedProducts", result.skippedProducts());
+            response.put("skippedCount", result.skippedProducts().size());
+            
+            if (!result.skippedProducts().isEmpty()) {
+                response.put("warning", String.format("%d개의 상품이 스킵되었습니다.", result.skippedProducts().size()));
+            }
+            
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("success", false, "error", e.getMessage()));
         }

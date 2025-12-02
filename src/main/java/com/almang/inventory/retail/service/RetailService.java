@@ -43,13 +43,14 @@ public class RetailService {
     private final UserContextProvider userContextProvider;
 
     @Transactional
-    public void processRetailExcel(MultipartFile file) {
+    public RetailUploadResult processRetailExcel(MultipartFile file) {
         // 1. 상점 조회 (없으면 null)
         Store store = storeRepository.findAll().stream().findFirst().orElse(null);
 
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0); // 첫 번째 시트 사용
             List<Retail> retails = new ArrayList<>();
+            List<String> skippedProducts = new ArrayList<>();  // 스킵된 상품 목록
 
             // 판매일자: 업로드 시점의 날짜 사용 (당일매출종합현황이므로 오늘 날짜)
             LocalDate soldDate = LocalDate.now();
@@ -101,9 +102,13 @@ public class RetailService {
                 Integer actualSales = getCellValueAsInteger(row.getCell(4));
 
                 // 2. 상품 조회 (POS 코드로 조회 - Product.code가 POS 코드)
-                Product product = productRepository.findByCode(code)
-                        .orElseThrow(() -> new BaseException(ErrorCode.PRODUCT_NOT_FOUND,
-                                "Product not found with code: " + code));
+                Product product = productRepository.findByCode(code).orElse(null);
+                if (product == null) {
+                    String skippedInfo = String.format("%s (%s)", code, productName);
+                    skippedProducts.add(skippedInfo);
+                    log.warn("[RetailService] 상품을 찾을 수 없어 스킵합니다 - code: {}, productName: {}", code, productName);
+                    continue;  // 상품이 없으면 해당 행 스킵하고 계속 진행
+                }
 
                 // 3. Retail 엔티티 생성
                 Retail retail = Retail.builder()
@@ -126,11 +131,19 @@ public class RetailService {
             // 5. Retail 저장
             retailRepository.saveAll(retails);
 
+            return new RetailUploadResult(retails.size(), skippedProducts);
+
         } catch (IOException e) {
             log.error("Failed to parse Excel file", e);
             throw new RuntimeException("Failed to parse Excel file", e);
         }
     }
+
+    // 업로드 결과를 담는 내부 클래스
+    public record RetailUploadResult(
+            int processedCount,  // 처리된 상품 수
+            List<String> skippedProducts  // 스킵된 상품 목록 (코드 + 상품명)
+    ) {}
 
     private String getCellValueAsString(Cell cell) {
         if (cell == null)

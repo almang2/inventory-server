@@ -17,8 +17,7 @@ import com.almang.inventory.store.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.ss.usermodel.CellType;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -49,6 +48,7 @@ public class RetailService {
 
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0); // 첫 번째 시트 사용
+            DataFormatter dataFormatter = new DataFormatter(); // 엑셀 포맷을 그대로 가져오기 위한 포매터
             List<Retail> retails = new ArrayList<>();
             List<String> skippedProducts = new ArrayList<>();  // 스킵된 상품 목록
 
@@ -86,20 +86,20 @@ public class RetailService {
                 // Cell 3: 수량 (Quantity)
                 // Cell 4: 실매출 (Actual Sales)
 
-                String code = getCellValueAsString(row.getCell(1));
+                String code = getCellValueAsString(row.getCell(1), dataFormatter);
                 if (code == null || code.isEmpty())
                     continue;
 
-                String productName = getCellValueAsString(row.getCell(2));
+                String productName = getCellValueAsString(row.getCell(2), dataFormatter);
                 if (productName == null || productName.isEmpty())
                     productName = "";  // 상품명이 없어도 저장 (빈 문자열)
 
-                BigDecimal quantity = getCellValueAsBigDecimal(row.getCell(3));
+                BigDecimal quantity = getCellValueAsBigDecimal(row.getCell(3), dataFormatter);
                 if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0)
                     continue;
 
                 // 실매출 읽기 (컬럼 4, 쉼표 제거 후 정수로 변환)
-                Integer actualSales = getCellValueAsInteger(row.getCell(4));
+                Integer actualSales = getCellValueAsInteger(row.getCell(4), dataFormatter);
 
                 // 2. 상품 조회 (POS 코드로 조회 - Product.code가 POS 코드)
                 Product product = productRepository.findByCode(code).orElse(null);
@@ -145,30 +145,62 @@ public class RetailService {
             List<String> skippedProducts  // 스킵된 상품 목록 (코드 + 상품명)
     ) {}
 
-    private String getCellValueAsString(Cell cell) {
+    /**
+     * 엑셀 셀 값을 문자열로 변환합니다.
+     * NUMERIC 타입의 경우 DataFormatter를 사용하여 엑셀에 표시된 그대로의 값을 가져옵니다.
+     * 이를 통해 "00123" 같은 앞의 0이 보존되고, 소수점도 정확하게 처리됩니다.
+     *
+     * @param cell 엑셀 셀
+     * @param dataFormatter 엑셀 포맷을 그대로 가져오기 위한 포매터
+     * @return 셀 값의 문자열 표현 (null 가능)
+     */
+    private String getCellValueAsString(Cell cell, DataFormatter dataFormatter) {
         if (cell == null)
             return null;
 
         if (cell.getCellType() == CellType.STRING) {
-            return cell.getStringCellValue();
+            return cell.getStringCellValue().trim();
         } else if (cell.getCellType() == CellType.NUMERIC) {
-            return String.valueOf((long) cell.getNumericCellValue());
+            // DataFormatter를 사용하여 엑셀에 표시된 그대로의 문자열을 가져옴
+            // 예: "00123" → "00123" (앞의 0 보존), "123.45" → "123.45" (소수점 보존)
+            String formattedValue = dataFormatter.formatCellValue(cell);
+            return formattedValue.trim();
         } else {
             return "";
         }
     }
 
-    private BigDecimal getCellValueAsBigDecimal(Cell cell) {
+    /**
+     * 엑셀 셀 값을 BigDecimal로 변환합니다.
+     * NUMERIC 타입의 경우 정확한 소수점 처리를 위해 BigDecimal.valueOf를 사용하고,
+     * 불필요한 trailing zero를 제거합니다.
+     * STRING 타입의 경우 쉼표를 제거한 후 변환합니다.
+     *
+     * @param cell 엑셀 셀
+     * @param dataFormatter 엑셀 포맷을 그대로 가져오기 위한 포매터
+     * @return BigDecimal 값 (null이면 BigDecimal.ZERO 반환)
+     */
+    private BigDecimal getCellValueAsBigDecimal(Cell cell, DataFormatter dataFormatter) {
         if (cell == null)
             return BigDecimal.ZERO;
 
         if (cell.getCellType() == CellType.NUMERIC) {
-            return BigDecimal.valueOf(cell.getNumericCellValue());
+            // BigDecimal.valueOf를 사용하여 정확한 소수점 처리
+            BigDecimal value = BigDecimal.valueOf(cell.getNumericCellValue());
+            // 불필요한 trailing zero 제거 (예: 123.00 → 123, 123.50 → 123.5)
+            return value.stripTrailingZeros();
         } else if (cell.getCellType() == CellType.STRING) {
             try {
-                // 쉼표 제거 후 변환 (예: "3,566" -> 3566)
-                return new BigDecimal(cell.getStringCellValue().replace(",", ""));
+                String stringValue = cell.getStringCellValue().trim();
+                if (stringValue.isEmpty()) {
+                    return BigDecimal.ZERO;
+                }
+                // 쉼표 제거 후 변환 (예: "3,566.50" -> 3566.50)
+                String cleanedValue = stringValue.replace(",", "").trim();
+                BigDecimal value = new BigDecimal(cleanedValue);
+                return value.stripTrailingZeros();
             } catch (NumberFormatException e) {
+                log.warn("[RetailService] BigDecimal 파싱 실패 - cellValue: {}", cell.getStringCellValue(), e);
                 return BigDecimal.ZERO;
             }
         } else {
@@ -176,12 +208,27 @@ public class RetailService {
         }
     }
 
-    private Integer getCellValueAsInteger(Cell cell) {
+    /**
+     * 엑셀 셀 값을 Integer로 변환합니다.
+     * NUMERIC 타입의 경우 소수점이 있으면 반올림 처리하고, 경고 로그를 남깁니다.
+     * STRING 타입의 경우 쉼표를 제거한 후 변환합니다.
+     *
+     * @param cell 엑셀 셀
+     * @param dataFormatter 엑셀 포맷을 그대로 가져오기 위한 포매터
+     * @return Integer 값 (null 가능)
+     */
+    private Integer getCellValueAsInteger(Cell cell, DataFormatter dataFormatter) {
         if (cell == null)
             return null;
 
         if (cell.getCellType() == CellType.NUMERIC) {
-            return (int) cell.getNumericCellValue();
+            double numericValue = cell.getNumericCellValue();
+            // 소수점이 있는 경우 경고 로그
+            if (numericValue != (int) numericValue) {
+                log.warn("[RetailService] 정수로 변환되는 값에 소수점이 있습니다. 반올림 처리합니다. - 원본값: {}, 변환값: {}", 
+                        numericValue, Math.round(numericValue));
+            }
+            return (int) Math.round(numericValue);
         } else if (cell.getCellType() == CellType.STRING) {
             try {
                 // 쉼표 제거 후 정수로 변환 (예: "100,000" -> 100000)
@@ -189,8 +236,16 @@ public class RetailService {
                 if (value.isEmpty()) {
                     return null;
                 }
+                // 소수점이 포함된 문자열인 경우 처리
+                if (value.contains(".")) {
+                    double doubleValue = Double.parseDouble(value);
+                    log.warn("[RetailService] 정수로 변환되는 문자열에 소수점이 있습니다. 반올림 처리합니다. - 원본값: {}, 변환값: {}", 
+                            value, Math.round(doubleValue));
+                    return (int) Math.round(doubleValue);
+                }
                 return Integer.parseInt(value);
             } catch (NumberFormatException e) {
+                log.warn("[RetailService] Integer 파싱 실패 - cellValue: {}", cell.getStringCellValue(), e);
                 return null;
             }
         } else {

@@ -61,7 +61,6 @@ public class ProductService {
 
         product.updateVendor(vendor);
         product.updateBasicInfo(request.name(), request.code(), request.unit());
-        product.updateWeights(request.boxWeightG(), request.unitPerBox(), request.unitWeightG());
         product.updatePrices(request.costPrice(), request.retailPrice(), request.wholesalePrice());
         product.updateActivation(request.isActivated());
 
@@ -119,9 +118,6 @@ public class ProductService {
                 .name(request.name())
                 .code(request.code())
                 .unit(request.unit())
-                .boxWeightG(request.boxWeightG())
-                .unitPerBox(request.unitPerBox())
-                .unitWeightG(request.unitWeightG())
                 .activated(true)
                 .costPrice(request.costPrice())
                 .retailPrice(request.retailPrice())

@@ -5,9 +5,12 @@ import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.store.domain.Store;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(
@@ -21,6 +24,8 @@ import java.time.LocalDate;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@SQLDelete(sql = "UPDATE retails SET deleted_at = NOW() WHERE retail_id = ?")
+@Where(clause = "deleted_at IS NULL")
 public class Retail extends BaseTimeEntity {
 
     @Id
@@ -51,11 +56,22 @@ public class Retail extends BaseTimeEntity {
     @Column(name = "actual_sales")
     private Integer actualSales;  // 실매출 (원)
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;  // 소프트 삭제용 타임스탬프
+
     public void updateQuantity(BigDecimal quantity) {
         this.quantity = quantity;
     }
 
     public void updateActualSales(Integer actualSales) {
         this.actualSales = actualSales;
+    }
+
+    /**
+     * 소프트 삭제: deletedAt 필드를 설정하여 논리적으로 삭제 처리합니다.
+     * 물리적 삭제가 아닌 복구 가능한 삭제 방식입니다.
+     */
+    public void delete() {
+        this.deletedAt = LocalDateTime.now();
     }
 }

@@ -62,21 +62,37 @@ public class RetailService {
             // Asia/Seoul 타임존을 명시적으로 사용하여 서버 타임존과 무관하게 일관된 날짜 계산
             LocalDate soldDate = LocalDate.now(ZoneId.of("Asia/Seoul"));
 
-            // 중복 체크: 같은 날짜에 이미 데이터가 있는지 확인 (스토어가 있을 때만)
+            // 중복 체크: 같은 날짜에 이미 데이터가 있는지 확인
+            // 기존 데이터가 있으면 소프트 삭제(deletedAt 설정)를 통해 논리적 삭제 처리
+            // 이는 잘못된 업로드 시 데이터 복구 가능성을 보장합니다.
             if (store != null) {
                 List<Retail> existingRetails = retailRepository.findAllByStoreIdAndSoldDate(store.getId(), soldDate);
                 if (!existingRetails.isEmpty()) {
-                    log.warn("[RetailService] 해당 날짜({})에 이미 소매 데이터가 존재합니다. 기존 데이터를 삭제하고 새로 저장합니다. - count: {}",
-                            soldDate, existingRetails.size());
-                    retailRepository.deleteAll(existingRetails);
+                    log.warn("[RetailService] 해당 날짜({})에 이미 소매 데이터가 존재합니다. 기존 데이터를 소프트 삭제하고 새로 저장합니다. - storeId: {}, count: {}",
+                            soldDate, store.getId(), existingRetails.size());
+                    // 삭제 전 상세 정보 로그 기록 (복구를 위한 참고용)
+                    existingRetails.forEach(retail -> 
+                        log.debug("[RetailService] 소프트 삭제 대상 - retailId: {}, productCode: {}, quantity: {}, actualSales: {}",
+                            retail.getId(), retail.getProductCode(), retail.getQuantity(), retail.getActualSales())
+                    );
+                    // 소프트 삭제: deletedAt 필드 설정
+                    existingRetails.forEach(Retail::delete);
+                    retailRepository.saveAll(existingRetails);
                 }
             } else {
                 // 스토어가 없을 때는 날짜만으로 중복 체크
                 List<Retail> existingRetails = retailRepository.findAllBySoldDate(soldDate);
                 if (!existingRetails.isEmpty()) {
-                    log.warn("[RetailService] 해당 날짜({})에 이미 소매 데이터가 존재합니다. 기존 데이터를 삭제하고 새로 저장합니다. - count: {}",
+                    log.warn("[RetailService] 해당 날짜({})에 이미 소매 데이터가 존재합니다. 기존 데이터를 소프트 삭제하고 새로 저장합니다. - count: {}",
                             soldDate, existingRetails.size());
-                    retailRepository.deleteAll(existingRetails);
+                    // 삭제 전 상세 정보 로그 기록 (복구를 위한 참고용)
+                    existingRetails.forEach(retail -> 
+                        log.debug("[RetailService] 소프트 삭제 대상 - retailId: {}, productCode: {}, quantity: {}, actualSales: {}",
+                            retail.getId(), retail.getProductCode(), retail.getQuantity(), retail.getActualSales())
+                    );
+                    // 소프트 삭제: deletedAt 필드 설정
+                    existingRetails.forEach(Retail::delete);
+                    retailRepository.saveAll(existingRetails);
                 }
             }
 

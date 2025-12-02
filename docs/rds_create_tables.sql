@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS customer_order_items (
 -- 3. retails 테이블 생성 (소매 판매 내역)
 CREATE TABLE IF NOT EXISTS retails (
     retail_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    store_id BIGINT NOT NULL,
+    store_id BIGINT NULL,
     product_id BIGINT NOT NULL,
     product_code VARCHAR(30) NOT NULL,
     product_name VARCHAR(255) NOT NULL,

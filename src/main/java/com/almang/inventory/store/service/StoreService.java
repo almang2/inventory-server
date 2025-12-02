@@ -12,8 +12,6 @@ import com.almang.inventory.order.template.repository.OrderTemplateRepository;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.store.dto.request.UpdateStoreRequest;
 import com.almang.inventory.store.dto.response.UpdateStoreResponse;
-import com.almang.inventory.user.repository.UserRepository;
-import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -39,11 +37,6 @@ public class StoreService {
         if (request.name() != null) {
             validateStoreName(request.name());
             store.updateName(request.name());
-        }
-
-        if (request.defaultCountCheckThreshold() != null) {
-            validateDefaultCountCheckThreshold(request.defaultCountCheckThreshold());
-            store.updateThreshold(request.defaultCountCheckThreshold());
         }
 
         if (request.isActivate() != null) {
@@ -73,13 +66,6 @@ public class StoreService {
     private void validateStoreName(String storeName) {
         if (storeName.length() > 20) {
             throw new BaseException(ErrorCode.STORE_NAME_IS_LONG);
-        }
-    }
-
-    private void validateDefaultCountCheckThreshold(BigDecimal defaultCountCheckThreshold) {
-        if (defaultCountCheckThreshold.compareTo(BigDecimal.ZERO) < 0
-                || defaultCountCheckThreshold.compareTo(BigDecimal.ONE) > 0) {
-            throw new BaseException(ErrorCode.DEFAULT_COUNT_CHECK_THRESHOLD_NOT_IN_RANGE);
         }
     }
 

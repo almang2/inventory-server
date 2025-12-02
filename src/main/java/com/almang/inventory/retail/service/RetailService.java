@@ -145,15 +145,6 @@ public class RetailService {
             List<String> skippedProducts  // 스킵된 상품 목록 (코드 + 상품명)
     ) {}
 
-    /**
-     * 엑셀 셀 값을 문자열로 변환합니다.
-     * NUMERIC 타입의 경우 DataFormatter를 사용하여 엑셀에 표시된 그대로의 값을 가져옵니다.
-     * 이를 통해 "00123" 같은 앞의 0이 보존되고, 소수점도 정확하게 처리됩니다.
-     *
-     * @param cell 엑셀 셀
-     * @param dataFormatter 엑셀 포맷을 그대로 가져오기 위한 포매터
-     * @return 셀 값의 문자열 표현 (null 가능)
-     */
     private String getCellValueAsString(Cell cell, DataFormatter dataFormatter) {
         if (cell == null)
             return null;
@@ -170,16 +161,7 @@ public class RetailService {
         }
     }
 
-    /**
-     * 엑셀 셀 값을 BigDecimal로 변환합니다.
-     * NUMERIC 타입의 경우 정확한 소수점 처리를 위해 BigDecimal.valueOf를 사용하고,
-     * 불필요한 trailing zero를 제거합니다.
-     * STRING 타입의 경우 쉼표를 제거한 후 변환합니다.
-     *
-     * @param cell 엑셀 셀
-     * @param dataFormatter 엑셀 포맷을 그대로 가져오기 위한 포매터
-     * @return BigDecimal 값 (null이면 BigDecimal.ZERO 반환)
-     */
+
     private BigDecimal getCellValueAsBigDecimal(Cell cell, DataFormatter dataFormatter) {
         if (cell == null)
             return BigDecimal.ZERO;
@@ -208,15 +190,6 @@ public class RetailService {
         }
     }
 
-    /**
-     * 엑셀 셀 값을 Integer로 변환합니다.
-     * NUMERIC 타입의 경우 소수점이 있으면 반올림 처리하고, 경고 로그를 남깁니다.
-     * STRING 타입의 경우 쉼표를 제거한 후 변환합니다.
-     *
-     * @param cell 엑셀 셀
-     * @param dataFormatter 엑셀 포맷을 그대로 가져오기 위한 포매터
-     * @return Integer 값 (null 가능)
-     */
     private Integer getCellValueAsInteger(Cell cell, DataFormatter dataFormatter) {
         if (cell == null)
             return null;

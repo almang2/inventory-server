@@ -35,7 +35,6 @@ public class StoreAdminServiceTest {
                 Store.builder()
                         .name("테스트 상점")
                         .isActivate(true)
-                        .defaultCountCheckThreshold(BigDecimal.valueOf(0.2))
                         .build()
         );
     }

@@ -58,15 +58,13 @@ public class StoreControllerTest {
         // given
         UpdateStoreRequest request = new UpdateStoreRequest(
                 "수정된 상점",
-                BigDecimal.valueOf(0.5),
                 false
         );
 
         UpdateStoreResponse response = new UpdateStoreResponse(
                 1L,
                 "수정된 상점",
-                false,
-                BigDecimal.valueOf(0.5)
+                false
         );
 
         when(storeService.updateStore(any(UpdateStoreRequest.class), anyLong()))
@@ -82,7 +80,6 @@ public class StoreControllerTest {
                 .andExpect(jsonPath("$.message")
                         .value(SuccessMessage.UPDATE_STORE_SUCCESS.getMessage()))
                 .andExpect(jsonPath("$.data.name").value("수정된 상점"))
-                .andExpect(jsonPath("$.data.defaultCountCheckThreshold").value(0.5))
                 .andExpect(jsonPath("$.data.isActivate").value(false));
     }
 
@@ -91,7 +88,6 @@ public class StoreControllerTest {
         // given
         UpdateStoreRequest request = new UpdateStoreRequest(
                 "아무이름",
-                BigDecimal.valueOf(0.3),
                 true
         );
 
@@ -114,7 +110,6 @@ public class StoreControllerTest {
         // given
         UpdateStoreRequest invalidRequest = new UpdateStoreRequest(
                 "123456789012345678901",  // 21자
-                BigDecimal.valueOf(0.3),
                 true
         );
 

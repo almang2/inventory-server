@@ -59,7 +59,6 @@ class OrderServiceTest {
                 Store.builder()
                         .name(name)
                         .isActivate(true)
-                        .defaultCountCheckThreshold(BigDecimal.valueOf(0.2))
                         .build()
         );
     }

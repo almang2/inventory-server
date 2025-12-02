@@ -27,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -58,7 +59,8 @@ public class RetailService {
             List<String> skippedProducts = new ArrayList<>();  // 스킵된 상품 목록
 
             // 판매일자: 업로드 시점의 날짜 사용 (당일매출종합현황이므로 오늘 날짜)
-            LocalDate soldDate = LocalDate.now();
+            // Asia/Seoul 타임존을 명시적으로 사용하여 서버 타임존과 무관하게 일관된 날짜 계산
+            LocalDate soldDate = LocalDate.now(ZoneId.of("Asia/Seoul"));
 
             // 중복 체크: 같은 날짜에 이미 데이터가 있는지 확인 (스토어가 있을 때만)
             if (store != null) {

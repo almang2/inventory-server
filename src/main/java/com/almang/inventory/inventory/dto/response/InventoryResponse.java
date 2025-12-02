@@ -1,6 +1,7 @@
 package com.almang.inventory.inventory.dto.response;
 
 import com.almang.inventory.inventory.domain.Inventory;
+import com.almang.inventory.inventory.domain.InventoryStatus;
 import com.almang.inventory.product.domain.Product;
 import java.math.BigDecimal;
 
@@ -13,7 +14,8 @@ public record InventoryResponse(
         BigDecimal warehouseStock,
         BigDecimal outgoingReserved,
         BigDecimal incomingReserved,
-        BigDecimal reorderTriggerPoint
+        BigDecimal reorderTriggerPoint,
+        InventoryStatus inventoryStatus
 ) {
     public static InventoryResponse from(Inventory inventory) {
         Product product = inventory.getProduct();
@@ -27,7 +29,12 @@ public record InventoryResponse(
                 inventory.getWarehouseStock(),
                 inventory.getOutgoingReserved(),
                 inventory.getIncomingReserved(),
-                inventory.getReorderTriggerPoint()
+                inventory.getReorderTriggerPoint(),
+                InventoryStatus.from(
+                        inventory.getDisplayStock(),
+                        inventory.getWarehouseStock(),
+                        inventory.getReorderTriggerPoint()
+                )
         );
     }
 }

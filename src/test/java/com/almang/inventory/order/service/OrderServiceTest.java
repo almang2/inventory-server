@@ -59,7 +59,6 @@ class OrderServiceTest {
                 Store.builder()
                         .name(name)
                         .isActivate(true)
-                        .defaultCountCheckThreshold(BigDecimal.valueOf(0.2))
                         .build()
         );
     }
@@ -106,7 +105,7 @@ class OrderServiceTest {
                         .wholesalePrice(1200)
                         .build()
         );
-        inventoryService.createInventory(product);
+        inventoryService.createInventory(product, BigDecimal.valueOf(30));
 
         return product;
     }

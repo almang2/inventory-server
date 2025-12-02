@@ -40,15 +40,13 @@ class AdminControllerTest {
     void 상점_생성에_성공한다() throws Exception {
         // given
         CreateStoreRequest request = new CreateStoreRequest(
-                "테스트 상점",
-                BigDecimal.valueOf(0.2)
+                "테스트 상점"
         );
 
         CreateStoreResponse response = new CreateStoreResponse(
                 1L,
                 "테스트 상점",
-                true,
-                BigDecimal.valueOf(0.2)
+                true
         );
 
         when(adminService.createStore(any(CreateStoreRequest.class)))
@@ -63,7 +61,6 @@ class AdminControllerTest {
                 .andExpect(jsonPath("$.message").value(SuccessMessage.CREATE_STORE_SUCCESS.getMessage()))
                 .andExpect(jsonPath("$.data.storeId").value(1L))
                 .andExpect(jsonPath("$.data.name").value("테스트 상점"))
-                .andExpect(jsonPath("$.data.defaultCountCheckThreshold").value(0.2))
                 .andExpect(jsonPath("$.data.isActivate").value(true));
     }
 
@@ -71,8 +68,7 @@ class AdminControllerTest {
     void 상점_생성_요청값_검증에_실패하면_예외가_발생한다() throws Exception {
         // given
         CreateStoreRequest invalidRequest = new CreateStoreRequest(
-                "",
-                BigDecimal.valueOf(0.2)
+                ""
         );
 
         // when & then

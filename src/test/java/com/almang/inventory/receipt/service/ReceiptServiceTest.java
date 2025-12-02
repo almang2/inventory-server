@@ -63,7 +63,6 @@ class ReceiptServiceTest {
                 Store.builder()
                         .name(name)
                         .isActivate(true)
-                        .defaultCountCheckThreshold(BigDecimal.valueOf(0.2))
                         .build()
         );
     }
@@ -157,7 +156,7 @@ class ReceiptServiceTest {
                         .warehouseStock(BigDecimal.ZERO)
                         .outgoingReserved(BigDecimal.ZERO)
                         .incomingReserved(BigDecimal.ZERO)
-                        .reorderTriggerPoint(null)
+                        .reorderTriggerPoint(BigDecimal.valueOf(30))
                         .build()
         );
     }

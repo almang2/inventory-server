@@ -70,7 +70,8 @@ public class ProductControllerTest {
                 BigDecimal.valueOf(100.0),
                 1000,
                 1500,
-                1200
+                1200,
+                BigDecimal.valueOf(30)
         );
 
         ProductResponse response = new ProductResponse(
@@ -122,7 +123,8 @@ public class ProductControllerTest {
                 BigDecimal.valueOf(100.0),
                 1000,
                 1500,
-                1200
+                1200,
+                BigDecimal.valueOf(30)
         );
 
         when(productService.createProduct(any(CreateProductRequest.class), anyLong()))
@@ -152,7 +154,8 @@ public class ProductControllerTest {
                 BigDecimal.valueOf(100.0),
                 1000,
                 1500,
-                1200
+                1200,
+                BigDecimal.valueOf(30)
         );
 
         when(productService.createProduct(any(CreateProductRequest.class), anyLong()))
@@ -182,7 +185,8 @@ public class ProductControllerTest {
                 null,
                 0,
                 0,
-                0
+                0,
+                BigDecimal.valueOf(30)
         );
 
         // when & then

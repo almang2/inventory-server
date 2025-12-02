@@ -268,6 +268,9 @@ public class RetailService {
     ) {
         UserStoreContext context = userContextProvider.findUserAndStore(userId);
         Store store = context.store();
+        if (store == null) {
+            throw new BaseException(ErrorCode.STORE_NOT_FOUND);
+        }
 
         log.info("[RetailService] 소매 내역 목록 조회 요청 - userId: {}, storeId: {}, soldDate: {}, startDate: {}, endDate: {}",
                 userId, store.getId(), soldDate, startDate, endDate);
@@ -301,6 +304,9 @@ public class RetailService {
     public List<RetailResponse> getRetailListByDate(Long userId, LocalDate soldDate) {
         UserStoreContext context = userContextProvider.findUserAndStore(userId);
         Store store = context.store();
+        if (store == null) {
+            throw new BaseException(ErrorCode.STORE_NOT_FOUND);
+        }
 
         log.info("[RetailService] 특정 날짜 소매 내역 조회 요청 - userId: {}, storeId: {}, soldDate: {}",
                 userId, store.getId(), soldDate);

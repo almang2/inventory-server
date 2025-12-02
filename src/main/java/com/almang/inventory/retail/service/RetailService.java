@@ -134,7 +134,19 @@ public class RetailService {
                     continue;  // 상품이 없으면 해당 행 스킵하고 계속 진행
                 }
 
-                // 3. Retail 엔티티 생성
+                // 3. 재고 레코드 확인
+                // 품목 생성 시 자동으로 재고 레코드가 생성되므로, 재고 레코드가 없는 경우는 매우 드뭅니다
+                // 재고 차감 시 마이너스 방지 검증(decreaseDisplay)이 있으므로, 재고 레코드가 없으면 스킵
+                var inventoryOpt = inventoryRepository.findByProduct(product);
+                if (inventoryOpt.isEmpty()) {
+                    String skippedInfo = String.format("%s (%s) - 재고 레코드 없음", code, productName);
+                    skippedProducts.add(skippedInfo);
+                    log.warn("[RetailService] 재고 레코드가 없어 스킵합니다 - productId: {}, productCode: {}, productName: {}", 
+                            product.getId(), code, productName);
+                    continue;  // 재고 레코드가 없으면 해당 행 스킵하고 계속 진행
+                }
+
+                // 4. Retail 엔티티 생성
                 Retail retail = Retail.builder()
                         .store(store)
                         .product(product)
@@ -146,29 +158,9 @@ public class RetailService {
                         .build();
                 retails.add(retail);
 
-                // 4. 재고 차감 (매대 재고 차감으로 가정)
-                var inventoryOpt = inventoryRepository.findByProduct(product);
-                if (inventoryOpt.isPresent()) {
-                    // 재고 레코드가 있는 경우 정상적으로 차감
-                    inventoryOpt.get().decreaseDisplay(quantity);
-                } else {
-                    // 상품은 존재하지만 재고 레코드가 없는 경우
-                    // 재고 레코드를 생성하고 매대 재고를 마이너스로 설정
-                    // 이는 판매는 기록되었지만 재고가 관리되지 않았던 상황을 반영
-                    // 이후 입고 시 자연스럽게 0 이상으로 회복됨
-                    log.warn("[RetailService] 재고 레코드가 없어 새로 생성하고 매대 재고를 마이너스로 설정합니다 - productId: {}, productCode: {}, productName: {}, quantity: {}",
-                            product.getId(), code, productName, quantity);
-                    
-                    Inventory newInventory = Inventory.builder()
-                            .product(product)
-                            .displayStock(quantity.negate())  // 판매된 수량만큼 마이너스로 설정
-                            .warehouseStock(BigDecimal.ZERO)
-                            .outgoingReserved(BigDecimal.ZERO)
-                            .incomingReserved(BigDecimal.ZERO)
-                            .reorderTriggerPoint(BigDecimal.ZERO)  // 기본값, 나중에 수정 가능
-                            .build();
-                    inventoryRepository.save(newInventory);
-                }
+                // 5. 재고 차감 (매대 재고 차감)
+                // decreaseDisplay() 메서드에서 재고 부족 시 예외를 던지므로 마이너스 방지됨
+                inventoryOpt.get().decreaseDisplay(quantity);
             }
 
             // 5. Retail 저장

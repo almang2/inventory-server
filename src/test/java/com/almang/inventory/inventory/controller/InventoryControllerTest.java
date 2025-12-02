@@ -18,6 +18,7 @@ import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.monitoring.DiscordErrorNotifier;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.inventory.domain.InventoryMoveDirection;
+import com.almang.inventory.inventory.domain.InventoryStatus;
 import com.almang.inventory.inventory.dto.request.MoveInventoryRequest;
 import com.almang.inventory.inventory.dto.request.UpdateInventoryRequest;
 import com.almang.inventory.inventory.dto.response.InventoryResponse;
@@ -83,7 +84,8 @@ public class InventoryControllerTest {
                 BigDecimal.valueOf(10.000),
                 BigDecimal.valueOf(0.500),
                 BigDecimal.valueOf(3.000),
-                BigDecimal.valueOf(0.25)
+                BigDecimal.valueOf(0.25),
+                InventoryStatus.NORMAL
         );
 
         when(inventoryService.updateInventory(anyLong(), any(UpdateInventoryRequest.class), anyLong()))
@@ -103,7 +105,8 @@ public class InventoryControllerTest {
                 .andExpect(jsonPath("$.data.displayStock").value(1.234))
                 .andExpect(jsonPath("$.data.warehouseStock").value(10.000))
                 .andExpect(jsonPath("$.data.incomingReserved").value(3.000))
-                .andExpect(jsonPath("$.data.reorderTriggerPoint").value(0.25));
+                .andExpect(jsonPath("$.data.reorderTriggerPoint").value(0.25))
+                .andExpect(jsonPath("$.data.inventoryStatus").value(InventoryStatus.NORMAL.name()));
     }
 
     @Test
@@ -204,7 +207,8 @@ public class InventoryControllerTest {
                 BigDecimal.valueOf(10.000),
                 BigDecimal.valueOf(0.500),
                 BigDecimal.valueOf(3.000),
-                BigDecimal.valueOf(0.25)
+                BigDecimal.valueOf(0.25),
+                InventoryStatus.NORMAL
         );
 
         when(inventoryService.getInventory(anyLong(), anyLong()))
@@ -223,7 +227,8 @@ public class InventoryControllerTest {
                 .andExpect(jsonPath("$.data.displayStock").value(1.234))
                 .andExpect(jsonPath("$.data.warehouseStock").value(10.000))
                 .andExpect(jsonPath("$.data.incomingReserved").value(3.000))
-                .andExpect(jsonPath("$.data.reorderTriggerPoint").value(0.25));
+                .andExpect(jsonPath("$.data.reorderTriggerPoint").value(0.25))
+                .andExpect(jsonPath("$.data.inventoryStatus").value(InventoryStatus.NORMAL.name()));
     }
 
     @Test
@@ -277,7 +282,8 @@ public class InventoryControllerTest {
                 BigDecimal.valueOf(5.000),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
-                BigDecimal.valueOf(0.3)
+                BigDecimal.valueOf(0.3),
+                InventoryStatus.NORMAL
         );
 
         when(inventoryService.getInventoryByProduct(anyLong(), anyLong()))
@@ -295,7 +301,8 @@ public class InventoryControllerTest {
                 .andExpect(jsonPath("$.data.productId").value(productId))
                 .andExpect(jsonPath("$.data.displayStock").value(1.000))
                 .andExpect(jsonPath("$.data.warehouseStock").value(5.000))
-                .andExpect(jsonPath("$.data.reorderTriggerPoint").value(0.3));
+                .andExpect(jsonPath("$.data.reorderTriggerPoint").value(0.3))
+                .andExpect(jsonPath("$.data.inventoryStatus").value(InventoryStatus.NORMAL.name()));
     }
 
     @Test
@@ -349,7 +356,8 @@ public class InventoryControllerTest {
                 BigDecimal.TEN,
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
-                BigDecimal.valueOf(0.2)
+                BigDecimal.valueOf(0.2),
+                InventoryStatus.NORMAL
         );
 
         Page<InventoryResponse> page = new PageImpl<>(
@@ -378,7 +386,8 @@ public class InventoryControllerTest {
                 .andExpect(jsonPath("$.data.content[0].inventoryId").value(inventoryId))
                 .andExpect(jsonPath("$.data.content[0].productId").value(productId))
                 .andExpect(jsonPath("$.data.content[0].productName").value("상품1"))
-                .andExpect(jsonPath("$.data.content[0].productCode").value("P001"));
+                .andExpect(jsonPath("$.data.content[0].productCode").value("P001"))
+                .andExpect(jsonPath("$.data.content[0].inventoryStatus").value(InventoryStatus.NORMAL.name()));
     }
 
     @Test
@@ -400,7 +409,8 @@ public class InventoryControllerTest {
                 BigDecimal.valueOf(7),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
-                BigDecimal.valueOf(0.2)
+                BigDecimal.valueOf(0.2),
+                InventoryStatus.NORMAL
         );
 
         when(inventoryService.moveInventory(anyLong(), any(MoveInventoryRequest.class), anyLong()))
@@ -419,7 +429,8 @@ public class InventoryControllerTest {
                 .andExpect(jsonPath("$.data.productName").value("상품1"))
                 .andExpect(jsonPath("$.data.productCode").value("P001"))
                 .andExpect(jsonPath("$.data.displayStock").value(3))
-                .andExpect(jsonPath("$.data.warehouseStock").value(7));
+                .andExpect(jsonPath("$.data.warehouseStock").value(7))
+                .andExpect(jsonPath("$.data.inventoryStatus").value(InventoryStatus.NORMAL.name()));
     }
 
     @Test

@@ -2,6 +2,8 @@ package com.almang.inventory.retail.controller;
 
 import com.almang.inventory.global.api.ApiResponse;
 import com.almang.inventory.global.api.PageResponse;
+import com.almang.inventory.global.exception.BaseException;
+import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.retail.dto.response.RetailResponse;
 import com.almang.inventory.retail.service.RetailService;
@@ -62,9 +64,15 @@ public class RetailController {
             log.info("[RetailController] 엑셀 파일 업로드 성공 - userId: {}, processedCount: {}, skippedCount: {}", 
                     userId, result.processedCount(), result.skippedProducts().size());
             return ResponseEntity.ok(response);
+        } catch (BaseException e) {
+            // BaseException은 GlobalExceptionHandler가 처리하도록 그대로 던짐
+            log.error("[RetailController] 엑셀 파일 업로드 실패 - userId: {}, errorCode: {}", 
+                    userId, e.getErrorCode(), e);
+            throw e;
         } catch (Exception e) {
-            log.error("[RetailController] 엑셀 파일 업로드 실패 - userId: {}, error: {}", userId, e.getMessage(), e);
-            return ResponseEntity.internalServerError().body(Map.of("success", false, "error", e.getMessage()));
+            // 일반 Exception은 내부 에러 메시지 노출 방지를 위해 BaseException으로 감싸서 던짐
+            log.error("[RetailController] 엑셀 파일 업로드 실패 - userId: {}", userId, e);
+            throw new BaseException(ErrorCode.INTERNAL_SERVER_ERROR, "Excel 파일 처리 중 오류가 발생했습니다.");
         }
     }
 

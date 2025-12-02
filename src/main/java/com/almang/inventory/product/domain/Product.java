@@ -46,13 +46,13 @@ public class Product extends BaseTimeEntity {
     private boolean activated;
 
     @Column(name = "cost_price")
-    private int costPrice;
+    private Integer costPrice;
 
     @Column(name = "retail_price")
-    private int retailPrice;
+    private Integer retailPrice;
 
     @Column(name = "wholesale_price")
-    private int wholesalePrice;
+    private Integer wholesalePrice;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;

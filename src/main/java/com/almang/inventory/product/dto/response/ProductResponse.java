@@ -9,9 +9,9 @@ public record ProductResponse(
         String code,
         ProductUnit unit,
         boolean isActivated,
-        int costPrice,
-        int retailPrice,
-        int wholesalePrice,
+        Integer costPrice,
+        Integer retailPrice,
+        Integer wholesalePrice,
         Long storeId,
         Long vendorId
 ) {

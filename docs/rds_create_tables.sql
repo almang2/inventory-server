@@ -43,3 +43,22 @@ CREATE TABLE IF NOT EXISTS customer_order_items (
     INDEX idx_product_code (product_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 3. retails 테이블 생성 (소매 판매 내역)
+CREATE TABLE IF NOT EXISTS retails (
+    retail_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    store_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    product_code VARCHAR(30) NOT NULL,
+    product_name VARCHAR(255) NOT NULL,
+    sold_date DATE NOT NULL,
+    quantity DECIMAL(10, 3) NOT NULL,
+    actual_sales INT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE RESTRICT,
+    FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE RESTRICT,
+    INDEX idx_store_sold_date (store_id, sold_date),
+    INDEX idx_sold_date (sold_date),
+    INDEX idx_product_id (product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

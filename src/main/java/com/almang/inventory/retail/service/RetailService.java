@@ -6,6 +6,7 @@ import com.almang.inventory.global.context.UserContextProvider.UserStoreContext;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.util.PaginationUtil;
+import com.almang.inventory.inventory.domain.Inventory;
 import com.almang.inventory.inventory.repository.InventoryRepository;
 import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.repository.ProductRepository;
@@ -146,9 +147,28 @@ public class RetailService {
                 retails.add(retail);
 
                 // 4. 재고 차감 (매대 재고 차감으로 가정)
-                inventoryRepository.findByProduct(product).ifPresent(inventory -> {
-                    inventory.decreaseDisplay(quantity);
-                });
+                var inventoryOpt = inventoryRepository.findByProduct(product);
+                if (inventoryOpt.isPresent()) {
+                    // 재고 레코드가 있는 경우 정상적으로 차감
+                    inventoryOpt.get().decreaseDisplay(quantity);
+                } else {
+                    // 상품은 존재하지만 재고 레코드가 없는 경우
+                    // 재고 레코드를 생성하고 매대 재고를 마이너스로 설정
+                    // 이는 판매는 기록되었지만 재고가 관리되지 않았던 상황을 반영
+                    // 이후 입고 시 자연스럽게 0 이상으로 회복됨
+                    log.warn("[RetailService] 재고 레코드가 없어 새로 생성하고 매대 재고를 마이너스로 설정합니다 - productId: {}, productCode: {}, productName: {}, quantity: {}",
+                            product.getId(), code, productName, quantity);
+                    
+                    Inventory newInventory = Inventory.builder()
+                            .product(product)
+                            .displayStock(quantity.negate())  // 판매된 수량만큼 마이너스로 설정
+                            .warehouseStock(BigDecimal.ZERO)
+                            .outgoingReserved(BigDecimal.ZERO)
+                            .incomingReserved(BigDecimal.ZERO)
+                            .reorderTriggerPoint(BigDecimal.ZERO)  // 기본값, 나중에 수정 가능
+                            .build();
+                    inventoryRepository.save(newInventory);
+                }
             }
 
             // 5. Retail 저장

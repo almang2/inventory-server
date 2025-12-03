@@ -14,7 +14,6 @@ import com.almang.inventory.retail.domain.Retail;
 import com.almang.inventory.retail.dto.response.RetailResponse;
 import com.almang.inventory.retail.repository.RetailRepository;
 import com.almang.inventory.store.domain.Store;
-import com.almang.inventory.store.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -41,19 +40,14 @@ public class RetailService {
 
     private final RetailRepository retailRepository;
     private final ProductRepository productRepository;
-    private final StoreRepository storeRepository;
     private final InventoryRepository inventoryRepository;
     private final UserContextProvider userContextProvider;
 
     @Transactional
-    public RetailUploadResult processRetailExcel(MultipartFile file) {
+    public RetailUploadResult processRetailExcel(MultipartFile file, Long userId) {
         // 1. 상점 조회
-        // Store는 선택적(optional) 필드입니다. Retail 엔티티의 store 필드는 nullable=true로 설정되어 있으며,
-        // Store가 없는 경우에도 Retail 데이터를 저장할 수 있습니다.
-        // - Store가 있을 때: storeId와 soldDate로 중복 체크, 해당 Store에 속한 Retail만 조회
-        // - Store가 없을 때: soldDate로만 중복 체크, 모든 Retail 조회 가능
-        // 현재는 시스템에 단일 Store만 존재한다고 가정하여 첫 번째 Store를 조회합니다.
-        Store store = storeRepository.findAll().stream().findFirst().orElse(null);
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
 
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0); // 첫 번째 시트 사용
@@ -68,35 +62,18 @@ public class RetailService {
             // 중복 체크: 같은 날짜에 이미 데이터가 있는지 확인
             // 기존 데이터가 있으면 소프트 삭제(deletedAt 설정)를 통해 논리적 삭제 처리
             // 이는 잘못된 업로드 시 데이터 복구 가능성을 보장합니다.
-            if (store != null) {
-                List<Retail> existingRetails = retailRepository.findAllByStoreIdAndSoldDate(store.getId(), soldDate);
-                if (!existingRetails.isEmpty()) {
-                    log.warn("[RetailService] 해당 날짜({})에 이미 소매 데이터가 존재합니다. 기존 데이터를 소프트 삭제하고 새로 저장합니다. - storeId: {}, count: {}",
-                            soldDate, store.getId(), existingRetails.size());
-                    // 삭제 전 상세 정보 로그 기록 (복구를 위한 참고용)
-                    existingRetails.forEach(retail -> 
-                        log.debug("[RetailService] 소프트 삭제 대상 - retailId: {}, productCode: {}, quantity: {}, actualSales: {}",
-                            retail.getId(), retail.getProductCode(), retail.getQuantity(), retail.getActualSales())
-                    );
-                    // 소프트 삭제: deletedAt 필드 설정
-                    existingRetails.forEach(Retail::delete);
-                    retailRepository.saveAll(existingRetails);
-                }
-            } else {
-                // 스토어가 없을 때는 날짜만으로 중복 체크
-                List<Retail> existingRetails = retailRepository.findAllBySoldDate(soldDate);
-                if (!existingRetails.isEmpty()) {
-                    log.warn("[RetailService] 해당 날짜({})에 이미 소매 데이터가 존재합니다. 기존 데이터를 소프트 삭제하고 새로 저장합니다. - count: {}",
-                            soldDate, existingRetails.size());
-                    // 삭제 전 상세 정보 로그 기록 (복구를 위한 참고용)
-                    existingRetails.forEach(retail -> 
-                        log.debug("[RetailService] 소프트 삭제 대상 - retailId: {}, productCode: {}, quantity: {}, actualSales: {}",
-                            retail.getId(), retail.getProductCode(), retail.getQuantity(), retail.getActualSales())
-                    );
-                    // 소프트 삭제: deletedAt 필드 설정
-                    existingRetails.forEach(Retail::delete);
-                    retailRepository.saveAll(existingRetails);
-                }
+            List<Retail> existingRetails = retailRepository.findAllByStoreIdAndSoldDate(store.getId(), soldDate);
+            if (!existingRetails.isEmpty()) {
+                log.warn("[RetailService] 해당 날짜({})에 이미 소매 데이터가 존재합니다. 기존 데이터를 소프트 삭제하고 새로 저장합니다. - storeId: {}, count: {}",
+                        soldDate, store.getId(), existingRetails.size());
+                // 삭제 전 상세 정보 로그 기록 (복구를 위한 참고용)
+                existingRetails.forEach(retail -> 
+                    log.debug("[RetailService] 소프트 삭제 대상 - retailId: {}, productCode: {}, quantity: {}, actualSales: {}",
+                        retail.getId(), retail.getProductCode(), retail.getQuantity(), retail.getActualSales())
+                );
+                // 소프트 삭제: deletedAt 필드 설정
+                existingRetails.forEach(Retail::delete);
+                retailRepository.saveAll(existingRetails);
             }
 
             // 헤더 행 스킵 (첫 번째 행이 헤더라고 가정)
@@ -283,9 +260,6 @@ public class RetailService {
     ) {
         UserStoreContext context = userContextProvider.findUserAndStore(userId);
         Store store = context.store();
-        if (store == null) {
-            throw new BaseException(ErrorCode.STORE_NOT_FOUND);
-        }
 
         log.info("[RetailService] 소매 내역 목록 조회 요청 - userId: {}, storeId: {}, soldDate: {}, startDate: {}, endDate: {}",
                 userId, store.getId(), soldDate, startDate, endDate);
@@ -320,9 +294,6 @@ public class RetailService {
     public List<RetailResponse> getRetailListByDate(Long userId, LocalDate soldDate) {
         UserStoreContext context = userContextProvider.findUserAndStore(userId);
         Store store = context.store();
-        if (store == null) {
-            throw new BaseException(ErrorCode.STORE_NOT_FOUND);
-        }
 
         log.info("[RetailService] 특정 날짜 소매 내역 조회 요청 - userId: {}, storeId: {}, soldDate: {}",
                 userId, store.getId(), soldDate);

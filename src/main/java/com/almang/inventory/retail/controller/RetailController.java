@@ -48,7 +48,7 @@ public class RetailController {
         }
 
         try {
-            RetailService.RetailUploadResult result = retailService.processRetailExcel(file);
+            RetailService.RetailUploadResult result = retailService.processRetailExcel(file, userId);
             
             Map<String, Object> response = new java.util.HashMap<>();
             response.put("success", true);

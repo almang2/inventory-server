@@ -20,7 +20,7 @@ public record RetailResponse(
     public static RetailResponse from(Retail retail) {
         return new RetailResponse(
                 retail.getId(),
-                retail.getStore() != null ? retail.getStore().getId() : null,
+                retail.getStore().getId(),
                 retail.getProduct().getId(),
                 retail.getProductCode(),
                 retail.getProductName(),

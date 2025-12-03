@@ -15,5 +15,9 @@ public record CreateProductRequest(
         @Min(0) Integer costPrice,
         @Min(0) Integer retailPrice,
         @Min(0) Integer wholesalePrice,
-        @NotNull @PositiveOrZero BigDecimal reorderTriggerPoint
+        @NotNull @PositiveOrZero BigDecimal reorderTriggerPoint,
+        @NotNull @PositiveOrZero BigDecimal displayStock,
+        @NotNull @PositiveOrZero BigDecimal warehouseStock,
+        @NotNull @PositiveOrZero BigDecimal outgoingReserved,
+        @NotNull @PositiveOrZero BigDecimal incomingReserved
 ) {}

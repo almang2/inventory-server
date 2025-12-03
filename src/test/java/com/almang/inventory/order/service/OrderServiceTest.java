@@ -7,6 +7,7 @@ import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.inventory.domain.Inventory;
+import com.almang.inventory.inventory.dto.InitialInventoryValues;
 import com.almang.inventory.inventory.repository.InventoryRepository;
 import com.almang.inventory.inventory.service.InventoryService;
 import com.almang.inventory.order.domain.Order;
@@ -105,7 +106,11 @@ class OrderServiceTest {
                         .wholesalePrice(1200)
                         .build()
         );
-        inventoryService.createInventory(product, BigDecimal.valueOf(30));
+
+        InitialInventoryValues initialInventoryValues = new InitialInventoryValues(
+                BigDecimal.valueOf(30), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO
+        );
+        inventoryService.createInventory(product, initialInventoryValues);
 
         return product;
     }

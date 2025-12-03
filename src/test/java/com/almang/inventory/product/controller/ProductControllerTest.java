@@ -68,7 +68,11 @@ public class ProductControllerTest {
                 10,
                 1500,
                 1200,
-                BigDecimal.valueOf(30)
+                BigDecimal.valueOf(30),
+                BigDecimal.valueOf(10),
+                BigDecimal.valueOf(5),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
         );
 
         ProductResponse response = new ProductResponse(
@@ -115,7 +119,11 @@ public class ProductControllerTest {
                 1000,
                 1500,
                 1200,
-                BigDecimal.valueOf(30)
+                BigDecimal.valueOf(30),
+                BigDecimal.valueOf(10),
+                BigDecimal.valueOf(5),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
         );
 
         when(productService.createProduct(any(CreateProductRequest.class), anyLong()))
@@ -143,7 +151,11 @@ public class ProductControllerTest {
                 1000,
                 1500,
                 1200,
-                BigDecimal.valueOf(30)
+                BigDecimal.valueOf(30),
+                BigDecimal.valueOf(10),
+                BigDecimal.valueOf(5),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
         );
 
         when(productService.createProduct(any(CreateProductRequest.class), anyLong()))
@@ -171,7 +183,11 @@ public class ProductControllerTest {
                 0,
                 0,
                 0,
-                BigDecimal.valueOf(30)
+                BigDecimal.valueOf(30),
+                BigDecimal.valueOf(10),
+                BigDecimal.valueOf(5),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
         );
 
         // when & then

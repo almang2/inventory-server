@@ -6,6 +6,7 @@ import com.almang.inventory.global.context.UserContextProvider.UserStoreContext;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.util.PaginationUtil;
+import com.almang.inventory.inventory.dto.InitialInventoryValues;
 import com.almang.inventory.inventory.service.InventoryService;
 import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.dto.request.CreateProductRequest;
@@ -42,10 +43,19 @@ public class ProductService {
         log.info("[ProductService] 품목 생성 요청 - userId: {}", user.getId());
         Product product = toEntity(request, user);
         Product saved = productRepository.save(product);
-        inventoryService.createInventory(saved, request.reorderTriggerPoint());
+
+        mapToInitialInventoryValues(request);
+        inventoryService.createInventory(saved, mapToInitialInventoryValues(request));
 
         log.info("[ProductService] 품목 생성 성공 - productId: {}", saved.getId());
         return ProductResponse.from(saved);
+    }
+
+    private InitialInventoryValues mapToInitialInventoryValues(CreateProductRequest request) {
+        return new InitialInventoryValues(
+                request.reorderTriggerPoint(), request.displayStock(), request.warehouseStock(),
+                request.outgoingReserved(), request.incomingReserved()
+        );
     }
 
     @Transactional

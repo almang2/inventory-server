@@ -8,6 +8,7 @@ import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.inventory.domain.Inventory;
 import com.almang.inventory.inventory.domain.InventoryMoveDirection;
 import com.almang.inventory.inventory.domain.InventoryScope;
+import com.almang.inventory.inventory.dto.InitialInventoryValues;
 import com.almang.inventory.inventory.dto.request.MoveInventoryRequest;
 import com.almang.inventory.inventory.dto.request.UpdateInventoryRequest;
 import com.almang.inventory.inventory.dto.response.InventoryResponse;
@@ -33,9 +34,9 @@ public class InventoryService {
     private final UserContextProvider userContextProvider;
 
     @Transactional
-    public void createInventory(Product product, BigDecimal reorderTriggerPoint) {
+    public void createInventory(Product product, InitialInventoryValues initialInventoryValues) {
         log.info("[InventoryService] 재고 생성 요청 - productId: {}", product.getId());
-        Inventory inventory = toInventoryEntity(product, reorderTriggerPoint);
+        Inventory inventory = toInventoryEntity(product, initialInventoryValues);
         inventoryRepository.save(inventory);
         log.info("[InventoryService] 재고 생성 성공 - inventoryId: {}", inventory.getId());
     }
@@ -185,14 +186,14 @@ public class InventoryService {
         return InventoryResponse.from(inventory);
     }
 
-    private Inventory toInventoryEntity(Product product, BigDecimal reorderTriggerPoint) {
+    private Inventory toInventoryEntity(Product product, InitialInventoryValues initialInventoryValues) {
         return Inventory.builder()
                 .product(product)
-                .displayStock(BigDecimal.ZERO)
-                .warehouseStock(BigDecimal.ZERO)
-                .outgoingReserved(BigDecimal.ZERO)
-                .incomingReserved(BigDecimal.ZERO)
-                .reorderTriggerPoint(reorderTriggerPoint)
+                .displayStock(initialInventoryValues.displayStock())
+                .warehouseStock(initialInventoryValues.warehouseStock())
+                .outgoingReserved(initialInventoryValues.outgoingReserved())
+                .incomingReserved(initialInventoryValues.incomingReserved())
+                .reorderTriggerPoint(initialInventoryValues.reorderTriggerPoint())
                 .deletedAt(null)
                 .build();
     }

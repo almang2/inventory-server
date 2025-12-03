@@ -31,7 +31,6 @@ public record InventoryResponse(
                 inventory.getIncomingReserved(),
                 inventory.getReorderTriggerPoint(),
                 InventoryStatus.from(
-                        inventory.getDisplayStock(),
                         inventory.getWarehouseStock(),
                         inventory.getReorderTriggerPoint()
                 )

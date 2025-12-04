@@ -585,7 +585,9 @@ class OrderControllerTest {
                 5,
                 1000,
                 5000,
-                "비고입니다"
+                "비고입니다",
+                "품목",
+                "000001"
         );
 
         when(orderService.getOrderItem(anyLong(), anyLong()))
@@ -656,7 +658,9 @@ class OrderControllerTest {
                 5,
                 1000,
                 5000,
-                "수정된 비고"
+                "수정된 비고",
+                "품목",
+                "000001"
         );
 
         when(orderService.updateOrderItem(anyLong(), any(UpdateOrderItemRequest.class), anyLong()))

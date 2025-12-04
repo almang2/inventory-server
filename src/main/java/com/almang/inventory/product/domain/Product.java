@@ -45,13 +45,13 @@ public class Product extends BaseTimeEntity {
     @Column(name = "is_activate", nullable = false)
     private boolean activated;
 
-    @Column(name = "cost_price")
+    @Column(name = "cost_price", nullable = false)
     private Integer costPrice;
 
-    @Column(name = "retail_price")
+    @Column(name = "retail_price", nullable = false)
     private Integer retailPrice;
 
-    @Column(name = "wholesale_price")
+    @Column(name = "wholesale_price", nullable = false)
     private Integer wholesalePrice;
 
     @Column(name = "deleted_at")

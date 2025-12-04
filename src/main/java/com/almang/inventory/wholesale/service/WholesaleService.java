@@ -54,7 +54,7 @@ public class WholesaleService {
         validateWholesaleItemsNotEmpty(request.items());
 
         List<WholesaleItem> items = createWholesaleItems(request.items(), store);
-        Wholesale wholesale = toWholesaleEntity(request, store, items);
+        Wholesale wholesale = toWholesaleEntity(request, store);
         items.forEach(wholesale::addItem);
         Wholesale saved = wholesaleRepository.save(wholesale);
 
@@ -177,9 +177,7 @@ public class WholesaleService {
                 .build();
     }
 
-    private Wholesale toWholesaleEntity(
-            CreatePendingWholesaleRequest request, Store store, List<WholesaleItem> items
-    ) {
+    private Wholesale toWholesaleEntity(CreatePendingWholesaleRequest request, Store store) {
         return Wholesale.builder()
                 .store(store)
                 .orderReference(request.orderReference())

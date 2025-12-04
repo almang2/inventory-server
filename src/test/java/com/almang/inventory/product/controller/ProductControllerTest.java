@@ -23,6 +23,8 @@ import com.almang.inventory.product.dto.request.UpdateProductRequest;
 import com.almang.inventory.product.dto.response.DeleteProductResponse;
 import com.almang.inventory.product.dto.response.ProductResponse;
 import com.almang.inventory.product.service.ProductService;
+import com.almang.inventory.vendor.domain.VendorChannel;
+import com.almang.inventory.vendor.dto.response.VendorResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.List;
@@ -608,6 +610,78 @@ public class ProductControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 품목_발주처_조회에_성공한다() throws Exception {
+        // given
+        Long productId = 1L;
+
+        VendorResponse response = new VendorResponse(
+                1L,
+                "테스트 발주처",
+                VendorChannel.KAKAO,
+                "010-1111-2222",
+                null,
+                null,
+                "주문 방법",
+                "메모",
+                true,
+                1L
+        );
+
+        when(productService.getVendorByProduct(anyLong(), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/product/{productId}/vendor", productId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.GET_VENDOR_BY_PRODUCT_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.vendorId").value(1L))
+                .andExpect(jsonPath("$.data.name").value("테스트 발주처"))
+                .andExpect(jsonPath("$.data.channel").value(VendorChannel.KAKAO.name()))
+                .andExpect(jsonPath("$.data.phoneNumber").value("010-1111-2222"))
+                .andExpect(jsonPath("$.data.storeId").value(1L))
+                .andExpect(jsonPath("$.data.activated").value(true));
+    }
+
+    @Test
+    void 품목_발주처_조회_시_품목이_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long notExistProductId = 9999L;
+
+        when(productService.getVendorByProduct(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/product/{productId}/vendor", notExistProductId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.PRODUCT_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.PRODUCT_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 품목_발주처_조회_시_다른_상점_품목이면_예외가_발생한다() throws Exception {
+        // given
+        Long productId = 1L;
+
+        when(productService.getVendorByProduct(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.STORE_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/product/{productId}/vendor", productId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(ErrorCode.STORE_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.STORE_ACCESS_DENIED.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

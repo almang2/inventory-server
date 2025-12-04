@@ -58,7 +58,7 @@ public record WholesaleResponse(
                 .toList();
 
         // 배치로 재고 정보 조회
-        Map<Long, Inventory> inventoryMap = inventoryRepository.findAllByProductIdIn(productIds)
+        Map<Long, Inventory> inventoryMap = inventoryRepository.findAllByProduct_IdIn(productIds)
                 .stream()
                 .collect(Collectors.toMap(inv -> inv.getProduct().getId(), inv -> inv));
 

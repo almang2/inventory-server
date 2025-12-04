@@ -7,7 +7,7 @@ public record ReceiptItemResponse(
         Long receiptItemId,
         Long receiptId,
         Long productId,
-        BigDecimal expectedQuantity,
+        Integer expectedQuantity,
         Integer actualQuantity,
         Integer unitPrice,
         Integer amount,

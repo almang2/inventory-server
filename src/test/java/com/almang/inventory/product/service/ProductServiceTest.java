@@ -571,7 +571,7 @@ public class ProductServiceTest {
                         "고무장갑",
                         "P-002",
                         ProductUnit.EA,
-                        null,
+                        1000,
                         800,
                         600,
                         BigDecimal.valueOf(30),

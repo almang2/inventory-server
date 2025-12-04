@@ -72,10 +72,10 @@ class ReceiptControllerTest {
                         1000L,
                         1L,
                         10L,
-                        BigDecimal.valueOf(5),
+                        5,
                         null,
                         5000,
-                        null,
+                        25000,
                         "비고입니다.",
                         "품목",
                         "000001"
@@ -191,10 +191,10 @@ class ReceiptControllerTest {
                 1000L,
                 1L,
                 10L,
-                BigDecimal.valueOf(5),
+                5,
                 null,
                 5000,
-                null,
+                25000,
                 "비고입니다.",
                 "품목",
                 "000001"
@@ -310,10 +310,10 @@ class ReceiptControllerTest {
                 1000L,
                 1L,
                 10L,
-                BigDecimal.valueOf(5),
+                5,
                 null,
                 5000,
-                null,
+                25000,
                 "비고입니다.",
                 "품목",
                 "000001"
@@ -406,13 +406,13 @@ class ReceiptControllerTest {
     void 입고_목록_조회에_성공한다() throws Exception {
         // given
         ReceiptItemResponse item1 = new ReceiptItemResponse(
-                1001L, 1L, 101L, BigDecimal.valueOf(5),
-                null, 5000, null, "비고1", "품목", "000001"
+                1001L, 1L, 101L, 5,
+                null, 5000, 25000, "비고1", "품목", "000001"
         );
 
         ReceiptItemResponse item2 = new ReceiptItemResponse(
-                1002L, 1L, 102L, BigDecimal.valueOf(3),
-                null, 3000, null, "비고2", "품목", "000001"
+                1002L, 1L, 102L, 5,
+                null, 3000, 15000, "비고2", "품목", "000001"
         );
 
         ReceiptResponse r1 = new ReceiptResponse(
@@ -500,7 +500,6 @@ class ReceiptControllerTest {
                 1000L,
                 receiptId,
                 10,
-                1100,
                 "수정 비고입니다."
         );
 
@@ -515,7 +514,7 @@ class ReceiptControllerTest {
                 1000L,
                 1L,
                 10L,
-                BigDecimal.valueOf(5),
+                5,
                 10,
                 11000,
                 110000,
@@ -650,7 +649,6 @@ class ReceiptControllerTest {
                 9999L,
                 receiptId,
                 5,
-                1000,
                 "잘못된 아이템"
         );
 
@@ -755,7 +753,7 @@ class ReceiptControllerTest {
                 receiptItemId,
                 receiptId,
                 10L,
-                BigDecimal.valueOf(5),
+                5,
                 10,
                 5000,
                 50000,
@@ -847,7 +845,6 @@ class ReceiptControllerTest {
                 receiptItemId,
                 receiptId,
                 10,
-                1500,
                 "수정 비고입니다."
         );
 
@@ -855,7 +852,7 @@ class ReceiptControllerTest {
                 receiptItemId,
                 receiptId,
                 10L,
-                BigDecimal.valueOf(5),
+                5,
                 10,
                 1500,
                 15000,
@@ -895,7 +892,6 @@ class ReceiptControllerTest {
                 receiptItemId,
                 receiptId,
                 10,
-                1500,
                 "수정 비고입니다."
         );
 
@@ -925,7 +921,6 @@ class ReceiptControllerTest {
                 receiptItemId,
                 receiptId,
                 10,
-                1500,
                 "수정 비고입니다."
         );
 
@@ -955,7 +950,6 @@ class ReceiptControllerTest {
                 receiptItemId,
                 receiptId,
                 10,
-                1500,
                 "수정 비고입니다."
         );
 
@@ -985,7 +979,6 @@ class ReceiptControllerTest {
                 receiptItemId,
                 receiptId,
                 10,
-                1500,
                 "수정 비고입니다."
         );
 
@@ -1015,7 +1008,6 @@ class ReceiptControllerTest {
                 receiptItemId,
                 receiptId,
                 10,
-                1500,
                 "수정 비고입니다."
         );
 

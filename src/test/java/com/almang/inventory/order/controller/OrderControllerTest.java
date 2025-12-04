@@ -67,8 +67,8 @@ class OrderControllerTest {
     @Test
     void 발주_생성에_성공한다() throws Exception {
         // given
-        CreateOrderItemRequest item1 = new CreateOrderItemRequest(1L, 10, 1000, "비고1");
-        CreateOrderItemRequest item2 = new CreateOrderItemRequest(2L, 5, 2000, "비고2");
+        CreateOrderItemRequest item1 = new CreateOrderItemRequest(1L, 10, "비고1");
+        CreateOrderItemRequest item2 = new CreateOrderItemRequest(2L, 5, "비고2");
 
         CreateOrderRequest request = new CreateOrderRequest(
                 10L,
@@ -120,7 +120,7 @@ class OrderControllerTest {
                 10L,
                 "발주 메시지",
                 3,
-                List.of(new CreateOrderItemRequest(1L, 10, 1000, "비고"))
+                List.of(new CreateOrderItemRequest(1L, 10, "비고"))
         );
 
         when(orderService.createOrder(any(CreateOrderRequest.class), anyLong()))
@@ -144,7 +144,7 @@ class OrderControllerTest {
                 999L,
                 "메시지",
                 2,
-                List.of(new CreateOrderItemRequest(1L, 3, 1000, "비고"))
+                List.of(new CreateOrderItemRequest(1L, 3, "비고"))
         );
 
         when(orderService.createOrder(any(CreateOrderRequest.class), anyLong()))
@@ -168,7 +168,7 @@ class OrderControllerTest {
                 10L,
                 "메시지",
                 3,
-                List.of(new CreateOrderItemRequest(1L, 3, 1000, "비고"))
+                List.of(new CreateOrderItemRequest(1L, 3, "비고"))
         );
 
         when(orderService.createOrder(any(CreateOrderRequest.class), anyLong()))
@@ -192,7 +192,7 @@ class OrderControllerTest {
                 10L,
                 "메시지",
                 3,
-                List.of(new CreateOrderItemRequest(9999L, 3, 1000, "비고"))
+                List.of(new CreateOrderItemRequest(9999L, 3, "비고"))
         );
 
         when(orderService.createOrder(any(CreateOrderRequest.class), anyLong()))
@@ -216,7 +216,7 @@ class OrderControllerTest {
                 10L,
                 "메시지",
                 3,
-                List.of(new CreateOrderItemRequest(1L, 5, 1000, "비고"))
+                List.of(new CreateOrderItemRequest(1L, 5, "비고"))
         );
 
         when(orderService.createOrder(any(CreateOrderRequest.class), anyLong()))
@@ -435,7 +435,6 @@ class OrderControllerTest {
                 1L,
                 1L,
                 20,
-                1500,
                 "수정된 비고"
         );
 
@@ -647,7 +646,6 @@ class OrderControllerTest {
                 orderItemId,
                 10L,
                 5,
-                1000,
                 "수정된 비고"
         );
 
@@ -692,7 +690,6 @@ class OrderControllerTest {
                 notExistOrderItemId,
                 10L,
                 5,
-                1000,
                 "수정된 비고"
         );
 
@@ -719,7 +716,6 @@ class OrderControllerTest {
                 orderItemId,
                 10L,
                 5,
-                1000,
                 "수정된 비고"
         );
 

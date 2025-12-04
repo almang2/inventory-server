@@ -147,7 +147,7 @@ public class OrderService {
         validateOrderItemAccess(orderItem, store);
         int beforeQuantity = orderItem.getQuantity();
 
-        orderItem.update(request.quantity(), request.unitPrice(), request.note());
+        orderItem.update(request.quantity(), request.note());
         int afterQuantity = orderItem.getQuantity();
 
         int diff = afterQuantity - beforeQuantity;
@@ -193,8 +193,8 @@ public class OrderService {
         return OrderItem.builder()
                 .product(product)
                 .quantity(request.quantity())
-                .unitPrice(request.unitPrice())
-                .amount(request.quantity() * request.unitPrice())
+                .unitPrice(product.getCostPrice())
+                .amount(request.quantity() * product.getCostPrice())
                 .note(request.note())
                 .build();
     }
@@ -326,7 +326,7 @@ public class OrderService {
         for (UpdateOrderItemRequest orderItemRequest : request.orderItems()) {
             OrderItem orderItem = findOrderItemByIdAndValidateAccess(orderItemRequest.orderItemId(), order);
             int beforeQuantity = orderItem.getQuantity();
-            orderItem.update(orderItemRequest.quantity(), orderItemRequest.unitPrice(), orderItemRequest.note());
+            orderItem.update(orderItemRequest.quantity(), orderItemRequest.note());
             int afterQuantity = orderItem.getQuantity();
 
             int diff = afterQuantity - beforeQuantity;

@@ -6,6 +6,5 @@ public record UpdateReceiptItemRequest(
         @NotNull Long receiptItemId,
         Long receiptId,
         Integer actualQuantity,
-        Integer unitPrice,
         String note
 ) {}

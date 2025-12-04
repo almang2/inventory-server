@@ -61,7 +61,7 @@ public class WholesaleService {
         Wholesale saved = wholesaleRepository.save(wholesale);
 
         log.info("[WholesaleService] 출고 대기 생성 성공 - wholesaleId: {}, storeId: {}", saved.getId(), store.getId());
-        return WholesaleResponse.from(saved);
+        return WholesaleResponse.fromWithStockInfo(saved, inventoryRepository);
     }
 
     @Transactional(readOnly = true)
@@ -110,6 +110,20 @@ public class WholesaleService {
         // 출고 완료 후 재고 차감
         for (WholesaleItem item : wholesale.getItems()) {
             Inventory inventory = findInventoryByProductId(item.getProduct().getId());
+            
+            // 재고 부족 항목인 경우, 실제 재고가 충분한지 확인
+            if (item.getInsufficientStock()) {
+                BigDecimal availableStock = inventory.getAvailableStock();
+                if (availableStock.compareTo(item.getQuantity()) < 0) {
+                    // 여전히 재고 부족이면 예외 발생
+                    throw new BaseException(ErrorCode.NOT_ENOUGH_STOCK,
+                            String.format("상품 '%s'의 창고 재고가 부족합니다. (요청: %s, 가용 재고: %s)",
+                                    item.getProduct().getName(), item.getQuantity(), availableStock));
+                }
+                // 재고가 충분해졌으면 부족 플래그 해제
+                item.setInsufficientStock(false);
+            }
+            
             inventory.confirmOutgoing(item.getQuantity());
         }
 
@@ -198,15 +212,28 @@ public class WholesaleService {
                 if (diff.compareTo(BigDecimal.ZERO) > 0) {
                     // 수량 증가: 가용 재고 검증 후 출고 예정 증가
                     BigDecimal availableStock = inventory.getAvailableStock();
-                    if (availableStock.compareTo(diff) < 0) {
+                    boolean isInsufficient = availableStock.compareTo(diff) < 0;
+                    
+                    if (isInsufficient) {
                         throw new BaseException(ErrorCode.NOT_ENOUGH_STOCK,
                                 String.format("상품 '%s'의 창고 재고가 부족합니다. (요청 증가: %s, 가용 재고: %s)",
                                         product.getName(), diff, availableStock));
                     }
                     inventory.increaseOutgoing(diff);
+                    // 수량 증가 후 재고가 충분하면 부족 플래그 해제
+                    item.setInsufficientStock(false);
                 } else if (diff.compareTo(BigDecimal.ZERO) < 0) {
                     // 수량 감소: 출고 예정 감소
                     inventory.decreaseOutgoing(diff.abs());
+                    // 수량이 감소했으므로 재고 상태 재확인
+                    BigDecimal availableStock = inventory.getAvailableStock();
+                    boolean isInsufficient = availableStock.compareTo(itemRequest.quantity()) < 0;
+                    item.setInsufficientStock(isInsufficient);
+                } else {
+                    // 수량 변경 없음: 재고 상태 재확인
+                    BigDecimal availableStock = inventory.getAvailableStock();
+                    boolean isInsufficient = availableStock.compareTo(itemRequest.quantity()) < 0;
+                    item.setInsufficientStock(isInsufficient);
                 }
 
                 // 항목 업데이트
@@ -239,21 +266,22 @@ public class WholesaleService {
 
             // 재고 검증 (가용 재고 = 창고 재고 - 출고 예정 수량)
             BigDecimal availableStock = inventory.getAvailableStock();
-            if (availableStock.compareTo(request.quantity()) < 0) {
-                throw new BaseException(ErrorCode.NOT_ENOUGH_STOCK,
-                        String.format("상품 '%s'의 창고 재고가 부족합니다. (요청: %s, 가용 재고: %s)",
-                                product.getName(), request.quantity(), availableStock));
+            boolean isInsufficient = availableStock.compareTo(request.quantity()) < 0;
+            
+            // 재고 부족 여부와 관계없이 출고 예정 수량 증가 (데이터 일관성 유지)
+            inventory.increaseOutgoing(request.quantity());
+            
+            if (isInsufficient) {
+                log.warn("[WholesaleService] 재고 부족 - 상품: {}, 요청 수량: {}, 가용 재고: {}", 
+                        product.getName(), request.quantity(), availableStock);
             }
 
-            // 출고 예정 수량 증가
-            inventory.increaseOutgoing(request.quantity());
-
-            items.add(toWholesaleItemEntity(request, product));
+            items.add(toWholesaleItemEntity(request, product, isInsufficient));
         }
         return items;
     }
 
-    private WholesaleItem toWholesaleItemEntity(CreateWholesaleItemRequest request, Product product) {
+    private WholesaleItem toWholesaleItemEntity(CreateWholesaleItemRequest request, Product product, boolean insufficientStock) {
         Integer amount = null;
         if (request.unitPrice() != null && request.quantity() != null) {
             amount = request.quantity().multiply(BigDecimal.valueOf(request.unitPrice())).intValue();
@@ -265,6 +293,7 @@ public class WholesaleService {
                 .unitPrice(request.unitPrice())
                 .amount(amount)
                 .note(request.note())
+                .insufficientStock(insufficientStock)
                 .build();
     }
 

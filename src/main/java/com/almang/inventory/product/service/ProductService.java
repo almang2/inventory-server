@@ -17,6 +17,7 @@ import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.vendor.domain.Vendor;
+import com.almang.inventory.vendor.dto.response.VendorResponse;
 import com.almang.inventory.vendor.repository.VendorRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -131,6 +132,20 @@ public class ProductService {
         return products.stream()
                 .map(ProductResponse::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public VendorResponse getVendorByProduct(Long productId, Long userId) {
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        User user = context.user();
+        Product product = findProductById(productId);
+        validateStoreAccess(product, user);
+
+        log.info("[ProductService] 품목 발주처 조회 요청 - userId: {}, productId: {}", userId, product.getId());
+        Vendor vendor = product.getVendor();
+
+        log.info("[ProductService] 품목 발주처 조회 성공 - vendorId: {}", vendor.getId());
+        return VendorResponse.from(vendor);
     }
 
     private Product toEntity(CreateProductRequest request, User user) {

@@ -28,12 +28,16 @@ public record WholesaleItemResponse(
                 wholesaleItem.getAmount(),
                 wholesaleItem.getNote(),
                 null,
-                null
+                wholesaleItem.getInsufficientStock()
         );
     }
     
     public static WholesaleItemResponse from(WholesaleItem wholesaleItem, BigDecimal availableStock) {
-        boolean isStockInsufficient = availableStock != null && availableStock.compareTo(wholesaleItem.getQuantity()) < 0;
+        // 엔티티의 insufficientStock 플래그를 우선 사용, 없으면 availableStock으로 계산
+        Boolean isStockInsufficient = wholesaleItem.getInsufficientStock();
+        if (isStockInsufficient == null && availableStock != null) {
+            isStockInsufficient = availableStock.compareTo(wholesaleItem.getQuantity()) < 0;
+        }
         return new WholesaleItemResponse(
                 wholesaleItem.getId(),
                 wholesaleItem.getWholesale().getId(),

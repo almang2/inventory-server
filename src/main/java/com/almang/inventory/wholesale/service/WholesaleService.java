@@ -181,13 +181,7 @@ public class WholesaleService {
 
         // 항목 수량이 변경된 경우에만 재고 처리
         if (itemsChanged) {
-            // 기존 항목들의 출고 예정 수량 차감
-            for (WholesaleItem existingItem : wholesale.getItems()) {
-                Inventory inventory = findInventoryByProductId(existingItem.getProduct().getId());
-                inventory.decreaseOutgoing(existingItem.getQuantity());
-            }
-
-            // 항목 업데이트 및 재고 검증
+            // 각 요청 항목별로 개별 처리 (차이만큼만 증감)
             for (UpdateWholesaleItemRequest itemRequest : request.items()) {
                 WholesaleItem item = wholesale.getItems().stream()
                         .filter(i -> i.getId().equals(itemRequest.wholesaleItemId()))
@@ -198,16 +192,22 @@ public class WholesaleService {
                 Product product = item.getProduct();
                 Inventory inventory = findInventoryByProductId(product.getId());
 
-                // 재고 검증 (가용 재고 = 창고 재고 - 출고 예정 수량)
-                BigDecimal availableStock = inventory.getAvailableStock();
-                if (availableStock.compareTo(itemRequest.quantity()) < 0) {
-                    throw new BaseException(ErrorCode.NOT_ENOUGH_STOCK,
-                            String.format("상품 '%s'의 창고 재고가 부족합니다. (요청: %s, 가용 재고: %s)",
-                                    product.getName(), itemRequest.quantity(), availableStock));
-                }
+                // 수량 차이 계산
+                BigDecimal diff = itemRequest.quantity().subtract(item.getQuantity());
 
-                // 새 수량만큼 출고 예정 수량 증가
-                inventory.increaseOutgoing(itemRequest.quantity());
+                if (diff.compareTo(BigDecimal.ZERO) > 0) {
+                    // 수량 증가: 가용 재고 검증 후 출고 예정 증가
+                    BigDecimal availableStock = inventory.getAvailableStock();
+                    if (availableStock.compareTo(diff) < 0) {
+                        throw new BaseException(ErrorCode.NOT_ENOUGH_STOCK,
+                                String.format("상품 '%s'의 창고 재고가 부족합니다. (요청 증가: %s, 가용 재고: %s)",
+                                        product.getName(), diff, availableStock));
+                    }
+                    inventory.increaseOutgoing(diff);
+                } else if (diff.compareTo(BigDecimal.ZERO) < 0) {
+                    // 수량 감소: 출고 예정 감소
+                    inventory.decreaseOutgoing(diff.abs());
+                }
 
                 // 항목 업데이트
                 item.update(itemRequest.quantity(), itemRequest.unitPrice(), itemRequest.note());

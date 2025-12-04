@@ -5,6 +5,8 @@ import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.api.SuccessMessage;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;
+import com.almang.inventory.product.dto.response.ProductResponse;
+import com.almang.inventory.product.service.ProductService;
 import com.almang.inventory.vendor.dto.request.CreateOrderTemplateRequest;
 import com.almang.inventory.vendor.dto.request.CreateVendorRequest;
 import com.almang.inventory.vendor.dto.request.UpdateVendorRequest;
@@ -37,6 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class VendorController {
 
     private final VendorService vendorService;
+    private final ProductService productService;
 
     @PostMapping
     @Operation(summary = "발주처 등록", description = "발주처를 등록하고 생성된 발주처 정보를 반환합니다.")
@@ -148,6 +151,21 @@ public class VendorController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.GET_VENDOR_ORDER_TEMPLATE_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @GetMapping("/{vendorId}/products")
+    @Operation(summary = "발주처 내 품목 리스트 조회", description = "발주처 내 품목 리스트를 조회합니다.")
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> getOrderTemplates(
+            @PathVariable Long vendorId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[VendorController] 발주처 내 품목 조회 요청 - userId: {}, vendorId: {}", userId, vendorId);
+        List<ProductResponse> response = productService.getProductsByVendor(vendorId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.GET_VENDOR_PRODUCT_LIST_SUCCESS.getMessage(), response)
         );
     }
 }

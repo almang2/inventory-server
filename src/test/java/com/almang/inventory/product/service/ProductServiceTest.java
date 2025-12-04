@@ -1247,4 +1247,107 @@ public class ProductServiceTest {
         assertThat(page.totalElements()).isZero();
         assertThat(page.content()).isEmpty();
     }
+
+    @Test
+    void 발주처별_품목_목록_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor1 = newVendor(store);
+        Vendor vendor2 = newVendor(store);
+        User user = newUser(store);
+
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor1.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        1000,
+                        1500,
+                        1200,
+                        BigDecimal.valueOf(30),
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO
+                ),
+                user.getId()
+        );
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor1.getId(),
+                        "고무장갑",
+                        "P-002",
+                        ProductUnit.EA,
+                        500,
+                        800,
+                        600,
+                        BigDecimal.valueOf(30),
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO
+                ),
+                user.getId()
+        );
+
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor2.getId(),
+                        "세제",
+                        "P-003",
+                        ProductUnit.ML,
+                        3000,
+                        4000,
+                        3500,
+                        BigDecimal.valueOf(30),
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO
+                ),
+                user.getId()
+        );
+
+        // when
+        List<ProductResponse> products =
+                productService.getProductsByVendor(vendor1.getId(), user.getId());
+
+        // then
+        assertThat(products).hasSize(2);
+        assertThat(products)
+                .extracting(ProductResponse::vendorId)
+                .containsOnly(vendor1.getId());
+        assertThat(products)
+                .extracting(ProductResponse::name)
+                .containsExactlyInAnyOrder("고체치약", "고무장갑");
+    }
+
+    @Test
+    void 발주처별_품목_목록_조회시_존재하지_않는_발주처이면_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Long notExistVendorId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> productService.getProductsByVendor(notExistVendorId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 발주처별_품목_목록_조회시_다른_상점_발주처이면_예외가_발생한다() {
+        // given
+        Store store1 = newStore();
+        Store store2 = newStore();
+
+        Vendor vendorOfStore2 = newVendor(store2);
+        User userOfStore1 = newUser(store1);
+
+        // when & then
+        assertThatThrownBy(() -> productService.getProductsByVendor(vendorOfStore2.getId(), userOfStore1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
+    }
 }

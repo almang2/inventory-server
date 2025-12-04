@@ -17,6 +17,8 @@ import com.almang.inventory.wholesale.domain.WholesaleStatus;
 import com.almang.inventory.wholesale.dto.request.ConfirmWholesaleRequest;
 import com.almang.inventory.wholesale.dto.request.CreatePendingWholesaleRequest;
 import com.almang.inventory.wholesale.dto.request.CreateWholesaleItemRequest;
+import com.almang.inventory.wholesale.dto.request.UpdateWholesaleRequest;
+import com.almang.inventory.wholesale.dto.request.UpdateWholesaleItemRequest;
 import com.almang.inventory.wholesale.dto.response.CancelWholesaleResponse;
 import com.almang.inventory.wholesale.dto.response.ConfirmWholesaleResponse;
 import com.almang.inventory.wholesale.dto.response.WholesaleResponse;
@@ -138,6 +140,94 @@ public class WholesaleService {
 
         log.info("[WholesaleService] 출고 취소 성공 - wholesaleId: {}", wholesale.getId());
         return new CancelWholesaleResponse(wholesale.getId(), true);
+    }
+
+    @Transactional
+    public WholesaleResponse updateWholesale(Long wholesaleId, UpdateWholesaleRequest request, Long userId) {
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
+
+        log.info("[WholesaleService] 출고 수정 요청 - userId: {}, storeId: {}, wholesaleId: {}",
+                userId, store.getId(), wholesaleId);
+
+        Wholesale wholesale = findWholesaleByIdAndValidateAccess(wholesaleId, store);
+
+        // PENDING 상태인지 확인
+        if (wholesale.getStatus() != WholesaleStatus.PENDING) {
+            throw new BaseException(ErrorCode.WHOLESALE_ALREADY_CONFIRMED,
+                    "출고 대기 상태인 경우에만 수정할 수 있습니다.");
+        }
+
+        // 구매처(주문서 참조) 업데이트
+        if (request.orderReference() != null) {
+            wholesale.updateOrderReference(request.orderReference());
+        }
+
+        // 항목이 변경된 경우에만 재고 처리
+        boolean itemsChanged = false;
+        for (UpdateWholesaleItemRequest itemRequest : request.items()) {
+            WholesaleItem item = wholesale.getItems().stream()
+                    .filter(i -> i.getId().equals(itemRequest.wholesaleItemId()))
+                    .findFirst()
+                    .orElseThrow(() -> new BaseException(ErrorCode.WHOLESALE_ITEM_NOT_FOUND,
+                            String.format("출고 항목 ID %d를 찾을 수 없습니다.", itemRequest.wholesaleItemId())));
+
+            // 수량이 변경되었는지 확인
+            if (item.getQuantity().compareTo(itemRequest.quantity()) != 0) {
+                itemsChanged = true;
+                break;
+            }
+        }
+
+        // 항목 수량이 변경된 경우에만 재고 처리
+        if (itemsChanged) {
+            // 기존 항목들의 출고 예정 수량 차감
+            for (WholesaleItem existingItem : wholesale.getItems()) {
+                Inventory inventory = findInventoryByProductId(existingItem.getProduct().getId());
+                inventory.decreaseOutgoing(existingItem.getQuantity());
+            }
+
+            // 항목 업데이트 및 재고 검증
+            for (UpdateWholesaleItemRequest itemRequest : request.items()) {
+                WholesaleItem item = wholesale.getItems().stream()
+                        .filter(i -> i.getId().equals(itemRequest.wholesaleItemId()))
+                        .findFirst()
+                        .orElseThrow(() -> new BaseException(ErrorCode.WHOLESALE_ITEM_NOT_FOUND,
+                                String.format("출고 항목 ID %d를 찾을 수 없습니다.", itemRequest.wholesaleItemId())));
+
+                Product product = item.getProduct();
+                Inventory inventory = findInventoryByProductId(product.getId());
+
+                // 재고 검증 (가용 재고 = 창고 재고 - 출고 예정 수량)
+                BigDecimal availableStock = inventory.getAvailableStock();
+                if (availableStock.compareTo(itemRequest.quantity()) < 0) {
+                    throw new BaseException(ErrorCode.NOT_ENOUGH_STOCK,
+                            String.format("상품 '%s'의 창고 재고가 부족합니다. (요청: %s, 가용 재고: %s)",
+                                    product.getName(), itemRequest.quantity(), availableStock));
+                }
+
+                // 새 수량만큼 출고 예정 수량 증가
+                inventory.increaseOutgoing(itemRequest.quantity());
+
+                // 항목 업데이트
+                item.update(itemRequest.quantity(), itemRequest.unitPrice(), itemRequest.note());
+            }
+        } else {
+            // 수량이 변경되지 않은 경우 단가와 비고만 업데이트
+            for (UpdateWholesaleItemRequest itemRequest : request.items()) {
+                WholesaleItem item = wholesale.getItems().stream()
+                        .filter(i -> i.getId().equals(itemRequest.wholesaleItemId()))
+                        .findFirst()
+                        .orElseThrow(() -> new BaseException(ErrorCode.WHOLESALE_ITEM_NOT_FOUND,
+                                String.format("출고 항목 ID %d를 찾을 수 없습니다.", itemRequest.wholesaleItemId())));
+
+                // 항목 업데이트 (수량은 기존 값 유지)
+                item.update(item.getQuantity(), itemRequest.unitPrice(), itemRequest.note());
+            }
+        }
+
+        log.info("[WholesaleService] 출고 수정 성공 - wholesaleId: {}", wholesale.getId());
+        return WholesaleResponse.from(wholesale);
     }
 
     private List<WholesaleItem> createWholesaleItems(List<CreateWholesaleItemRequest> requests, Store store) {

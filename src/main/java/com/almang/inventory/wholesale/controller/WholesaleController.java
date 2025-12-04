@@ -6,6 +6,7 @@ import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.wholesale.domain.WholesaleStatus;
 import com.almang.inventory.wholesale.dto.request.ConfirmWholesaleRequest;
 import com.almang.inventory.wholesale.dto.request.CreatePendingWholesaleRequest;
+import com.almang.inventory.wholesale.dto.request.UpdateWholesaleRequest;
 import com.almang.inventory.wholesale.dto.response.CancelWholesaleResponse;
 import com.almang.inventory.wholesale.dto.response.ConfirmWholesaleResponse;
 import com.almang.inventory.wholesale.dto.response.WholesaleResponse;
@@ -103,6 +104,22 @@ public class WholesaleController {
 
         return ResponseEntity.ok(
                 ApiResponse.success("출고 완료 처리에 성공했습니다.", response)
+        );
+    }
+
+    @PatchMapping("/{wholesaleId}")
+    @Operation(summary = "출고 수정", description = "출고 대기 상태의 출고 정보와 항목들을 수정합니다.")
+    public ResponseEntity<ApiResponse<WholesaleResponse>> updateWholesale(
+            @PathVariable Long wholesaleId,
+            @Valid @RequestBody UpdateWholesaleRequest request,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[WholesaleController] 출고 수정 요청 - userId: {}, wholesaleId: {}", userId, wholesaleId);
+        WholesaleResponse response = wholesaleService.updateWholesale(wholesaleId, request, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("출고 수정에 성공했습니다.", response)
         );
     }
 

@@ -111,16 +111,16 @@ public class WholesaleService {
         for (WholesaleItem item : wholesale.getItems()) {
             Inventory inventory = findInventoryByProductId(item.getProduct().getId());
             
-            // 재고 부족 항목인 경우, 실제 재고가 충분한지 확인
+            // 재고 부족 항목인 경우, 현재 oversubscription(가용 재고 < 0)이 해소됐는지 확인
             if (item.getInsufficientStock()) {
                 BigDecimal availableStock = inventory.getAvailableStock();
-                if (availableStock.compareTo(item.getQuantity()) < 0) {
-                    // 여전히 재고 부족이면 예외 발생
+                if (availableStock.compareTo(BigDecimal.ZERO) < 0) {
+                    // 여전히 전체 출고 예약 합보다 창고 재고가 적으면 확정을 막음
                     throw new BaseException(ErrorCode.NOT_ENOUGH_STOCK,
                             String.format("상품 '%s'의 창고 재고가 부족합니다. (요청: %s, 가용 재고: %s)",
                                     item.getProduct().getName(), item.getQuantity(), availableStock));
                 }
-                // 재고가 충분해졌으면 부족 플래그 해제
+                // oversubscription이 해소되었으면 부족 플래그 해제
                 item.setInsufficientStock(false);
             }
             

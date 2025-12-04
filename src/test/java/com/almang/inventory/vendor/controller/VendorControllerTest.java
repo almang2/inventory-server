@@ -20,6 +20,8 @@ import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.monitoring.DiscordErrorNotifier;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
 import com.almang.inventory.order.template.dto.response.OrderTemplateResponse;
+import com.almang.inventory.product.dto.response.ProductResponse;
+import com.almang.inventory.product.service.ProductService;
 import com.almang.inventory.vendor.domain.VendorChannel;
 import com.almang.inventory.vendor.dto.request.CreateOrderTemplateRequest;
 import com.almang.inventory.vendor.dto.request.CreateVendorRequest;
@@ -49,6 +51,7 @@ class VendorControllerTest {
     @Autowired private ObjectMapper objectMapper;
 
     @MockitoBean private VendorService vendorService;
+    @MockitoBean private ProductService productService;
     @MockitoBean private JpaMetamodelMappingContext jpaMetamodelMappingContext;
     @MockitoBean private DiscordErrorNotifier discordErrorNotifier;
 
@@ -719,6 +722,62 @@ class VendorControllerTest {
         // when & then
         mockMvc.perform(delete("/api/v1/vendor/{vendorId}", vendorId)
                         .with(authentication(auth())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(ErrorCode.VENDOR_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.VENDOR_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주처_내_품목_리스트_조회에_성공한다() throws Exception {
+        // given
+        Long vendorId = 1L;
+
+        List<ProductResponse> response = List.of();
+
+        when(productService.getProductsByVendor(anyLong(), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/vendor/{vendorId}/products", vendorId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.GET_VENDOR_PRODUCT_LIST_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data").isArray());
+    }
+
+    @Test
+    void 발주처_내_품목_리스트_조회시_존재하지_않는_발주처면_예외가_발생한다() throws Exception {
+        // given
+        Long vendorId = 9999L;
+
+        when(productService.getProductsByVendor(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.VENDOR_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/vendor/{vendorId}/products", vendorId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.VENDOR_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.VENDOR_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주처_내_품목_리스트_조회시_다른_상점_발주처면_예외가_발생한다() throws Exception {
+        // given
+        Long vendorId = 2L;
+
+        when(productService.getProductsByVendor(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.VENDOR_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/vendor/{vendorId}/products", vendorId)
+                        .with(authentication(auth()))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value(ErrorCode.VENDOR_ACCESS_DENIED.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message").value(ErrorCode.VENDOR_ACCESS_DENIED.getMessage()))

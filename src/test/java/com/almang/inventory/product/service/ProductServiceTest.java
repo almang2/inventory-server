@@ -21,6 +21,7 @@ import com.almang.inventory.user.domain.UserRole;
 import com.almang.inventory.user.repository.UserRepository;
 import com.almang.inventory.vendor.domain.Vendor;
 import com.almang.inventory.vendor.domain.VendorChannel;
+import com.almang.inventory.vendor.dto.response.VendorResponse;
 import com.almang.inventory.vendor.repository.VendorRepository;
 import java.math.BigDecimal;
 import java.util.List;
@@ -1246,5 +1247,201 @@ public class ProductServiceTest {
 
         assertThat(page.totalElements()).isZero();
         assertThat(page.content()).isEmpty();
+    }
+
+    @Test
+    void 발주처별_품목_목록_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor1 = newVendor(store);
+        Vendor vendor2 = newVendor(store);
+        User user = newUser(store);
+
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor1.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        1000,
+                        1500,
+                        1200,
+                        BigDecimal.valueOf(30),
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO
+                ),
+                user.getId()
+        );
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor1.getId(),
+                        "고무장갑",
+                        "P-002",
+                        ProductUnit.EA,
+                        500,
+                        800,
+                        600,
+                        BigDecimal.valueOf(30),
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO
+                ),
+                user.getId()
+        );
+
+        productService.createProduct(
+                new CreateProductRequest(
+                        vendor2.getId(),
+                        "세제",
+                        "P-003",
+                        ProductUnit.ML,
+                        3000,
+                        4000,
+                        3500,
+                        BigDecimal.valueOf(30),
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO
+                ),
+                user.getId()
+        );
+
+        // when
+        List<ProductResponse> products =
+                productService.getProductsByVendor(vendor1.getId(), user.getId());
+
+        // then
+        assertThat(products).hasSize(2);
+        assertThat(products)
+                .extracting(ProductResponse::vendorId)
+                .containsOnly(vendor1.getId());
+        assertThat(products)
+                .extracting(ProductResponse::name)
+                .containsExactlyInAnyOrder("고체치약", "고무장갑");
+    }
+
+    @Test
+    void 발주처별_품목_목록_조회시_존재하지_않는_발주처이면_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Long notExistVendorId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> productService.getProductsByVendor(notExistVendorId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 발주처별_품목_목록_조회시_다른_상점_발주처이면_예외가_발생한다() {
+        // given
+        Store store1 = newStore();
+        Store store2 = newStore();
+
+        Vendor vendorOfStore2 = newVendor(store2);
+        User userOfStore1 = newUser(store1);
+
+        // when & then
+        assertThatThrownBy(() -> productService.getProductsByVendor(vendorOfStore2.getId(), userOfStore1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.VENDOR_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    void 품목의_발주처_조회에_성공한다() {
+        // given
+        Store store = newStore();
+        Vendor vendor = newVendor(store);
+        User user = newUser(store);
+
+        ProductResponse product = productService.createProduct(
+                new CreateProductRequest(
+                        vendor.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        1000,
+                        1500,
+                        1200,
+                        BigDecimal.valueOf(30),
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO
+                ),
+                user.getId()
+        );
+
+        // when
+        VendorResponse vendorResponse =
+                productService.getVendorByProduct(product.productId(), user.getId());
+
+        // then
+        assertThat(vendorResponse.vendorId()).isEqualTo(vendor.getId());
+        assertThat(vendorResponse.name()).isEqualTo("테스트 발주처");
+        assertThat(vendorResponse.channel()).isEqualTo(VendorChannel.KAKAO);
+        assertThat(vendorResponse.storeId()).isEqualTo(store.getId());
+        assertThat(vendorResponse.activated()).isTrue();
+    }
+
+    @Test
+    void 존재하지_않는_품목의_발주처_조회시_예외가_발생한다() {
+        // given
+        Store store = newStore();
+        User user = newUser(store);
+        Long notExistProductId = 9999L;
+
+        // when & then
+        assertThatThrownBy(() -> productService.getVendorByProduct(notExistProductId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.PRODUCT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 다른_상점_품목의_발주처_조회시_예외가_발생한다() {
+        // given
+        Store store1 = newStore();
+        Store store2 = newStore();
+
+        Vendor vendorOfStore2 = newVendor(store2);
+
+        User userOfStore1 = newUser(store1);
+        User userOfStore2 = userRepository.save(
+                User.builder()
+                        .store(store2)
+                        .username("vendor_lookup_store2")
+                        .password("password")
+                        .name("상점2 관리자(발주처 조회)")
+                        .role(UserRole.ADMIN)
+                        .build()
+        );
+
+        ProductResponse productOfStore2 = productService.createProduct(
+                new CreateProductRequest(
+                        vendorOfStore2.getId(),
+                        "고체치약",
+                        "P-001",
+                        ProductUnit.G,
+                        1000,
+                        1500,
+                        1200,
+                        BigDecimal.valueOf(30),
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO
+                ),
+                userOfStore2.getId()
+        );
+
+        // when & then
+        assertThatThrownBy(() -> productService.getVendorByProduct(productOfStore2.productId(), userOfStore1.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.STORE_ACCESS_DENIED.getMessage());
     }
 }

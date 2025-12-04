@@ -1,6 +1,7 @@
 package com.almang.inventory.product.repository;
 
 import com.almang.inventory.product.domain.Product;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -26,6 +27,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     );
 
     boolean existsByVendorId(Long vendorId);
+
+    List<Product> findByStoreIdAndVendorId(Long storeId, Long vendorId);
 
     // 상품 코드로 상품 찾기 (카페24 주문 처리용)
     Optional<Product> findByCode(String code);

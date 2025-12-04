@@ -153,6 +153,10 @@ class OrderServiceTest {
 
         // then
         assertThat(response).isNotNull();
+        assertThat(response.orderItems().get(0).productName()).isEqualTo("상품1");
+        assertThat(response.orderItems().get(0).productCode()).isEqualTo("P001");
+        assertThat(response.orderItems().get(1).productName()).isEqualTo("상품2");
+        assertThat(response.orderItems().get(1).productCode()).isEqualTo("P002");
 
         Order savedOrder = orderRepository.findAll()
                 .stream()

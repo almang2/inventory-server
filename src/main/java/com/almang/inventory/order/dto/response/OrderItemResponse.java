@@ -11,7 +11,9 @@ public record OrderItemResponse(
         Integer quantity,
         Integer unitPrice,
         Integer amount,
-        String note
+        String note,
+        String productName,
+        String productCode
 ) {
     public static OrderItemResponse from(OrderItem orderItem) {
         if (orderItem.getOrder() == null || orderItem.getProduct() == null) {
@@ -24,7 +26,9 @@ public record OrderItemResponse(
                 orderItem.getQuantity(),
                 orderItem.getUnitPrice(),
                 orderItem.getAmount(),
-                orderItem.getNote()
+                orderItem.getNote(),
+                orderItem.getProduct().getName(),
+                orderItem.getProduct().getCode()
         );
     }
 }

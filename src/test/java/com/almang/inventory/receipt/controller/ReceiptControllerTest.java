@@ -76,7 +76,9 @@ class ReceiptControllerTest {
                         null,
                         5000,
                         null,
-                        "비고입니다."
+                        "비고입니다.",
+                        "품목",
+                        "000001"
                 );
 
         ReceiptResponse response = new ReceiptResponse(
@@ -193,7 +195,9 @@ class ReceiptControllerTest {
                 null,
                 5000,
                 null,
-                "비고입니다."
+                "비고입니다.",
+                "품목",
+                "000001"
         );
 
         ReceiptResponse response = new ReceiptResponse(
@@ -310,7 +314,9 @@ class ReceiptControllerTest {
                 null,
                 5000,
                 null,
-                "비고입니다."
+                "비고입니다.",
+                "품목",
+                "000001"
         );
 
         ReceiptResponse response = new ReceiptResponse(
@@ -400,13 +406,13 @@ class ReceiptControllerTest {
     void 입고_목록_조회에_성공한다() throws Exception {
         // given
         ReceiptItemResponse item1 = new ReceiptItemResponse(
-                1001L, 1L, 101L,
-                BigDecimal.valueOf(5), null, 5000, null, "비고1"
+                1001L, 1L, 101L, BigDecimal.valueOf(5),
+                null, 5000, null, "비고1", "품목", "000001"
         );
 
         ReceiptItemResponse item2 = new ReceiptItemResponse(
-                1002L, 1L, 102L,
-                BigDecimal.valueOf(3), null, 3000, null, "비고2"
+                1002L, 1L, 102L, BigDecimal.valueOf(3),
+                null, 3000, null, "비고2", "품목", "000001"
         );
 
         ReceiptResponse r1 = new ReceiptResponse(
@@ -513,7 +519,9 @@ class ReceiptControllerTest {
                 10,
                 11000,
                 110000,
-                "수정 비고입니다."
+                "수정 비고입니다.",
+                "품목",
+                "000001"
         );
 
         ReceiptResponse response = new ReceiptResponse(
@@ -751,7 +759,9 @@ class ReceiptControllerTest {
                 10,
                 5000,
                 50000,
-                "비고입니다."
+                "비고입니다.",
+                "품목",
+                "000001"
         );
 
         when(receiptService.getReceiptItem(anyLong(), anyLong(), anyLong()))
@@ -849,7 +859,9 @@ class ReceiptControllerTest {
                 10,
                 1500,
                 15000,
-                "수정 비고입니다."
+                "수정 비고입니다.",
+                "품목",
+                "000001"
         );
 
         when(receiptService.updateReceiptItem(anyLong(), anyLong(), any(UpdateReceiptItemRequest.class), anyLong()))

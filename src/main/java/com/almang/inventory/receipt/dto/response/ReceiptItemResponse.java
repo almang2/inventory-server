@@ -11,7 +11,9 @@ public record ReceiptItemResponse(
         Integer actualQuantity,
         Integer unitPrice,
         Integer amount,
-        String note
+        String note,
+        String productName,
+        String productCode
 ) {
     public static ReceiptItemResponse from(ReceiptItem receiptItem) {
         return new ReceiptItemResponse(
@@ -22,7 +24,9 @@ public record ReceiptItemResponse(
                 receiptItem.getActualQuantity(),
                 receiptItem.getUnitPrice(),
                 receiptItem.getAmount(),
-                receiptItem.getNote()
+                receiptItem.getNote(),
+                receiptItem.getProduct().getName(),
+                receiptItem.getProduct().getCode()
         );
     }
 }

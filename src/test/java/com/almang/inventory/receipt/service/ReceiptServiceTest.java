@@ -271,7 +271,7 @@ class ReceiptServiceTest {
         for (OrderItem orderItem : order.getItems()) {
             ReceiptItem item = ReceiptItem.builder()
                     .product(orderItem.getProduct())
-                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .expectedQuantity(orderItem.getQuantity())
                     .amount(orderItem.getAmount())
                     .unitPrice(orderItem.getUnitPrice())
                     .build();
@@ -363,7 +363,7 @@ class ReceiptServiceTest {
         for (OrderItem orderItem : order.getItems()) {
             ReceiptItem item = ReceiptItem.builder()
                     .product(orderItem.getProduct())
-                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .expectedQuantity(orderItem.getQuantity())
                     .amount(orderItem.getAmount())
                     .unitPrice(orderItem.getUnitPrice())
                     .build();
@@ -432,7 +432,7 @@ class ReceiptServiceTest {
         for (OrderItem orderItem : orderOfStore2.getItems()) {
             ReceiptItem item = ReceiptItem.builder()
                     .product(orderItem.getProduct())
-                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .expectedQuantity(orderItem.getQuantity())
                     .amount(orderItem.getAmount())
                     .unitPrice(orderItem.getUnitPrice())
                     .build();
@@ -466,7 +466,7 @@ class ReceiptServiceTest {
         for (OrderItem orderItem : order1.getItems()) {
             ReceiptItem item = ReceiptItem.builder()
                     .product(orderItem.getProduct())
-                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .expectedQuantity(orderItem.getQuantity())
                     .amount(orderItem.getAmount())
                     .unitPrice(orderItem.getUnitPrice())
                     .build();
@@ -485,7 +485,7 @@ class ReceiptServiceTest {
         for (OrderItem orderItem : order2.getItems()) {
             ReceiptItem item = ReceiptItem.builder()
                     .product(orderItem.getProduct())
-                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .expectedQuantity(orderItem.getQuantity())
                     .amount(orderItem.getAmount())
                     .unitPrice(orderItem.getUnitPrice())
                     .build();
@@ -546,7 +546,7 @@ class ReceiptServiceTest {
         for (OrderItem orderItem : order1.getItems()) {
             ReceiptItem item = ReceiptItem.builder()
                     .product(orderItem.getProduct())
-                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .expectedQuantity(orderItem.getQuantity())
                     .amount(orderItem.getAmount())
                     .unitPrice(orderItem.getUnitPrice())
                     .build();
@@ -565,7 +565,7 @@ class ReceiptServiceTest {
         for (OrderItem orderItem : order2.getItems()) {
             ReceiptItem item = ReceiptItem.builder()
                     .product(orderItem.getProduct())
-                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .expectedQuantity(orderItem.getQuantity())
                     .amount(orderItem.getAmount())
                     .unitPrice(orderItem.getUnitPrice())
                     .build();
@@ -660,7 +660,7 @@ class ReceiptServiceTest {
         for (OrderItem orderItem : order.getItems()) {
             ReceiptItem item = ReceiptItem.builder()
                     .product(orderItem.getProduct())
-                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .expectedQuantity(orderItem.getQuantity())
                     .amount(orderItem.getAmount())
                     .unitPrice(orderItem.getUnitPrice())
                     .build();
@@ -675,7 +675,6 @@ class ReceiptServiceTest {
                 item1.getId(),
                 saved.getId(),
                 10,
-                1100,
                 "수정 비고1"
         );
 
@@ -683,7 +682,6 @@ class ReceiptServiceTest {
                 item2.getId(),
                 saved.getId(),
                 5,
-                2100,
                 "수정 비고2"
         );
 
@@ -716,8 +714,7 @@ class ReceiptServiceTest {
                 .orElseThrow();
 
         assertThat(updatedItem1.getActualQuantity()).isEqualTo(10);
-        assertThat(updatedItem1.getUnitPrice()).isEqualTo(1100);
-        assertThat(updatedItem1.getAmount()).isEqualTo(10 * 1100);
+        assertThat(updatedItem1.getAmount()).isEqualTo(10 * updatedItem1.getUnitPrice());
     }
 
     @Test
@@ -810,7 +807,7 @@ class ReceiptServiceTest {
         for (OrderItem orderItem : order1.getItems()) {
             ReceiptItem item = ReceiptItem.builder()
                     .product(orderItem.getProduct())
-                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .expectedQuantity(orderItem.getQuantity())
                     .amount(orderItem.getAmount())
                     .unitPrice(orderItem.getUnitPrice())
                     .build();
@@ -829,7 +826,7 @@ class ReceiptServiceTest {
         for (OrderItem orderItem : order2.getItems()) {
             ReceiptItem item = ReceiptItem.builder()
                     .product(orderItem.getProduct())
-                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .expectedQuantity(orderItem.getQuantity())
                     .amount(orderItem.getAmount())
                     .unitPrice(orderItem.getUnitPrice())
                     .build();
@@ -842,7 +839,6 @@ class ReceiptServiceTest {
                 otherReceiptItem.getId(),
                 receipt1.getId(),
                 3,
-                1000,
                 "잘못된 수정 요청"
         );
 
@@ -995,7 +991,7 @@ class ReceiptServiceTest {
         for (OrderItem orderItem : order.getItems()) {
             ReceiptItem item = ReceiptItem.builder()
                     .product(orderItem.getProduct())
-                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .expectedQuantity(orderItem.getQuantity())
                     .amount(orderItem.getAmount())
                     .unitPrice(orderItem.getUnitPrice())
                     .build();
@@ -1076,7 +1072,7 @@ class ReceiptServiceTest {
         for (OrderItem orderItem : order2.getItems()) {
             ReceiptItem item = ReceiptItem.builder()
                     .product(orderItem.getProduct())
-                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .expectedQuantity(orderItem.getQuantity())
                     .amount(orderItem.getAmount())
                     .unitPrice(orderItem.getUnitPrice())
                     .build();
@@ -1112,7 +1108,7 @@ class ReceiptServiceTest {
         for (OrderItem orderItem : order.getItems()) {
             ReceiptItem item = ReceiptItem.builder()
                     .product(orderItem.getProduct())
-                    .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                    .expectedQuantity(orderItem.getQuantity())
                     .amount(orderItem.getAmount())
                     .unitPrice(orderItem.getUnitPrice())
                     .build();
@@ -1126,7 +1122,6 @@ class ReceiptServiceTest {
                 targetItem.getId(),
                 saved.getId(),
                 10,
-                1500,
                 "수정된 비고"
         );
 
@@ -1137,12 +1132,10 @@ class ReceiptServiceTest {
         // then
         assertThat(response).isNotNull();
         assertThat(response.actualQuantity()).isEqualTo(10);
-        assertThat(response.unitPrice()).isEqualTo(1500);
-        assertThat(response.amount()).isEqualTo(10 * 1500);
+        assertThat(response.amount()).isEqualTo(10 * 1000);
 
         ReceiptItem updated = receiptItemRepository.findById(targetItem.getId()).orElseThrow();
         assertThat(updated.getActualQuantity()).isEqualTo(10);
-        assertThat(updated.getUnitPrice()).isEqualTo(1500);
     }
 
     @Test
@@ -1152,7 +1145,7 @@ class ReceiptServiceTest {
         Long anyItemId = 1L;
 
         UpdateReceiptItemRequest request = new UpdateReceiptItemRequest(
-                anyItemId, 1L, 5, 1000, "비고"
+                anyItemId, 1L, 5, "비고"
         );
 
         // when & then
@@ -1182,7 +1175,7 @@ class ReceiptServiceTest {
         receipt1.addItem(
                 ReceiptItem.builder()
                         .product(order1.getItems().get(0).getProduct())
-                        .expectedQuantity(BigDecimal.valueOf(5))
+                        .expectedQuantity(5)
                         .amount(5000)
                         .unitPrice(1000)
                         .build()
@@ -1199,7 +1192,7 @@ class ReceiptServiceTest {
         receipt2.addItem(
                 ReceiptItem.builder()
                         .product(order2.getItems().get(0).getProduct())
-                        .expectedQuantity(BigDecimal.valueOf(3))
+                        .expectedQuantity(3)
                         .amount(6000)
                         .unitPrice(2000)
                         .build()
@@ -1211,7 +1204,6 @@ class ReceiptServiceTest {
                 otherReceiptItem.getId(),
                 savedReceipt1.getId(),
                 10,
-                2000,
                 "잘못 수정"
         );
 
@@ -1241,7 +1233,7 @@ class ReceiptServiceTest {
         receipt.addItem(
                 ReceiptItem.builder()
                         .product(order.getItems().get(0).getProduct())
-                        .expectedQuantity(BigDecimal.valueOf(5))
+                        .expectedQuantity(5)
                         .amount(5000)
                         .unitPrice(1000)
                         .build()
@@ -1256,7 +1248,6 @@ class ReceiptServiceTest {
                 targetItem.getId(),
                 wrongReceiptId,
                 5,
-                1000,
                 "비고"
         );
 
@@ -1286,14 +1277,14 @@ class ReceiptServiceTest {
 
         ReceiptItem item1 = ReceiptItem.builder()
                 .product(order.getItems().get(0).getProduct())
-                .expectedQuantity(BigDecimal.valueOf(order.getItems().get(0).getQuantity()))
+                .expectedQuantity(order.getItems().get(0).getQuantity())
                 .amount(order.getItems().get(0).getAmount())
                 .unitPrice(order.getItems().get(0).getUnitPrice())
                 .build();
 
         ReceiptItem item2 = ReceiptItem.builder()
                 .product(order.getItems().get(1).getProduct())
-                .expectedQuantity(BigDecimal.valueOf(order.getItems().get(1).getQuantity()))
+                .expectedQuantity(order.getItems().get(1).getQuantity())
                 .amount(order.getItems().get(1).getAmount())
                 .unitPrice(order.getItems().get(1).getUnitPrice())
                 .build();
@@ -1376,7 +1367,7 @@ class ReceiptServiceTest {
 
         ReceiptItem itemOfStore2 = ReceiptItem.builder()
                 .product(order2.getItems().get(0).getProduct())
-                .expectedQuantity(BigDecimal.valueOf(order2.getItems().get(0).getQuantity()))
+                .expectedQuantity(order2.getItems().get(0).getQuantity())
                 .amount(order2.getItems().get(0).getAmount())
                 .unitPrice(order2.getItems().get(0).getUnitPrice())
                 .build();
@@ -1486,7 +1477,7 @@ class ReceiptServiceTest {
 
         ReceiptItem receiptItem = ReceiptItem.builder()
                 .product(product)
-                .expectedQuantity(BigDecimal.valueOf(5))
+                .expectedQuantity(5)
                 .actualQuantity(null)
                 .amount(5000)
                 .unitPrice(1000)
@@ -1545,7 +1536,7 @@ class ReceiptServiceTest {
 
         ReceiptItem receiptItem = ReceiptItem.builder()
                 .product(product)
-                .expectedQuantity(BigDecimal.valueOf(5))
+                .expectedQuantity(5)
                 .actualQuantity(3)
                 .amount(3000)
                 .unitPrice(1000)

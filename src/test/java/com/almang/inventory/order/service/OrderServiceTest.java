@@ -128,13 +128,11 @@ class OrderServiceTest {
         CreateOrderItemRequest itemReq1 = new CreateOrderItemRequest(
                 product1.getId(),
                 10,
-                1000,
                 "비고1"
         );
         CreateOrderItemRequest itemReq2 = new CreateOrderItemRequest(
                 product2.getId(),
                 5,
-                2000,
                 "비고2"
         );
 
@@ -145,7 +143,7 @@ class OrderServiceTest {
                 List.of(itemReq1, itemReq2)
         );
 
-        int expectedTotalPrice = 10 * 1000 + 5 * 2000;
+        int expectedTotalPrice = 10 * 1000 + 5 * 1000;
         LocalDate expectedArrival = LocalDate.now().plusDays(3);
 
         // when
@@ -226,7 +224,7 @@ class OrderServiceTest {
                 "메시지",
                 2,
                 List.of(
-                        new CreateOrderItemRequest(1L, 1, 1000, "비고")
+                        new CreateOrderItemRequest(1L, 1, "비고")
                 )
         );
 
@@ -249,7 +247,7 @@ class OrderServiceTest {
                 "메시지",
                 2,
                 List.of(
-                        new CreateOrderItemRequest(1L, 1, 1000, "비고")
+                        new CreateOrderItemRequest(1L, 1, "비고")
                 )
         );
 
@@ -271,7 +269,6 @@ class OrderServiceTest {
         CreateOrderItemRequest itemReq = new CreateOrderItemRequest(
                 1L,
                 1,
-                1000,
                 "비고"
         );
 
@@ -300,7 +297,6 @@ class OrderServiceTest {
         CreateOrderItemRequest itemReq = new CreateOrderItemRequest(
                 notExistProductId,
                 5,
-                1000,
                 "비고"
         );
 
@@ -332,7 +328,6 @@ class OrderServiceTest {
         CreateOrderItemRequest itemReq = new CreateOrderItemRequest(
                 productOfStore2.getId(),
                 3,
-                1000,
                 "비고"
         );
 
@@ -362,13 +357,11 @@ class OrderServiceTest {
         CreateOrderItemRequest itemReq1 = new CreateOrderItemRequest(
                 product1.getId(),
                 10,
-                1000,
                 "비고1"
         );
         CreateOrderItemRequest itemReq2 = new CreateOrderItemRequest(
                 product2.getId(),
                 5,
-                2000,
                 "비고2"
         );
 
@@ -424,7 +417,6 @@ class OrderServiceTest {
         CreateOrderItemRequest itemReq = new CreateOrderItemRequest(
                 productOfStore2.getId(),
                 3,
-                1000,
                 "비고"
         );
 
@@ -458,7 +450,7 @@ class OrderServiceTest {
                 vendor.getId(),
                 "메시지1",
                 1,
-                List.of(new CreateOrderItemRequest(p1.getId(), 5, 1000, null))
+                List.of(new CreateOrderItemRequest(p1.getId(), 5, null))
         );
         orderService.createOrder(req1, user.getId());
 
@@ -466,7 +458,7 @@ class OrderServiceTest {
                 vendor.getId(),
                 "메시지2",
                 2,
-                List.of(new CreateOrderItemRequest(p2.getId(), 3, 2000, null))
+                List.of(new CreateOrderItemRequest(p2.getId(), 3, null))
         );
         orderService.createOrder(req2, user.getId());
 
@@ -506,14 +498,14 @@ class OrderServiceTest {
         orderService.createOrder(
                 new CreateOrderRequest(
                         vendorA.getId(), "A 요청", 1,
-                        List.of(new CreateOrderItemRequest(p1.getId(), 5, 1000, null))
+                        List.of(new CreateOrderItemRequest(p1.getId(), 5, null))
                 ),
                 user.getId()
         );
         orderService.createOrder(
                 new CreateOrderRequest(
                         vendorB.getId(), "B 요청", 1,
-                        List.of(new CreateOrderItemRequest(p2.getId(), 3, 2000, null))
+                        List.of(new CreateOrderItemRequest(p2.getId(), 3, null))
                 ),
                 user.getId()
         );
@@ -550,7 +542,7 @@ class OrderServiceTest {
         orderService.createOrder(
                 new CreateOrderRequest(
                         vendor.getId(), "REQUEST 메시지", 1,
-                        List.of(new CreateOrderItemRequest(product.getId(), 1, 1000, null))
+                        List.of(new CreateOrderItemRequest(product.getId(), 1, null))
                 ),
                 user.getId()
         );
@@ -598,7 +590,7 @@ class OrderServiceTest {
         orderService.createOrder(
                 new CreateOrderRequest(
                         vendor.getId(), "오늘 발주", 1,
-                        List.of(new CreateOrderItemRequest(product.getId(), 1, 1000, null))
+                        List.of(new CreateOrderItemRequest(product.getId(), 1, null))
                 ),
                 user.getId()
         );
@@ -648,7 +640,7 @@ class OrderServiceTest {
                 vendor.getId(),
                 "원본 메시지",
                 3,
-                List.of(new CreateOrderItemRequest(product.getId(), 2, 1000, "원본 비고"))
+                List.of(new CreateOrderItemRequest(product.getId(), 2, "원본 비고"))
         );
         OrderResponse created = orderService.createOrder(createRequest, user.getId());
         Long orderId = created.orderId();
@@ -660,9 +652,8 @@ class OrderServiceTest {
         Long orderItemId = originalItem.getId();
 
         int newQuantity = 5;
-        int newUnitPrice = 2000;
         String newNote = "수정된 비고";
-        int expectedTotalPrice = newQuantity * newUnitPrice;
+        int expectedTotalPrice = newQuantity * product.getCostPrice();
         int newLeadTime = 5;
         LocalDate newQuoteDate = LocalDate.now();
 
@@ -670,7 +661,6 @@ class OrderServiceTest {
                 orderItemId,
                 product.getId(),
                 newQuantity,
-                newUnitPrice,
                 newNote
         );
 
@@ -704,8 +694,7 @@ class OrderServiceTest {
                 .get(0);
 
         assertThat(updatedItem.getQuantity()).isEqualTo(newQuantity);
-        assertThat(updatedItem.getUnitPrice()).isEqualTo(newUnitPrice);
-        assertThat(updatedItem.getAmount()).isEqualTo(newQuantity * newUnitPrice);
+        assertThat(updatedItem.getAmount()).isEqualTo(newQuantity * product.getCostPrice());
         assertThat(updatedItem.getNote()).isEqualTo(newNote);
     }
 
@@ -751,7 +740,7 @@ class OrderServiceTest {
                         vendorOfStore2.getId(),
                         "상점2 발주",
                         2,
-                        List.of(new CreateOrderItemRequest(productOfStore2.getId(), 3, 1000, null))
+                        List.of(new CreateOrderItemRequest(productOfStore2.getId(), 3, null))
                 ),
                 userOfStore2.getId()
         );
@@ -790,7 +779,7 @@ class OrderServiceTest {
                         vendorA.getId(),
                         "원본 메시지",
                         2,
-                        List.of(new CreateOrderItemRequest(product.getId(), 2, 1000, null))
+                        List.of(new CreateOrderItemRequest(product.getId(), 2, null))
                 ),
                 user.getId()
         );
@@ -827,7 +816,7 @@ class OrderServiceTest {
                         vendor.getId(),
                         "원본 메시지",
                         2,
-                        List.of(new CreateOrderItemRequest(product.getId(), 2, 1000, null))
+                        List.of(new CreateOrderItemRequest(product.getId(), 2, null))
                 ),
                 user.getId()
         );
@@ -839,7 +828,6 @@ class OrderServiceTest {
                 notExistOrderItemId,
                 product.getId(),
                 5,
-                2000,
                 "수정 비고"
         );
 
@@ -873,7 +861,7 @@ class OrderServiceTest {
                         vendor.getId(),
                         "발주1",
                         2,
-                        List.of(new CreateOrderItemRequest(product.getId(), 2, 1000, null))
+                        List.of(new CreateOrderItemRequest(product.getId(), 2, null))
                 ),
                 user.getId()
         );
@@ -883,7 +871,7 @@ class OrderServiceTest {
                         vendor.getId(),
                         "발주2",
                         2,
-                        List.of(new CreateOrderItemRequest(product.getId(), 3, 1500, null))
+                        List.of(new CreateOrderItemRequest(product.getId(), 3, null))
                 ),
                 user.getId()
         );
@@ -896,7 +884,6 @@ class OrderServiceTest {
                 otherOrderItemId,
                 product.getId(),
                 10,
-                2000,
                 "수정 비고"
         );
 
@@ -929,7 +916,7 @@ class OrderServiceTest {
                 vendor.getId(),
                 "발주 메시지",
                 3,
-                List.of(new CreateOrderItemRequest(product.getId(), 2, 1000, "비고"))
+                List.of(new CreateOrderItemRequest(product.getId(), 2, "비고"))
         );
 
         OrderResponse created = orderService.createOrder(createRequest, user.getId());
@@ -983,7 +970,7 @@ class OrderServiceTest {
                         vendorOfStore2.getId(),
                         "상점2 발주",
                         2,
-                        List.of(new CreateOrderItemRequest(productOfStore2.getId(), 3, 1000, "비고"))
+                        List.of(new CreateOrderItemRequest(productOfStore2.getId(), 3, "비고"))
                 ),
                 userOfStore2.getId()
         );
@@ -1011,7 +998,7 @@ class OrderServiceTest {
                 vendor.getId(),
                 "발주 메시지",
                 3,
-                List.of(new CreateOrderItemRequest(product.getId(), 2, 1000, "원본 비고"))
+                List.of(new CreateOrderItemRequest(product.getId(), 2, "원본 비고"))
         );
 
         OrderResponse created = orderService.createOrder(createRequest, user.getId());
@@ -1029,14 +1016,12 @@ class OrderServiceTest {
         Long orderItemId = orderItem.getId();
 
         int newQuantity = 10;
-        int newUnitPrice = 2000;
         String newNote = "수정된 비고";
 
         UpdateOrderItemRequest updateRequest = new UpdateOrderItemRequest(
                 orderItemId,
                 product.getId(),
                 newQuantity,
-                newUnitPrice,
                 newNote
         );
 
@@ -1048,8 +1033,8 @@ class OrderServiceTest {
         assertThat(response.orderItemId()).isEqualTo(orderItemId);
         assertThat(response.productId()).isEqualTo(product.getId());
         assertThat(response.quantity()).isEqualTo(newQuantity);
-        assertThat(response.unitPrice()).isEqualTo(newUnitPrice);
-        assertThat(response.amount()).isEqualTo(newQuantity * newUnitPrice);
+        assertThat(response.unitPrice()).isEqualTo(orderItem.getUnitPrice());
+        assertThat(response.amount()).isEqualTo(newQuantity * orderItem.getUnitPrice());
         assertThat(response.note()).isEqualTo(newNote);
 
         OrderItem updated = orderRepository.findById(orderId)
@@ -1058,8 +1043,8 @@ class OrderServiceTest {
                 .get(0);
 
         assertThat(updated.getQuantity()).isEqualTo(newQuantity);
-        assertThat(updated.getUnitPrice()).isEqualTo(newUnitPrice);
-        assertThat(updated.getAmount()).isEqualTo(newQuantity * newUnitPrice);
+        assertThat(updated.getUnitPrice()).isEqualTo(orderItem.getUnitPrice());
+        assertThat(updated.getAmount()).isEqualTo(newQuantity * orderItem.getUnitPrice());
         assertThat(updated.getNote()).isEqualTo(newNote);
 
         // 수정 후 입고 예정 재고 확인
@@ -1081,7 +1066,7 @@ class OrderServiceTest {
                 vendor.getId(),
                 "원본 메시지",
                 3,
-                List.of(new CreateOrderItemRequest(product.getId(), 2, 1000, "원본 비고"))
+                List.of(new CreateOrderItemRequest(product.getId(), 2, "원본 비고"))
         );
         OrderResponse created = orderService.createOrder(createRequest, user.getId());
         Long orderId = created.orderId();
@@ -1099,7 +1084,6 @@ class OrderServiceTest {
                 orderItemId,
                 product.getId(),
                 5,  // 변경 수량
-                1000,
                 "수정 비고"
         );
 
@@ -1137,7 +1121,7 @@ class OrderServiceTest {
                 vendor.getId(),
                 "원본 메시지",
                 3,
-                List.of(new CreateOrderItemRequest(product.getId(), 5, 1000, "원본 비고"))
+                List.of(new CreateOrderItemRequest(product.getId(), 5, "원본 비고"))
         );
         OrderResponse created = orderService.createOrder(createRequest, user.getId());
         Long orderId = created.orderId();
@@ -1155,7 +1139,6 @@ class OrderServiceTest {
                 orderItemId,
                 product.getId(),
                 2,      // 변경 수량
-                1000,
                 "수정 비고"
         );
 
@@ -1193,7 +1176,7 @@ class OrderServiceTest {
                 vendor.getId(),
                 "원본 메시지",
                 3,
-                List.of(new CreateOrderItemRequest(product.getId(), 3, 1000, "원본 비고"))
+                List.of(new CreateOrderItemRequest(product.getId(), 3, "원본 비고"))
         );
         OrderResponse created = orderService.createOrder(createRequest, user.getId());
         Long orderId = created.orderId();
@@ -1211,7 +1194,6 @@ class OrderServiceTest {
                 orderItemId,
                 product.getId(),
                 3, // 수량 변경 없음
-                2000,
                 "단가만 수정"
         );
 
@@ -1247,7 +1229,6 @@ class OrderServiceTest {
                 anyOrderItemId,
                 1L,
                 1,
-                1000,
                 "비고"
         );
 
@@ -1268,7 +1249,6 @@ class OrderServiceTest {
                 notExistOrderItemId,
                 null,
                 5,
-                2000,
                 "수정 비고"
         );
 
@@ -1295,7 +1275,7 @@ class OrderServiceTest {
                         vendorOfStore2.getId(),
                         "상점2 발주",
                         2,
-                        List.of(new CreateOrderItemRequest(productOfStore2.getId(), 3, 1000, "비고"))
+                        List.of(new CreateOrderItemRequest(productOfStore2.getId(), 3, "비고"))
                 ),
                 userOfStore2.getId()
         );
@@ -1309,7 +1289,6 @@ class OrderServiceTest {
                 orderItemId,
                 productOfStore2.getId(),
                 10,
-                2000,
                 "수정 비고"
         );
 
@@ -1331,7 +1310,7 @@ class OrderServiceTest {
                 vendor.getId(),
                 "삭제 대상 발주",
                 2,
-                List.of(new CreateOrderItemRequest(product.getId(), 3, 1000, "비고"))
+                List.of(new CreateOrderItemRequest(product.getId(), 3, "비고"))
         );
 
         OrderResponse created = orderService.createOrder(createRequest, user.getId());
@@ -1376,7 +1355,7 @@ class OrderServiceTest {
                 vendor.getId(),
                 "취소된 발주",
                 2,
-                List.of(new CreateOrderItemRequest(product.getId(), 3, 1000, null))
+                List.of(new CreateOrderItemRequest(product.getId(), 3, null))
         );
 
         OrderResponse created = orderService.createOrder(request, user.getId());
@@ -1433,7 +1412,7 @@ class OrderServiceTest {
                         vendorOfStore2.getId(),
                         "상점2 발주",
                         2,
-                        List.of(new CreateOrderItemRequest(productOfStore2.getId(), 3, 1000, "비고"))
+                        List.of(new CreateOrderItemRequest(productOfStore2.getId(), 3, "비고"))
                 ),
                 userOfStore2.getId()
         );

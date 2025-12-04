@@ -163,11 +163,10 @@ public class ReceiptService {
 
         // 입고 확정 후 재고 상태 변경
         for (ReceiptItem receiptItem : receipt.getItems()) {
-            BigDecimal expected = receiptItem.getExpectedQuantity();
-            BigDecimal actual =
-                    receiptItem.getActualQuantity() != null ? BigDecimal.valueOf(receiptItem.getActualQuantity()) : expected;
+            int expected = receiptItem.getExpectedQuantity();
+            int actual = receiptItem.getActualQuantity() != null ? receiptItem.getActualQuantity() : expected;
 
-            inventoryService.applyReceipt(receiptItem.getProduct(), expected, actual);
+            inventoryService.applyReceipt(receiptItem.getProduct(), BigDecimal.valueOf(expected), BigDecimal.valueOf(actual));
         }
 
         log.info("[ReceiptService] 입고 확정 성공 - receiptId: {}", receipt.getId());
@@ -205,9 +204,7 @@ public class ReceiptService {
         Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
         ReceiptItem receiptItem = findReceiptItemByIdAndValidateAccess(receiptItemId, receipt);
 
-        receiptItem.update(
-                request.actualQuantity(), request.unitPrice(), request.note()
-        );
+        receiptItem.update(request.actualQuantity(), request.note());
 
         log.info("[ReceiptService] 입고 아이템 수정 성공 - receiptItemId: {}", receiptItem.getId());
         return ReceiptItemResponse.from(receiptItem);
@@ -253,7 +250,7 @@ public class ReceiptService {
     private ReceiptItem toReceiptItemEntity(OrderItem orderItem) {
         return ReceiptItem.builder()
                 .product(orderItem.getProduct())
-                .expectedQuantity(BigDecimal.valueOf(orderItem.getQuantity()))
+                .expectedQuantity(orderItem.getQuantity())
                 .actualQuantity(null)
                 .unitPrice(orderItem.getUnitPrice())
                 .amount(orderItem.getQuantity() * orderItem.getUnitPrice())
@@ -346,7 +343,7 @@ public class ReceiptService {
             ReceiptItem receiptItem =
                     findReceiptItemByIdAndValidateAccess(receiptItemRequest.receiptItemId(), receipt);
             receiptItem.update(
-                    receiptItemRequest.actualQuantity(), receiptItemRequest.unitPrice(), receiptItemRequest.note()
+                    receiptItemRequest.actualQuantity(), receiptItemRequest.note()
             );
         }
     }

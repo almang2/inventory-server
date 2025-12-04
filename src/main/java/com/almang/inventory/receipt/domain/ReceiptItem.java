@@ -27,13 +27,13 @@ public class ReceiptItem extends BaseTimeEntity {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @Column(name = "expected_quantity", precision = 8, scale = 3)
-    private BigDecimal expectedQuantity;
+    @Column(name = "expected_quantity")
+    private Integer expectedQuantity;
 
     @Column(name = "actual_quantity")
     private Integer actualQuantity;
 
-    @Column(name = "unit_price")
+    @Column(name = "unit_price", nullable = false)
     private Integer unitPrice;
 
     @Column(name = "amount")
@@ -46,19 +46,17 @@ public class ReceiptItem extends BaseTimeEntity {
         this.receipt = receipt;
     }
 
-    public void update(
-            Integer actualQuantity, Integer unitPrice, String note
-    ) {
+    public void update(Integer actualQuantity, String note) {
         if (actualQuantity != null) {
             this.actualQuantity = actualQuantity;
-        }
-        if (unitPrice != null) {
-            this.unitPrice = unitPrice;
         }
         if (note != null) {
             this.note = note;
         }
-        if (this.actualQuantity != null && this.unitPrice != null) {
+        if (this.actualQuantity == null) {
+            this.amount = this.expectedQuantity * this.unitPrice;
+        }
+        if (this.actualQuantity != null) {
             this.amount = this.actualQuantity * this.unitPrice;
         }
     }

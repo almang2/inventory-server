@@ -9,6 +9,7 @@ import com.almang.inventory.product.dto.request.UpdateProductRequest;
 import com.almang.inventory.product.dto.response.DeleteProductResponse;
 import com.almang.inventory.product.dto.response.ProductResponse;
 import com.almang.inventory.product.service.ProductService;
+import com.almang.inventory.vendor.dto.response.VendorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -113,6 +114,21 @@ public class ProductController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.GET_PRODUCT_LIST_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @GetMapping("/{productId}/vendor")
+    @Operation(summary = "품목 발주처 조회", description = "품목 발주처를 조회합니다.")
+    public ResponseEntity<ApiResponse<VendorResponse>> getVendorByProduct(
+            @PathVariable Long productId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[ProductController] 품목 발주처 조회 요청 - userId: {}, productId: {}", userId, productId);
+        VendorResponse response = productService.getVendorByProduct(productId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.GET_VENDOR_BY_PRODUCT_SUCCESS.getMessage(), response)
         );
     }
 }

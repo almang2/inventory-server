@@ -27,7 +27,7 @@ public class ReceiptItem extends BaseTimeEntity {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @Column(name = "expected_quantity")
+    @Column(name = "expected_quantity", nullable = false)
     private Integer expectedQuantity;
 
     @Column(name = "actual_quantity")
@@ -36,7 +36,7 @@ public class ReceiptItem extends BaseTimeEntity {
     @Column(name = "unit_price", nullable = false)
     private Integer unitPrice;
 
-    @Column(name = "amount")
+    @Column(name = "amount", nullable = false)
     private Integer amount;
 
     @Column(name = "note", columnDefinition = "TEXT")

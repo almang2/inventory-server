@@ -18,6 +18,7 @@ import com.almang.inventory.store.domain.Store;
 import com.almang.inventory.user.domain.User;
 import com.almang.inventory.vendor.domain.Vendor;
 import com.almang.inventory.vendor.repository.VendorRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -117,6 +118,21 @@ public class ProductService {
         return PageResponse.from(mapped);
     }
 
+    @Transactional(readOnly = true)
+    public List<ProductResponse> getProductsByVendor(Long vendorId, Long userId) {
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
+        validateVendorAccess(vendorId, store);
+
+        log.info("[ProductService] 발주처 내의 품목 조회 요청 - userId: {}, vendorId: {}", userId, vendorId);
+        List<Product> products = productRepository.findByStoreIdAndVendorId(store.getId(), vendorId);
+
+        log.info("[ProductService] 발주처 내의 품목 조회 성공 - userId: {}, vendorId: {}", userId, vendorId);
+        return products.stream()
+                .map(ProductResponse::from)
+                .toList();
+    }
+
     private Product toEntity(CreateProductRequest request, User user) {
         Vendor vendor = findVendorByIdAndValidateAccess(request.vendorId(), user);
 
@@ -157,6 +173,15 @@ public class ProductService {
     private void validateStoreAccess(Product product, User user) {
         if (!product.getStore().getId().equals(user.getStore().getId())) {
             throw new BaseException(ErrorCode.STORE_ACCESS_DENIED);
+        }
+    }
+
+    private void validateVendorAccess(Long vendorId, Store store) {
+        Vendor vendor = vendorRepository.findById(vendorId)
+                .orElseThrow(() -> new BaseException(ErrorCode.VENDOR_NOT_FOUND));
+
+        if (!vendor.getStore().getId().equals(store.getId())) {
+            throw new BaseException(ErrorCode.VENDOR_ACCESS_DENIED);
         }
     }
 

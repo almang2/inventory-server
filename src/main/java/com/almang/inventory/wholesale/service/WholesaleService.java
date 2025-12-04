@@ -61,7 +61,7 @@ public class WholesaleService {
         Wholesale saved = wholesaleRepository.save(wholesale);
 
         log.info("[WholesaleService] 출고 대기 생성 성공 - wholesaleId: {}, storeId: {}", saved.getId(), store.getId());
-        return WholesaleResponse.from(saved);
+        return WholesaleResponse.fromWithStockInfo(saved, inventoryRepository);
     }
 
     @Transactional(readOnly = true)
@@ -239,14 +239,15 @@ public class WholesaleService {
 
             // 재고 검증 (가용 재고 = 창고 재고 - 출고 예정 수량)
             BigDecimal availableStock = inventory.getAvailableStock();
-            if (availableStock.compareTo(request.quantity()) < 0) {
-                throw new BaseException(ErrorCode.NOT_ENOUGH_STOCK,
-                        String.format("상품 '%s'의 창고 재고가 부족합니다. (요청: %s, 가용 재고: %s)",
-                                product.getName(), request.quantity(), availableStock));
+            
+            // 재고가 충분한 경우에만 출고 예정 수량 증가
+            if (availableStock.compareTo(request.quantity()) >= 0) {
+                inventory.increaseOutgoing(request.quantity());
+            } else {
+                // 재고 부족 시 로그만 남기고 계속 진행 (주문서는 생성되지만 재고는 증가시키지 않음)
+                log.warn("[WholesaleService] 재고 부족 - 상품: {}, 요청 수량: {}, 가용 재고: {}", 
+                        product.getName(), request.quantity(), availableStock);
             }
-
-            // 출고 예정 수량 증가
-            inventory.increaseOutgoing(request.quantity());
 
             items.add(toWholesaleItemEntity(request, product));
         }

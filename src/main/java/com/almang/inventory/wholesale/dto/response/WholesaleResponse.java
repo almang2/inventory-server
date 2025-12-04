@@ -4,6 +4,7 @@ import com.almang.inventory.wholesale.domain.Wholesale;
 import com.almang.inventory.wholesale.domain.WholesaleItem;
 import com.almang.inventory.wholesale.domain.WholesaleStatus;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public record WholesaleResponse(
@@ -14,7 +15,9 @@ public record WholesaleResponse(
         LocalDate releaseDate,
         boolean activated,
         List<WholesaleItemResponse> items,
-        Integer totalAmount
+        Integer totalAmount,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
 ) {
     public static WholesaleResponse from(Wholesale wholesale) {
         int totalAmount = wholesale.getItems().stream()
@@ -32,7 +35,9 @@ public record WholesaleResponse(
                 wholesale.getItems().stream()
                         .map(WholesaleItemResponse::from)
                         .toList(),
-                totalAmount
+                totalAmount,
+                wholesale.getCreatedAt(),
+                wholesale.getUpdatedAt()
         );
     }
 }

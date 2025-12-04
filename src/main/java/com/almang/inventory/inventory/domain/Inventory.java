@@ -125,4 +125,37 @@ public class Inventory extends BaseTimeEntity {
             this.reorderTriggerPoint = reorderTriggerPoint;
         }
     }
+
+    // 출고 예정 추가
+    public void increaseOutgoing(BigDecimal quantity) {
+        this.outgoingReserved = this.outgoingReserved.add(quantity);
+    }
+
+    // 출고 예정 차감
+    public void decreaseOutgoing(BigDecimal quantity) {
+        if (this.outgoingReserved.compareTo(quantity) < 0) {
+            throw new BaseException(ErrorCode.WAREHOUSE_STOCK_NOT_ENOUGH);
+        }
+        this.outgoingReserved = this.outgoingReserved.subtract(quantity);
+    }
+
+    // 출고 확정 (출고 예정 차감 + 창고 재고 차감)
+    public void confirmOutgoing(BigDecimal quantity) {
+        if (this.outgoingReserved.compareTo(quantity) < 0) {
+            throw new BaseException(ErrorCode.WAREHOUSE_STOCK_NOT_ENOUGH);
+        }
+        if (this.warehouseStock.compareTo(quantity) < 0) {
+            throw new BaseException(ErrorCode.WAREHOUSE_STOCK_NOT_ENOUGH);
+        }
+        this.outgoingReserved = this.outgoingReserved.subtract(quantity);
+        this.warehouseStock = this.warehouseStock.subtract(quantity);
+    }
+
+    // 출고 취소 (출고 예정 차감만)
+    public void cancelOutgoing(BigDecimal quantity) {
+        if (this.outgoingReserved.compareTo(quantity) < 0) {
+            throw new BaseException(ErrorCode.WAREHOUSE_STOCK_NOT_ENOUGH);
+        }
+        this.outgoingReserved = this.outgoingReserved.subtract(quantity);
+    }
 }

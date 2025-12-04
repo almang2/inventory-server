@@ -74,5 +74,13 @@ public class Wholesale extends BaseTimeEntity {
         this.status = WholesaleStatus.CANCELED;
         this.activated = false;
     }
+
+    public void updateOrderReference(String orderReference) {
+        if (this.status != WholesaleStatus.PENDING) {
+            throw new BaseException(ErrorCode.WHOLESALE_ALREADY_CONFIRMED,
+                    "출고 대기 상태인 경우에만 수정할 수 있습니다.");
+        }
+        this.orderReference = orderReference;
+    }
 }
 

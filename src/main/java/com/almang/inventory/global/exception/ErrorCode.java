@@ -61,6 +61,7 @@ public enum ErrorCode {
     // INVENTORY
     INVENTORY_NOT_FOUND(HttpStatus.NOT_FOUND, "재고를 찾을 수 없습니다."),
     INCOMING_STOCK_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "입고 예정 수량이 부족합니다."),
+    OUTGOING_RESERVED_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "출고 예정 수량이 부족합니다."),
     WAREHOUSE_STOCK_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "창고 재고가 부족합니다."),
     DISPLAY_STOCK_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "매대 재고가 부족합니다."),
     INVENTORY_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 상점의 재고가 아닙니다."),

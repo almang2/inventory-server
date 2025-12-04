@@ -69,6 +69,16 @@ public enum ErrorCode {
     // CUSTOMER_ORDER
     DUPLICATE_CUSTOMER_ORDER(HttpStatus.CONFLICT, "이미 존재하는 고객 주문입니다."),
     NOT_ENOUGH_STOCK(HttpStatus.BAD_REQUEST, "요청한 상품의 재고가 부족합니다."),
+
+    // WHOLESALE
+    WHOLESALE_NOT_FOUND(HttpStatus.NOT_FOUND, "출고를 찾을 수 없습니다."),
+    WHOLESALE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 상점의 출고가 아닙니다."),
+    WHOLESALE_ITEM_EMPTY(HttpStatus.BAD_REQUEST, "출고 항목이 비어있습니다."),
+    WHOLESALE_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "출고 항목을 찾을 수 없습니다."),
+    WHOLESALE_ITEM_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 출고의 출고 항목이 아닙니다."),
+    WHOLESALE_ALREADY_CONFIRMED(HttpStatus.BAD_REQUEST, "이미 완료된 출고입니다."),
+    WHOLESALE_ALREADY_CANCELED(HttpStatus.BAD_REQUEST, "이미 취소된 출고입니다."),
+    WAREHOUSE_STOCK_NOT_ENOUGH_FOR_WHOLESALE(HttpStatus.BAD_REQUEST, "창고 재고가 부족합니다."),
     ;
 
     private final HttpStatus httpStatus;

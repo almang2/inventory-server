@@ -54,6 +54,14 @@ public class Inventory extends BaseTimeEntity {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    /**
+     * 가용 재고 조회 (창고 재고 - 출고 예정 수량)
+     * 실제로 출고 가능한 재고 수량을 반환합니다.
+     */
+    public BigDecimal getAvailableStock() {
+        return this.warehouseStock.subtract(this.outgoingReserved);
+    }
+
     // 입고 예정 추가
     public void increaseIncoming(BigDecimal quantity) {
         this.incomingReserved = this.incomingReserved.add(quantity);

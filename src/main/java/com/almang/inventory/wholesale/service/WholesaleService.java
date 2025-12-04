@@ -147,11 +147,12 @@ public class WholesaleService {
             Product product = findProductByIdAndValidateAccess(request.productId(), store);
             Inventory inventory = findInventoryByProductId(product.getId());
 
-            // 재고 검증
-            if (inventory.getWarehouseStock().compareTo(request.quantity()) < 0) {
+            // 재고 검증 (가용 재고 = 창고 재고 - 출고 예정 수량)
+            BigDecimal availableStock = inventory.getAvailableStock();
+            if (availableStock.compareTo(request.quantity()) < 0) {
                 throw new BaseException(ErrorCode.NOT_ENOUGH_STOCK,
-                        String.format("상품 '%s'의 창고 재고가 부족합니다. (요청: %s, 보유: %s)",
-                                product.getName(), request.quantity(), inventory.getWarehouseStock()));
+                        String.format("상품 '%s'의 창고 재고가 부족합니다. (요청: %s, 가용 재고: %s)",
+                                product.getName(), request.quantity(), availableStock));
             }
 
             // 출고 예정 수량 증가

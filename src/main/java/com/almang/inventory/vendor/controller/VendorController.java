@@ -156,7 +156,7 @@ public class VendorController {
 
     @GetMapping("/{vendorId}/products")
     @Operation(summary = "발주처 내 품목 리스트 조회", description = "발주처 내 품목 리스트를 조회합니다.")
-    public ResponseEntity<ApiResponse<List<ProductResponse>>> getOrderTemplates(
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> getProductsByVendor(
             @PathVariable Long vendorId,
             @AuthenticationPrincipal CustomUserPrincipal userPrincipal
     ) {

@@ -39,10 +39,6 @@ public class WholesaleItem extends BaseTimeEntity {
     @Column(name = "note", columnDefinition = "TEXT")
     private String note;
 
-    @Column(name = "insufficient_stock", nullable = false)
-    @Builder.Default
-    private Boolean insufficientStock = false;
-
     public void setWholesale(Wholesale wholesale) {
         this.wholesale = wholesale;
     }
@@ -60,10 +56,6 @@ public class WholesaleItem extends BaseTimeEntity {
         if (this.quantity != null && this.unitPrice != null) {
             this.amount = this.quantity.multiply(BigDecimal.valueOf(this.unitPrice)).intValue();
         }
-    }
-    
-    public void setInsufficientStock(Boolean insufficientStock) {
-        this.insufficientStock = insufficientStock;
     }
 }
 

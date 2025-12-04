@@ -54,6 +54,14 @@ public class Inventory extends BaseTimeEntity {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    /**
+     * 가용 재고 조회 (창고 재고 - 출고 예정 수량)
+     * 실제로 출고 가능한 재고 수량을 반환합니다.
+     */
+    public BigDecimal getAvailableStock() {
+        return this.warehouseStock.subtract(this.outgoingReserved);
+    }
+
     // 입고 예정 추가
     public void increaseIncoming(BigDecimal quantity) {
         this.incomingReserved = this.incomingReserved.add(quantity);
@@ -124,5 +132,38 @@ public class Inventory extends BaseTimeEntity {
         if (reorderTriggerPoint != null) {
             this.reorderTriggerPoint = reorderTriggerPoint;
         }
+    }
+
+    // 출고 예정 추가
+    public void increaseOutgoing(BigDecimal quantity) {
+        this.outgoingReserved = this.outgoingReserved.add(quantity);
+    }
+
+    // 출고 예정 차감
+    public void decreaseOutgoing(BigDecimal quantity) {
+        if (this.outgoingReserved.compareTo(quantity) < 0) {
+            throw new BaseException(ErrorCode.OUTGOING_RESERVED_NOT_ENOUGH);
+        }
+        this.outgoingReserved = this.outgoingReserved.subtract(quantity);
+    }
+
+    // 출고 확정 (출고 예정 차감 + 창고 재고 차감)
+    public void confirmOutgoing(BigDecimal quantity) {
+        if (this.outgoingReserved.compareTo(quantity) < 0) {
+            throw new BaseException(ErrorCode.OUTGOING_RESERVED_NOT_ENOUGH);
+        }
+        if (this.warehouseStock.compareTo(quantity) < 0) {
+            throw new BaseException(ErrorCode.WAREHOUSE_STOCK_NOT_ENOUGH);
+        }
+        this.outgoingReserved = this.outgoingReserved.subtract(quantity);
+        this.warehouseStock = this.warehouseStock.subtract(quantity);
+    }
+
+    // 출고 취소 (출고 예정 차감만)
+    public void cancelOutgoing(BigDecimal quantity) {
+        if (this.outgoingReserved.compareTo(quantity) < 0) {
+            throw new BaseException(ErrorCode.OUTGOING_RESERVED_NOT_ENOUGH);
+        }
+        this.outgoingReserved = this.outgoingReserved.subtract(quantity);
     }
 }

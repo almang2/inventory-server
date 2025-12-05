@@ -5,6 +5,7 @@ import com.almang.inventory.global.context.UserContextProvider;
 import com.almang.inventory.global.context.UserContextProvider.UserStoreContext;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
+import com.almang.inventory.global.util.PaginationUtil;
 import com.almang.inventory.inventory.domain.Inventory;
 import com.almang.inventory.inventory.domain.InventoryMoveDirection;
 import com.almang.inventory.inventory.domain.InventoryScope;
@@ -153,7 +154,7 @@ public class InventoryService {
                 ? "product.name"
                 : "updatedAt";
 
-        Pageable pageable = PageRequest.of(page, size, direction, sortBy);
+        Pageable pageable = PaginationUtil.createPageRequest(page, size, direction, sortBy);
 
         Page<Inventory> inventoryPage = inventoryRepository.findByFilter(
                 store.getId(),

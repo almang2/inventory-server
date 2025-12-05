@@ -33,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -105,7 +106,7 @@ public class ReceiptService {
 
         log.info("[ReceiptService] 입고 목록 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
 
-        PageRequest pageable = PaginationUtil.createPageRequest(page, size, "createdAt");
+        PageRequest pageable = PaginationUtil.createPageRequest(page, size, Direction.DESC, "createdAt");
         Page<Receipt> receiptPage = findReceiptsByFilter(store.getId(), vendorId, status, fromDate, toDate, pageable);
         Page<ReceiptResponse> mapped = receiptPage.map(ReceiptResponse::from);
 

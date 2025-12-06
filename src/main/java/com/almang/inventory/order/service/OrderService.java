@@ -14,6 +14,7 @@ import com.almang.inventory.order.dto.request.CreateOrderItemRequest;
 import com.almang.inventory.order.dto.request.CreateOrderRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderItemRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderRequest;
+import com.almang.inventory.order.dto.response.DeleteOrderItemResponse;
 import com.almang.inventory.order.dto.response.DeleteOrderResponse;
 import com.almang.inventory.order.dto.response.OrderItemResponse;
 import com.almang.inventory.order.dto.response.OrderResponse;
@@ -176,6 +177,22 @@ public class OrderService {
 
         log.info("[OrderService] 발주 삭제 성공 - userId: {}, storeId: {}", userId, store.getId());
         return new DeleteOrderResponse(true);
+    }
+
+    @Transactional
+    public DeleteOrderItemResponse deleteOrderItem(Long orderItemId, Long userId) {
+        UserStoreContext context = userContextProvider.findUserAndStore(userId);
+        Store store = context.store();
+
+        log.info("[OrderService] 발주 아이템 삭제 요청 - userId: {}, storeId: {}", userId, store.getId());
+        OrderItem orderItem = findOrderItemById(orderItemId);
+        validateOrderItemAccess(orderItem, store);
+
+        Order order = orderItem.getOrder();
+        order.getItems().remove(orderItem);
+
+        log.info("[OrderService] 발주 아이템 삭제 성공 - orderItemId: {}", orderItemId);
+        return new DeleteOrderItemResponse(true);
     }
 
     private List<OrderItem> createOrderItems(List<CreateOrderItemRequest> requests, Store store) {

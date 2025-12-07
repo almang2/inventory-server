@@ -161,7 +161,7 @@ public class OrderController {
             @AuthenticationPrincipal CustomUserPrincipal userPrincipal
     ) {
         Long userId = userPrincipal.getId();
-        log.info("[OrderController] 발주 아이템 삭제 요청 - orderId: {}, userId: {}", orderItemId, userId);
+        log.info("[OrderController] 발주 아이템 삭제 요청 - orderItemId: {}, userId: {}", orderItemId, userId);
         DeleteOrderItemResponse response = orderService.deleteOrderItem(orderItemId, userId);
 
         return ResponseEntity.ok(

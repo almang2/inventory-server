@@ -22,6 +22,7 @@ import com.almang.inventory.order.dto.request.CreateOrderItemRequest;
 import com.almang.inventory.order.dto.request.CreateOrderRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderItemRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderRequest;
+import com.almang.inventory.order.dto.response.DeleteOrderItemResponse;
 import com.almang.inventory.order.dto.response.DeleteOrderResponse;
 import com.almang.inventory.order.dto.response.OrderItemResponse;
 import com.almang.inventory.order.dto.response.OrderResponse;
@@ -800,6 +801,76 @@ class OrderControllerTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value(ErrorCode.ORDER_ACCESS_DENIED.getHttpStatus().value()))
                 .andExpect(jsonPath("$.message").value(ErrorCode.ORDER_ACCESS_DENIED.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_아이템_삭제에_성공한다() throws Exception {
+        // given
+        Long orderItemId = 1L;
+
+        DeleteOrderItemResponse response = new DeleteOrderItemResponse(true);
+
+        when(orderService.deleteOrderItem(anyLong(), anyLong()))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/order/item/{orderItemId}", orderItemId)
+                        .with(authentication(auth())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value(SuccessMessage.DELETE_ORDER_ITEM_SUCCESS.getMessage()))
+                .andExpect(jsonPath("$.data.success").value(true));
+    }
+
+    @Test
+    void 발주_아이템_삭제시_사용자가_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long orderItemId = 1L;
+
+        when(orderService.deleteOrderItem(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/order/item/{orderItemId}", orderItemId)
+                        .with(authentication(auth())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_아이템_삭제시_발주_항목이_존재하지_않으면_예외가_발생한다() throws Exception {
+        // given
+        Long notExistOrderItemId = 9999L;
+
+        when(orderService.deleteOrderItem(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.ORDER_ITEM_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/order/item/{orderItemId}", notExistOrderItemId)
+                        .with(authentication(auth())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(ErrorCode.ORDER_ITEM_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.ORDER_ITEM_NOT_FOUND.getMessage()))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void 발주_아이템_삭제시_다른_상점의_아이템이면_접근_거부_예외가_발생한다() throws Exception {
+        // given
+        Long orderItemId = 1L;
+
+        when(orderService.deleteOrderItem(anyLong(), anyLong()))
+                .thenThrow(new BaseException(ErrorCode.ORDER_ITEM_ACCESS_DENIED));
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/order/item/{orderItemId}", orderItemId)
+                        .with(authentication(auth())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(ErrorCode.ORDER_ITEM_ACCESS_DENIED.getHttpStatus().value()))
+                .andExpect(jsonPath("$.message").value(ErrorCode.ORDER_ITEM_ACCESS_DENIED.getMessage()))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 }

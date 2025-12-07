@@ -8,6 +8,7 @@ import com.almang.inventory.order.domain.OrderStatus;
 import com.almang.inventory.order.dto.request.CreateOrderRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderItemRequest;
 import com.almang.inventory.order.dto.request.UpdateOrderRequest;
+import com.almang.inventory.order.dto.response.DeleteOrderItemResponse;
 import com.almang.inventory.order.dto.response.DeleteOrderResponse;
 import com.almang.inventory.order.dto.response.OrderItemResponse;
 import com.almang.inventory.order.dto.response.OrderResponse;
@@ -150,6 +151,21 @@ public class OrderController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(SuccessMessage.UPDATE_ORDER_ITEM_SUCCESS.getMessage(), response)
+        );
+    }
+
+    @DeleteMapping("/item/{orderItemId}")
+    @Operation(summary = "발주 아이템 삭제", description = "발주 아이템을 삭제합니다.")
+    public ResponseEntity<ApiResponse<DeleteOrderItemResponse>> deleteOrderItem(
+            @PathVariable Long orderItemId,
+            @AuthenticationPrincipal CustomUserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        log.info("[OrderController] 발주 아이템 삭제 요청 - orderItemId: {}, userId: {}", orderItemId, userId);
+        DeleteOrderItemResponse response = orderService.deleteOrderItem(orderItemId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(SuccessMessage.DELETE_ORDER_ITEM_SUCCESS.getMessage(), response)
         );
     }
 }

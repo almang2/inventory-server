@@ -52,10 +52,10 @@ public class InventoryService {
 
     @Transactional
     public void decreaseIncomingStockFromOrder(Product product, BigDecimal quantity) {
-        log.info("[InventoryService] 발주 삭제로 입고 예정 수량 감소 요청 - productId: {}", product.getId());
+        log.info("[InventoryService] 발주 항목 삭제로 입고 예정 수량 감소 요청 - productId: {}", product.getId());
         Inventory inventory = findInventoryByProductId(product.getId());
         inventory.decreaseIncoming(quantity);
-        log.info("[InventoryService] 발주 삭제로 입고 예정 수량 감소 성공 - inventoryId: {}", inventory.getId());
+        log.info("[InventoryService] 발주 항목 삭제로 입고 예정 수량 감소 성공 - inventoryId: {}", inventory.getId());
     }
 
     @Transactional

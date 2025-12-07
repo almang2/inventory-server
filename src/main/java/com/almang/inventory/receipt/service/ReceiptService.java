@@ -223,6 +223,9 @@ public class ReceiptService {
         ReceiptItem receiptItem = findReceiptItemByIdAndValidateAccess(receiptItemId, receipt);
 
         receipt.getItems().remove(receiptItem);
+        inventoryService.cancelIncomingReservation(
+                receiptItem.getProduct(), BigDecimal.valueOf(receiptItem.getExpectedQuantity())
+        );
 
         log.info("[ReceiptService] 입고 아이템 삭제 성공 - receiptItemId: {}", receiptItemId);
         return new DeleteReceiptItemResponse(true);

@@ -7,7 +7,9 @@ import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.inventory.domain.Inventory;
+import com.almang.inventory.inventory.dto.InitialInventoryValues;
 import com.almang.inventory.inventory.repository.InventoryRepository;
+import com.almang.inventory.inventory.service.InventoryService;
 import com.almang.inventory.order.domain.Order;
 import com.almang.inventory.order.domain.OrderItem;
 import com.almang.inventory.order.domain.OrderStatus;
@@ -57,6 +59,7 @@ class ReceiptServiceTest {
     @Autowired private VendorRepository vendorRepository;
     @Autowired private ProductRepository productRepository;
     @Autowired private InventoryRepository inventoryRepository;
+    @Autowired private InventoryService inventoryService;
 
     private Store newStore(String name) {
         return storeRepository.save(
@@ -96,7 +99,7 @@ class ReceiptServiceTest {
     }
 
     private Product newProduct(Store store, Vendor vendor, String name, String code) {
-        return productRepository.save(
+        Product product = productRepository.save(
                 Product.builder()
                         .store(store)
                         .vendor(vendor)
@@ -109,6 +112,17 @@ class ReceiptServiceTest {
                         .wholesalePrice(1200)
                         .build()
         );
+
+        InitialInventoryValues initialInventoryValues = new InitialInventoryValues(
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
+        );
+        inventoryService.createInventory(product, initialInventoryValues);
+
+        return product;
     }
 
     private Order newOrderWithItems(Store store, Vendor vendor) {
@@ -145,20 +159,10 @@ class ReceiptServiceTest {
         order.addItem(item1);
         order.addItem(item2);
 
-        return orderRepository.save(order);
-    }
+        inventoryService.increaseIncomingStockFromOrder(product1, BigDecimal.valueOf(item1.getQuantity()));
+        inventoryService.increaseIncomingStockFromOrder(product2, BigDecimal.valueOf(item2.getQuantity()));
 
-    private Inventory newInventory(Product product) {
-        return inventoryRepository.save(
-                Inventory.builder()
-                        .product(product)
-                        .displayStock(BigDecimal.ZERO)
-                        .warehouseStock(BigDecimal.ZERO)
-                        .outgoingReserved(BigDecimal.ZERO)
-                        .incomingReserved(BigDecimal.ZERO)
-                        .reorderTriggerPoint(BigDecimal.valueOf(30))
-                        .build()
-        );
+        return orderRepository.save(order);
     }
 
     @Test
@@ -864,12 +868,6 @@ class ReceiptServiceTest {
 
         Order order = newOrderWithItems(store, vendor);
 
-        for (OrderItem orderItem : order.getItems()) {
-            Inventory inventory = newInventory(orderItem.getProduct());
-            inventory.increaseIncoming(BigDecimal.valueOf(orderItem.getQuantity()));
-            inventoryRepository.save(inventory);
-        }
-
         Receipt receipt = Receipt.builder()
                 .store(store)
                 .order(order)
@@ -1294,6 +1292,12 @@ class ReceiptServiceTest {
 
         Receipt saved = receiptRepository.save(receipt);
         Long targetItemId = saved.getItems().get(0).getId();
+        Product targetProduct = saved.getItems().get(0).getProduct();
+        int expectedQuantity = saved.getItems().get(0).getExpectedQuantity();
+
+        Inventory inventoryBefore = inventoryRepository.findByProduct_Id(targetProduct.getId())
+                .orElseThrow();
+        BigDecimal beforeIncoming = inventoryBefore.getIncomingReserved();
 
         // when
         DeleteReceiptItemResponse response = receiptService.deleteReceiptItem(saved.getId(), targetItemId, user.getId());
@@ -1307,6 +1311,11 @@ class ReceiptServiceTest {
                 .doesNotContain(targetItemId);
         assertThat(updated.getItems()).hasSize(1);
         assertThat(response.success()).isTrue();
+
+        Inventory inventoryAfter = inventoryRepository.findByProduct_Id(targetProduct.getId())
+                .orElseThrow();
+        assertThat(inventoryAfter.getIncomingReserved())
+                .isEqualByComparingTo(beforeIncoming.subtract(BigDecimal.valueOf(expectedQuantity)));
     }
 
     @Test
@@ -1391,9 +1400,6 @@ class ReceiptServiceTest {
 
         Product product = newProduct(store, vendor, "상품1", "P001");
 
-        Inventory inventory = newInventory(product);
-        inventory.increaseIncoming(BigDecimal.valueOf(5));
-
         Order order = Order.builder()
                 .store(store)
                 .vendor(vendor)
@@ -1443,29 +1449,10 @@ class ReceiptServiceTest {
         User user = newUser(store, "inventoryUser");
         Vendor vendor = newVendor(store, "재고발주처");
 
-        Product product = newProduct(store, vendor, "상품1", "P001");
-
-        Inventory inventory = newInventory(product);
-        inventory.increaseIncoming(BigDecimal.valueOf(5));
-
-        Order order = Order.builder()
-                .store(store)
-                .vendor(vendor)
-                .status(OrderStatus.REQUEST)
-                .orderMessage("테스트 발주")
-                .activated(true)
-                .totalPrice(0)
-                .build();
-
-        OrderItem item = OrderItem.builder()
-                .product(product)
-                .quantity(5)
-                .unitPrice(1000)
-                .amount(5000)
-                .build();
-
-        order.addItem(item);
-        orderRepository.save(order);
+        Order order = newOrderWithItems(store, vendor);
+        Product product = order.getItems().get(0).getProduct();
+        int orderedQuantity = order.getItems().get(0).getQuantity();
+        int unitPrice = order.getItems().get(0).getUnitPrice();
 
         Receipt receipt = Receipt.builder()
                 .store(store)
@@ -1477,10 +1464,10 @@ class ReceiptServiceTest {
 
         ReceiptItem receiptItem = ReceiptItem.builder()
                 .product(product)
-                .expectedQuantity(5)
+                .expectedQuantity(orderedQuantity)
                 .actualQuantity(null)
-                .amount(5000)
-                .unitPrice(1000)
+                .amount(orderedQuantity * unitPrice)
+                .unitPrice(unitPrice)
                 .build();
         receipt.addItem(receiptItem);
 
@@ -1493,7 +1480,7 @@ class ReceiptServiceTest {
         Inventory updated = inventoryRepository.findByProduct_Id(product.getId())
                 .orElseThrow();
         assertThat(updated.getIncomingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(updated.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(5));
+        assertThat(updated.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(orderedQuantity));
     }
 
     @Test
@@ -1503,28 +1490,12 @@ class ReceiptServiceTest {
         User user = newUser(store, "actualQtyUser");
         Vendor vendor = newVendor(store, "실제수량발주처");
 
-        Product product = newProduct(store, vendor, "상품1", "P001");
+        Order order = newOrderWithItems(store, vendor);
+        Product product = order.getItems().get(0).getProduct();
+        int orderedQuantity = order.getItems().get(0).getQuantity();
+        int unitPrice = order.getItems().get(0).getUnitPrice();
 
-        Inventory inventory = newInventory(product);
-        inventory.increaseIncoming(BigDecimal.valueOf(5));
-
-        Order order = Order.builder()
-                .store(store)
-                .vendor(vendor)
-                .status(OrderStatus.REQUEST)
-                .orderMessage("테스트 발주")
-                .activated(true)
-                .totalPrice(0)
-                .build();
-
-        OrderItem item = OrderItem.builder()
-                .product(product)
-                .quantity(5)
-                .unitPrice(1000)
-                .amount(5000)
-                .build();
-        order.addItem(item);
-        orderRepository.save(order);
+        int actualQuantity = 3;
 
         Receipt receipt = Receipt.builder()
                 .store(store)
@@ -1536,10 +1507,10 @@ class ReceiptServiceTest {
 
         ReceiptItem receiptItem = ReceiptItem.builder()
                 .product(product)
-                .expectedQuantity(5)
-                .actualQuantity(3)
-                .amount(3000)
-                .unitPrice(1000)
+                .expectedQuantity(orderedQuantity)
+                .actualQuantity(actualQuantity)
+                .amount(actualQuantity * unitPrice)
+                .unitPrice(unitPrice)
                 .build();
         receipt.addItem(receiptItem);
         receiptRepository.save(receipt);
@@ -1552,7 +1523,7 @@ class ReceiptServiceTest {
                 .orElseThrow();
 
         assertThat(updated.getIncomingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(updated.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(3));
+        assertThat(updated.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(actualQuantity));
     }
 
     @Test

@@ -188,12 +188,13 @@ public class OrderService {
         OrderItem orderItem = findOrderItemById(orderItemId);
         validateOrderItemAccess(orderItem, store);
 
-        Order order = orderItem.getOrder();
-
-        order.getItems().remove(orderItem);
         inventoryService.decreaseIncomingStockFromOrder(
                 orderItem.getProduct(), BigDecimal.valueOf(orderItem.getQuantity())
         );
+
+        Order order = orderItem.getOrder();
+        order.getItems().remove(orderItem);
+        order.updateTotalPrice(calculateTotalPrice(order.getItems()));
 
         log.info("[OrderService] 발주 아이템 삭제 성공 - orderItemId: {}", orderItemId);
         return new DeleteOrderItemResponse(true);

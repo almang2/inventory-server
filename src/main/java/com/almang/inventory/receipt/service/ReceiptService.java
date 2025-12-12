@@ -142,7 +142,7 @@ public class ReceiptService {
 
         log.info("[ReceiptService] 입고 삭제 요청 - userId: {}, storeId: {}", userId, store.getId());
         Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
-        receipt.deactivate();
+        receipt.delete();
 
         // 입고 취소 후 재고 상태 변경
         for (OrderItem orderItem : receipt.getOrder().getItems()) {

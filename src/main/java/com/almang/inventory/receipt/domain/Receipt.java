@@ -70,13 +70,14 @@ public class Receipt extends BaseTimeEntity {
         }
     }
 
-    public void deactivate() {
+    public void delete() {
         if (this.status == ReceiptStatus.CONFIRMED) {
             throw new BaseException(ErrorCode.RECEIPT_ALREADY_CONFIRMED);
         }
         if (this.status == ReceiptStatus.CANCELED) {
             throw new BaseException(ErrorCode.RECEIPT_ALREADY_CANCELED);
         }
+        this.deletedAt = LocalDateTime.now();
         this.activated = false;
         this.status = ReceiptStatus.CANCELED;
     }

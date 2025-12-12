@@ -248,6 +248,7 @@ public class ReceiptService {
                 .receiptDate(LocalDate.now())
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
+                .deletedAt(null)
                 .build();
     }
 

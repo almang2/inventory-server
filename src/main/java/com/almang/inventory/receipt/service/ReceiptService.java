@@ -288,6 +288,9 @@ public class ReceiptService {
         Receipt receipt =  receiptRepository.findById(receiptId)
                 .orElseThrow(() -> new BaseException(ErrorCode.RECEIPT_NOT_FOUND));
 
+        if (receipt.getDeletedAt() != null) {
+            throw new BaseException(ErrorCode.RECEIPT_NOT_FOUND);
+        }
         if (!receipt.getStore().getId().equals(store.getId())) {
             throw new BaseException(ErrorCode.RECEIPT_ACCESS_DENIED);
         }

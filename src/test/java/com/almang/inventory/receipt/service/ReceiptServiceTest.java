@@ -24,6 +24,7 @@ import com.almang.inventory.receipt.dto.request.UpdateReceiptItemRequest;
 import com.almang.inventory.receipt.dto.request.UpdateReceiptRequest;
 import com.almang.inventory.receipt.dto.response.ConfirmReceiptResponse;
 import com.almang.inventory.receipt.dto.response.DeleteReceiptItemResponse;
+import com.almang.inventory.receipt.dto.response.DeleteReceiptResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptItemResponse;
 import com.almang.inventory.receipt.dto.response.ReceiptResponse;
 import com.almang.inventory.receipt.repository.ReceiptItemRepository;
@@ -878,18 +879,14 @@ class ReceiptServiceTest {
         receiptRepository.save(receipt);
 
         // when
-        receiptService.deleteReceipt(receipt.getId(), user.getId());
+        DeleteReceiptResponse response = receiptService.deleteReceipt(receipt.getId(), user.getId());
 
         // then
-        Receipt deleted = receiptRepository.findById(receipt.getId()).orElseThrow();
-        assertThat(deleted.isActivated()).isFalse();
-        assertThat(deleted.getStatus()).isEqualTo(ReceiptStatus.CANCELED);
+        assertThat(response.success()).isTrue();
 
-        for (OrderItem orderItem : order.getItems()) {
-            Inventory updated = inventoryRepository.findByProduct_Id(orderItem.getProduct().getId())
-                    .orElseThrow();
-            assertThat(updated.getIncomingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
-        }
+        assertThatThrownBy(() -> receiptService.getReceipt(receipt.getId(), user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.RECEIPT_NOT_FOUND.getMessage());
     }
 
     @Test

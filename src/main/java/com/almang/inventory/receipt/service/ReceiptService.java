@@ -142,7 +142,7 @@ public class ReceiptService {
 
         log.info("[ReceiptService] 입고 삭제 요청 - userId: {}, storeId: {}", userId, store.getId());
         Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
-        receipt.deactivate();
+        receipt.delete();
 
         // 입고 취소 후 재고 상태 변경
         for (OrderItem orderItem : receipt.getOrder().getItems()) {
@@ -248,6 +248,7 @@ public class ReceiptService {
                 .receiptDate(LocalDate.now())
                 .status(ReceiptStatus.PENDING)
                 .activated(true)
+                .deletedAt(null)
                 .build();
     }
 
@@ -287,6 +288,9 @@ public class ReceiptService {
         Receipt receipt =  receiptRepository.findById(receiptId)
                 .orElseThrow(() -> new BaseException(ErrorCode.RECEIPT_NOT_FOUND));
 
+        if (receipt.getDeletedAt() != null) {
+            throw new BaseException(ErrorCode.RECEIPT_NOT_FOUND);
+        }
         if (!receipt.getStore().getId().equals(store.getId())) {
             throw new BaseException(ErrorCode.RECEIPT_ACCESS_DENIED);
         }

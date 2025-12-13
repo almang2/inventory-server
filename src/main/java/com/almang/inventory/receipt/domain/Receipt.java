@@ -7,9 +7,12 @@ import com.almang.inventory.order.domain.Order;
 import com.almang.inventory.store.domain.Store;
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 @Entity
 @Table(name = "receipts")
@@ -17,6 +20,8 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@SQLDelete(sql = "UPDATE receipts SET deleted_at = NOW() WHERE receipt_id = ?")
+@Where(clause = "deleted_at IS NULL")
 public class Receipt extends BaseTimeEntity {
 
     @Id
@@ -42,6 +47,9 @@ public class Receipt extends BaseTimeEntity {
     @Column(name = "is_activate", nullable = false)
     private boolean activated;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     @OneToMany(mappedBy = "receipt", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ReceiptItem> items = new ArrayList<>();
@@ -62,13 +70,14 @@ public class Receipt extends BaseTimeEntity {
         }
     }
 
-    public void deactivate() {
+    public void delete() {
         if (this.status == ReceiptStatus.CONFIRMED) {
             throw new BaseException(ErrorCode.RECEIPT_ALREADY_CONFIRMED);
         }
         if (this.status == ReceiptStatus.CANCELED) {
             throw new BaseException(ErrorCode.RECEIPT_ALREADY_CANCELED);
         }
+        this.deletedAt = LocalDateTime.now();
         this.activated = false;
         this.status = ReceiptStatus.CANCELED;
     }

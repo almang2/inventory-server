@@ -233,6 +233,7 @@ public class OrderService {
                 .expectedArrival(calculateExpectedArrival(request.leadTime()))
                 .activated(true)
                 .totalPrice(calculateTotalPrice(items))
+                .deletedAt(null)
                 .build();
     }
 
@@ -279,6 +280,9 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new BaseException(ErrorCode.ORDER_NOT_FOUND));
 
+        if (order.getDeletedAt() != null) {
+            throw new BaseException(ErrorCode.ORDER_NOT_FOUND);
+        }
         if (!order.getStore().getId().equals(store.getId())) {
             throw new BaseException(ErrorCode.ORDER_ACCESS_DENIED);
         }

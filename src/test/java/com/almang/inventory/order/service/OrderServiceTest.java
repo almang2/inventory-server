@@ -1317,31 +1317,34 @@ class OrderServiceTest {
         OrderResponse created = orderService.createOrder(createRequest, user.getId());
         Long orderId = created.orderId();
 
-        // 삭제 전에 입고 예정 재고가 3으로 증가했는지 확인
-        Inventory inventoryBeforeDelete = inventoryRepository.findByProduct_Id(product.getId())
-                .orElseThrow();
-
-        assertThat(inventoryBeforeDelete.getIncomingReserved())
-                .isEqualByComparingTo(BigDecimal.valueOf(3));
+        // 삭제 전 입고 예정 재고 확인
+        Inventory inventoryBeforeDelete = inventoryRepository.findByProduct_Id(product.getId()).orElseThrow();
+        assertThat(inventoryBeforeDelete.getIncomingReserved()).isEqualByComparingTo(BigDecimal.valueOf(3));
 
         // when
         DeleteOrderResponse response = orderService.deleteOrder(orderId, user.getId());
 
         // then
         assertThat(response).isNotNull();
+        assertThat(response.success()).isTrue();
 
-        Order deletedOrder = orderRepository.findById(orderId)
-                .orElseThrow();
+        assertThatThrownBy(() -> orderService.getOrder(orderId, user.getId()))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining(ErrorCode.ORDER_NOT_FOUND.getMessage());
 
+        PageResponse<OrderResponse> page = orderService.getOrderList(
+                user.getId(), null, 1, 20, null, null, null
+        );
+        assertThat(page.totalElements()).isZero();
+        assertThat(page.content()).isEmpty();
+
+        Order deletedOrder = orderRepository.findById(orderId).orElseThrow();
         assertThat(deletedOrder.getStatus()).isEqualTo(OrderStatus.CANCELED);
         assertThat(deletedOrder.isActivated()).isFalse();
 
         // 삭제 후 입고 예정 재고가 0으로 돌아갔는지 확인
-        Inventory inventoryAfterDelete = inventoryRepository.findByProduct_Id(product.getId())
-                .orElseThrow();
-
-        assertThat(inventoryAfterDelete.getIncomingReserved())
-                .isEqualByComparingTo(BigDecimal.ZERO);
+        Inventory inventoryAfterDelete = inventoryRepository.findByProduct_Id(product.getId()).orElseThrow();
+        assertThat(inventoryAfterDelete.getIncomingReserved()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test
@@ -1368,7 +1371,7 @@ class OrderServiceTest {
         // when & then
         assertThatThrownBy(() -> orderService.deleteOrder(orderId, user.getId()))
                 .isInstanceOf(BaseException.class)
-                .hasMessageContaining(ErrorCode.ORDER_ALREADY_CANCELED.getMessage());
+                .hasMessageContaining(ErrorCode.ORDER_NOT_FOUND.getMessage());
     }
 
     @Test

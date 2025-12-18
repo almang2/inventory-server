@@ -11,6 +11,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "orders")
@@ -18,6 +20,8 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@SQLDelete(sql = "UPDATE orders SET deleted_at = NOW() WHERE order_id = ?")
+@SQLRestriction("deleted_at IS NULL")
 public class Order extends BaseTimeEntity {
 
     @Id
@@ -67,6 +71,9 @@ public class Order extends BaseTimeEntity {
     @Column(name = "total_price")
     private Integer totalPrice;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     // 발주 상세 목록
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
@@ -99,6 +106,7 @@ public class Order extends BaseTimeEntity {
         if (this.status == OrderStatus.CANCELED) {
             throw new BaseException(ErrorCode.ORDER_ALREADY_CANCELED);
         }
+        this.deletedAt = LocalDateTime.now();
         this.status = OrderStatus.CANCELED;
         this.activated = false;
     }

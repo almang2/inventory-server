@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.*;
 import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "orders")
@@ -21,7 +21,7 @@ import org.hibernate.annotations.Where;
 @AllArgsConstructor
 @Builder
 @SQLDelete(sql = "UPDATE orders SET deleted_at = NOW() WHERE order_id = ?")
-@Where(clause = "deleted_at IS NULL")
+@SQLRestriction("deleted_at IS NULL")
 public class Order extends BaseTimeEntity {
 
     @Id

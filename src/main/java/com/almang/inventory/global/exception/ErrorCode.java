@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "유효하지 않은 요청 값입니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다."),
+    EXCEL_PARSE_ERROR(HttpStatus.BAD_REQUEST, "엑셀 파일 파싱 중 오류가 발생했습니다."),
 
     // STORE
     STORE_NAME_IS_LONG(HttpStatus.BAD_REQUEST, "상점 이름은 20자를 초과할 수 없습니다."),

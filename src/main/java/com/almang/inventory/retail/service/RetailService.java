@@ -11,13 +11,14 @@ import com.almang.inventory.inventory.repository.InventoryRepository;
 import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.retail.domain.Retail;
+import com.almang.inventory.retail.dto.excel.RetailExcelRowDto;
 import com.almang.inventory.retail.dto.response.RetailResponse;
+import com.almang.inventory.retail.parser.RetailExcelParser;
 import com.almang.inventory.retail.repository.RetailRepository;
 import com.almang.inventory.store.domain.Store;
+import java.io.InputStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.ss.usermodel.DataFormatter;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,7 @@ public class RetailService {
     private final ProductRepository productRepository;
     private final InventoryRepository inventoryRepository;
     private final UserContextProvider userContextProvider;
+    private final RetailExcelParser retailExcelParser;
 
     @Transactional
     public RetailUploadResult processRetailExcel(MultipartFile file, Long userId) {
@@ -49,121 +51,93 @@ public class RetailService {
         UserStoreContext context = userContextProvider.findUserAndStore(userId);
         Store store = context.store();
 
-        try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
-            Sheet sheet = workbook.getSheetAt(0); // 첫 번째 시트 사용
-            DataFormatter dataFormatter = new DataFormatter(); // 엑셀 포맷을 그대로 가져오기 위한 포매터
-            List<Retail> retails = new ArrayList<>();
-            List<String> skippedProducts = new ArrayList<>();  // 스킵된 상품 목록
+        // 2. soldDate 계산
+        LocalDate soldDate = LocalDate.now(SEOUL_ZONE);
 
-            // 판매일자: 업로드 시점의 날짜 사용 (당일매출종합현황이므로 오늘 날짜)
-            // Asia/Seoul 타임존을 명시적으로 사용하여 서버 타임존과 무관하게 일관된 날짜 계산
-            LocalDate soldDate = LocalDate.now(SEOUL_ZONE);
-
-            // 중복 체크: 같은 날짜에 이미 데이터가 있는지 확인
-            // 기존 데이터가 있으면 소프트 삭제(deletedAt 설정)를 통해 논리적 삭제 처리
-            // 이는 잘못된 업로드 시 데이터 복구 가능성을 보장합니다.
-            List<Retail> existingRetails = retailRepository.findAllByStoreIdAndSoldDate(store.getId(), soldDate);
-            if (!existingRetails.isEmpty()) {
-                log.warn("[RetailService] 해당 날짜({})에 이미 소매 데이터가 존재합니다. 기존 데이터를 소프트 삭제하고 새로 저장합니다. - storeId: {}, count: {}",
-                        soldDate, store.getId(), existingRetails.size());
-                // 삭제 전 상세 정보 로그 기록 (복구를 위한 참고용)
-                existingRetails.forEach(retail -> 
+        // 3. 기존 데이터 soft delete
+        List<Retail> existingRetails = retailRepository.findAllByStoreIdAndSoldDate(store.getId(), soldDate);
+        if (!existingRetails.isEmpty()) {
+            log.warn("[RetailService] 해당 날짜({})에 이미 소매 데이터가 존재합니다. 기존 데이터를 소프트 삭제하고 새로 저장합니다. - storeId: {}, count: {}",
+                    soldDate, store.getId(), existingRetails.size());
+            // 삭제 전 상세 정보 로그 기록 (복구를 위한 참고용)
+            existingRetails.forEach(retail ->
                     log.debug("[RetailService] 소프트 삭제 대상 - retailId: {}, productCode: {}, quantity: {}, actualSales: {}",
-                        retail.getId(), retail.getProductCode(), retail.getQuantity(), retail.getActualSales())
-                );
-                // 소프트 삭제: deletedAt 필드 설정
-                existingRetails.forEach(Retail::delete);
-                retailRepository.saveAll(existingRetails);
-            }
-
-            // 헤더 행 스킵 (첫 번째 행이 헤더라고 가정)
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-                Row row = sheet.getRow(i);
-                if (row == null)
-                    continue;
-
-                // 엑셀 양식:
-                // Cell 0: No. (순번)
-                // Cell 1: 상품 코드 (Product Code)
-                // Cell 2: 상품명 (Product Name)
-                // Cell 3: 수량 (Quantity)
-                // Cell 4: 실매출 (Actual Sales)
-
-                String code = getCellValueAsString(row.getCell(1), dataFormatter);
-                if (code == null || code.isEmpty())
-                    continue;
-
-                String productName = getCellValueAsString(row.getCell(2), dataFormatter);
-                if (productName == null || productName.isEmpty())
-                    productName = "";  // 상품명이 없어도 저장 (빈 문자열)
-
-                BigDecimal quantity = getCellValueAsBigDecimal(row.getCell(3), dataFormatter);
-                if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0)
-                    continue;
-
-                // 실매출 읽기 (컬럼 4, 쉼표 제거 후 정수로 변환)
-                Integer actualSales = getCellValueAsInteger(row.getCell(4), dataFormatter);
-
-                // 2. 상품 조회 (POS 코드로 조회 - Product.code가 POS 코드)
-                Product product = productRepository.findByCode(code).orElse(null);
-                if (product == null) {
-                    String skippedInfo = String.format("%s (%s)", code, productName);
-                    skippedProducts.add(skippedInfo);
-                    log.warn("[RetailService] 상품을 찾을 수 없어 스킵합니다 - code: {}, productName: {}", code, productName);
-                    continue;  // 상품이 없으면 해당 행 스킵하고 계속 진행
-                }
-
-                // 3. 재고 레코드 확인 및 재고 차감
-                // 품목 생성 시 자동으로 재고 레코드가 생성되므로, 재고 레코드가 없는 경우는 매우 드뭅니다
-                // 재고 차감 시 마이너스 방지 검증(decreaseDisplay)이 있으므로, 재고 레코드가 없으면 스킵
-                var inventoryOpt = inventoryRepository.findByProduct(product);
-                if (inventoryOpt.isEmpty()) {
-                    String skippedInfo = String.format("%s (%s) - 재고 레코드 없음", code, productName);
-                    skippedProducts.add(skippedInfo);
-                    log.warn("[RetailService] 재고 레코드가 없어 스킵합니다 - productId: {}, productCode: {}, productName: {}", 
-                            product.getId(), code, productName);
-                    continue;  // 재고 레코드가 없으면 해당 행 스킵하고 계속 진행
-                }
-
-                // 재고 차감을 먼저 시도 (성공한 경우에만 Retail 엔티티 생성)
-                // 재고 부족 시 예외를 catch하여 해당 상품만 스킵하고 나머지는 계속 처리
-                Inventory inventory = inventoryOpt.get();
-                try {
-                    inventory.decreaseDisplay(quantity);
-                } catch (BaseException e) {
-                    // 재고 부족 시 해당 상품을 스킵하고 계속 진행
-                    // decreaseDisplay() 메서드는 DISPLAY_STOCK_NOT_ENOUGH 예외를 던짐
-                    BigDecimal currentStock = inventory.getDisplayStock();
-                    String skippedInfo = String.format("%s (%s) - 재고 부족 (필요: %s, 현재: %s)", 
-                            code, productName, quantity, currentStock);
-                    skippedProducts.add(skippedInfo);
-                    log.warn("[RetailService] 재고 부족으로 스킵합니다 - productCode: {}, productName: {}, required: {}, available: {}", 
-                            code, productName, quantity, currentStock);
-                    continue;  // 재고 부족이면 해당 행 스킵하고 계속 진행
-                }
-
-                // 4. 재고 차감 성공 시 Retail 엔티티 생성 및 추가
-                Retail retail = Retail.builder()
-                        .store(store)
-                        .product(product)
-                        .productCode(code)  // 판매 시점의 상품 코드
-                        .productName(productName)  // 판매 시점의 상품명 (POS에서 저장된 값)
-                        .soldDate(soldDate)  // 판매일자
-                        .quantity(quantity)
-                        .actualSales(actualSales)  // 실매출
-                        .build();
-                retails.add(retail);
-            }
-
-            // 5. Retail 저장
-            retailRepository.saveAll(retails);
-
-            return new RetailUploadResult(retails.size(), skippedProducts);
-
-        } catch (IOException e) {
-            log.error("[RetailService] 엑셀 파일 파싱 중 오류가 발생했습니다.", e);
-            throw new BaseException(ErrorCode.INTERNAL_SERVER_ERROR, "엑셀 파일 파싱 중 오류가 발생했습니다.", e);
+                            retail.getId(), retail.getProductCode(), retail.getQuantity(), retail.getActualSales())
+            );
+            // 소프트 삭제: deletedAt 필드 설정
+            existingRetails.forEach(Retail::delete);
+            retailRepository.saveAll(existingRetails);
         }
+
+        List<RetailExcelRowDto> rows;
+        try (InputStream inputStream = file.getInputStream()) {
+            rows = retailExcelParser.parse(inputStream);
+        } catch (IOException e) {
+            throw new BaseException(ErrorCode.EXCEL_PARSE_ERROR);
+        }
+
+        List<Retail> retails = new ArrayList<>();
+        List<String> skippedProducts = new ArrayList<>();
+
+        for (RetailExcelRowDto row : rows) {
+            String code = row.code();
+            String productName = row.productName();
+            BigDecimal quantity = row.quantity();
+            Integer actualSales = row.actualSales();
+
+            Product product = productRepository.findByCode(code).orElse(null);
+            if (product == null) {
+                String skippedInfo = String.format("%s (%s)", code, productName);
+                skippedProducts.add(skippedInfo);
+                log.warn("[RetailService] 상품을 찾을 수 없어 스킵합니다 - rowIndex: {}, code: {}, productName: {}",
+                        row.rowIndex(), code, productName);
+                continue;  // 상품이 없으면 해당 행 스킵하고 계속 진행
+            }
+
+            // 품목 생성 시 자동으로 재고 레코드가 생성되므로, 재고 레코드가 없는 경우는 매우 드뭅니다
+            // 재고 차감 시 마이너스 방지 검증(decreaseDisplay)이 있으므로, 재고 레코드가 없으면 스킵
+            var inventoryOpt = inventoryRepository.findByProduct(product);
+            if (inventoryOpt.isEmpty()) {
+                String skippedInfo = String.format("%s (%s) - 재고 레코드 없음", code, productName);
+                skippedProducts.add(skippedInfo);
+                log.warn("[RetailService] 재고 레코드가 없어 스킵합니다 - productId: {}, productCode: {}, productName: {}",
+                        product.getId(), code, productName);
+                continue;  // 재고 레코드가 없으면 해당 행 스킵하고 계속 진행
+            }
+
+            // 재고 차감을 먼저 시도 (성공한 경우에만 Retail 엔티티 생성)
+            // 재고 부족 시 예외를 catch하여 해당 상품만 스킵하고 나머지는 계속 처리
+            Inventory inventory = inventoryOpt.get();
+            try {
+                inventory.decreaseDisplay(quantity);
+            } catch (BaseException e) {
+                // 재고 부족 시 해당 상품을 스킵하고 계속 진행
+                // decreaseDisplay() 메서드는 DISPLAY_STOCK_NOT_ENOUGH 예외를 던짐
+                BigDecimal currentStock = inventory.getDisplayStock();
+                String skippedInfo = String.format("%s (%s) - 재고 부족 (필요: %s, 현재: %s)",
+                        code, productName, quantity, currentStock);
+                skippedProducts.add(skippedInfo);
+                log.warn("[RetailService] 재고 부족으로 스킵합니다 - productCode: {}, productName: {}, required: {}, available: {}",
+                        code, productName, quantity, currentStock);
+                continue;  // 재고 부족이면 해당 행 스킵하고 계속 진행
+            }
+
+            Retail retail = Retail.builder()
+                    .store(store)
+                    .product(product)
+                    .productCode(code)  // 판매 시점의 상품 코드
+                    .productName(productName)  // 판매 시점의 상품명 (POS에서 저장된 값)
+                    .soldDate(soldDate)  // 판매일자
+                    .quantity(quantity)
+                    .actualSales(actualSales)  // 실매출
+                    .build();
+            retails.add(retail);
+        }
+
+        // 5. Retail 저장
+        retailRepository.saveAll(retails);
+
+        return new RetailUploadResult(retails.size(), skippedProducts);
     }
 
     // 업로드 결과를 담는 내부 클래스
@@ -171,87 +145,6 @@ public class RetailService {
             int processedCount,  // 처리된 상품 수
             List<String> skippedProducts  // 스킵된 상품 목록 (코드 + 상품명)
     ) {}
-
-    private String getCellValueAsString(Cell cell, DataFormatter dataFormatter) {
-        if (cell == null)
-            return null;
-
-        if (cell.getCellType() == CellType.STRING) {
-            return cell.getStringCellValue().trim();
-        } else if (cell.getCellType() == CellType.NUMERIC) {
-            // DataFormatter를 사용하여 엑셀에 표시된 그대로의 문자열을 가져옴
-            // 예: "00123" → "00123" (앞의 0 보존), "123.45" → "123.45" (소수점 보존)
-            String formattedValue = dataFormatter.formatCellValue(cell);
-            return formattedValue.trim();
-        } else {
-            return "";
-        }
-    }
-
-
-    private BigDecimal getCellValueAsBigDecimal(Cell cell, DataFormatter dataFormatter) {
-        if (cell == null)
-            return BigDecimal.ZERO;
-
-        if (cell.getCellType() == CellType.NUMERIC) {
-            // BigDecimal.valueOf를 사용하여 정확한 소수점 처리
-            BigDecimal value = BigDecimal.valueOf(cell.getNumericCellValue());
-            // 불필요한 trailing zero 제거 (예: 123.00 → 123, 123.50 → 123.5)
-            return value.stripTrailingZeros();
-        } else if (cell.getCellType() == CellType.STRING) {
-            try {
-                String stringValue = cell.getStringCellValue().trim();
-                if (stringValue.isEmpty()) {
-                    return BigDecimal.ZERO;
-                }
-                // 쉼표 제거 후 변환 (예: "3,566.50" -> 3566.50)
-                String cleanedValue = stringValue.replace(",", "").trim();
-                BigDecimal value = new BigDecimal(cleanedValue);
-                return value.stripTrailingZeros();
-            } catch (NumberFormatException e) {
-                log.warn("[RetailService] BigDecimal 파싱 실패 - cellValue: {}", cell.getStringCellValue(), e);
-                return BigDecimal.ZERO;
-            }
-        } else {
-            return BigDecimal.ZERO;
-        }
-    }
-
-    private Integer getCellValueAsInteger(Cell cell, DataFormatter dataFormatter) {
-        if (cell == null)
-            return null;
-
-        if (cell.getCellType() == CellType.NUMERIC) {
-            double numericValue = cell.getNumericCellValue();
-            // 소수점이 있는 경우 경고 로그
-            if (numericValue != (int) numericValue) {
-                log.warn("[RetailService] 정수로 변환되는 값에 소수점이 있습니다. 반올림 처리합니다. - 원본값: {}, 변환값: {}", 
-                        numericValue, Math.round(numericValue));
-            }
-            return (int) Math.round(numericValue);
-        } else if (cell.getCellType() == CellType.STRING) {
-            try {
-                // 쉼표 제거 후 정수로 변환 (예: "100,000" -> 100000)
-                String value = cell.getStringCellValue().replace(",", "").trim();
-                if (value.isEmpty()) {
-                    return null;
-                }
-                // 소수점이 포함된 문자열인 경우 처리
-                if (value.contains(".")) {
-                    double doubleValue = Double.parseDouble(value);
-                    log.warn("[RetailService] 정수로 변환되는 문자열에 소수점이 있습니다. 반올림 처리합니다. - 원본값: {}, 변환값: {}", 
-                            value, Math.round(doubleValue));
-                    return (int) Math.round(doubleValue);
-                }
-                return Integer.parseInt(value);
-            } catch (NumberFormatException e) {
-                log.warn("[RetailService] Integer 파싱 실패 - cellValue: {}", cell.getStringCellValue(), e);
-                return null;
-            }
-        } else {
-            return null;
-        }
-    }
 
     @Transactional(readOnly = true)
     public PageResponse<RetailResponse> getRetailList(

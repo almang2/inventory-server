@@ -105,7 +105,14 @@ fi
 UPSTREAM_FILE="/etc/nginx/conf.d/upstream.conf"
 BACKUP_FILE="/etc/nginx/conf.d/upstream.conf.bak.$(date +%Y%m%d%H%M%S)"
 
-sudo cp "$UPSTREAM_FILE" "$BACKUP_FILE" 2>/dev/null || true
+# ✅ 백업 성공 여부 추적 (백업 실패를 조용히 삼키지 않음)
+BACKUP_OK="true"
+if ! sudo cp "$UPSTREAM_FILE" "$BACKUP_FILE" 2>>"$DEPLOY_LOG"; then
+  BACKUP_OK="false"
+  log "⚠️ upstream.conf 백업 실패 (기존 파일이 없을 수 있음). 롤백이 제한될 수 있습니다."
+else
+  log "upstream.conf 백업 완료: $BACKUP_FILE"
+fi
 
 sudo tee "$UPSTREAM_FILE" >/dev/null <<EOF
 upstream app_upstream {
@@ -115,16 +122,41 @@ EOF
 
 # 설정 검증 후 reload (실패 시 롤백)
 if sudo nginx -t 2>&1 | tee -a "$DEPLOY_LOG"; then
-  sudo systemctl reload nginx 2>&1 | tee -a "$DEPLOY_LOG"
-  log "Nginx reload 완료 (upstream → $IDLE_COLOR:$IDLE_PORT)"
+
+  # ✅ reload 실패 감지/처리
+  if sudo systemctl reload nginx 2>&1 | tee -a "$DEPLOY_LOG"; then
+    log "Nginx reload 완료 (upstream → $IDLE_COLOR:$IDLE_PORT)"
+  else
+    log "❌ Nginx reload 실패! 배포 중단 및 롤백 시도"
+
+    if [ "$BACKUP_OK" = "true" ] && [ -f "$BACKUP_FILE" ]; then
+      log "upstream 롤백 시작: $BACKUP_FILE → $UPSTREAM_FILE"
+      sudo cp "$BACKUP_FILE" "$UPSTREAM_FILE"
+      sudo nginx -t 2>&1 | tee -a "$DEPLOY_LOG" || true
+      sudo systemctl reload nginx 2>&1 | tee -a "$DEPLOY_LOG" || true
+      log "upstream 롤백 완료"
+    else
+      log "⚠️ 롤백 불가: 백업 파일이 존재하지 않습니다. (BACKUP_OK=$BACKUP_OK)"
+    fi
+
+    # 관찰성 강화: nginx 상태 출력
+    sudo systemctl status nginx -n 30 --no-pager | tee -a "$DEPLOY_LOG" || true
+    exit 1
+  fi
+
 else
   log "❌ nginx -t 실패! upstream 롤백 후 배포 중단"
-  if [ -f "$BACKUP_FILE" ]; then
+
+  if [ "$BACKUP_OK" = "true" ] && [ -f "$BACKUP_FILE" ]; then
     sudo cp "$BACKUP_FILE" "$UPSTREAM_FILE"
     sudo nginx -t 2>&1 | tee -a "$DEPLOY_LOG" || true
     sudo systemctl reload nginx 2>&1 | tee -a "$DEPLOY_LOG" || true
     log "upstream 롤백 완료"
+  else
+    log "⚠️ 롤백 불가: 백업 파일이 존재하지 않습니다. (BACKUP_OK=$BACKUP_OK)"
   fi
+
+  sudo systemctl status nginx -n 30 --no-pager | tee -a "$DEPLOY_LOG" || true
   exit 1
 fi
 

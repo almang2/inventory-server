@@ -83,18 +83,37 @@ if [ "$SUCCESS" != "true" ]; then
   exit 1
 fi
 
-# Nginx 전환 (sites-enabled/app.conf 심볼릭 링크 교체)
-log "Nginx 설정을 $IDLE_COLOR 기준으로 전환"
+# Nginx 전환 (upstream.conf 스위치)
+log "Nginx upstream을 $IDLE_COLOR 기준으로 전환 (port=$IDLE_PORT)"
 
-if [ "$IDLE_COLOR" = "blue" ]; then
-  sudo ln -sf /etc/nginx/sites-available/app-blue.conf /etc/nginx/sites-enabled/app.conf
+# 전환 직전 최종 확인(실패 시 즉시 중단)
+curl -sf "http://127.0.0.1:$IDLE_PORT/actuator/health" >/dev/null
+
+UPSTREAM_FILE="/etc/nginx/conf.d/upstream.conf"
+BACKUP_FILE="/etc/nginx/conf.d/upstream.conf.bak.$(date +%Y%m%d%H%M%S)"
+
+sudo cp "$UPSTREAM_FILE" "$BACKUP_FILE" 2>/dev/null || true
+
+sudo tee "$UPSTREAM_FILE" >/dev/null <<EOF
+upstream app_upstream {
+    server 127.0.0.1:$IDLE_PORT;  # $IDLE_COLOR
+}
+EOF
+
+# 설정 검증 후 reload (실패 시 롤백)
+if sudo nginx -t 2>&1 | tee -a "$DEPLOY_LOG"; then
+  sudo systemctl reload nginx 2>&1 | tee -a "$DEPLOY_LOG"
+  log "Nginx reload 완료 (upstream → $IDLE_COLOR:$IDLE_PORT)"
 else
-  sudo ln -sf /etc/nginx/sites-available/app-green.conf /etc/nginx/sites-enabled/app.conf
+  log "❌ nginx -t 실패! upstream 롤백 후 배포 중단"
+  if [ -f "$BACKUP_FILE" ]; then
+    sudo cp "$BACKUP_FILE" "$UPSTREAM_FILE"
+    sudo nginx -t 2>&1 | tee -a "$DEPLOY_LOG" || true
+    sudo systemctl reload nginx || true
+    log "upstream 롤백 완료"
+  fi
+  exit 1
 fi
-
-sudo nginx -t
-sudo systemctl reload nginx
-log "Nginx reload 완료"
 
 # active-color 갱신
 echo "$IDLE_COLOR" > "$ACTIVE_COLOR_FILE"

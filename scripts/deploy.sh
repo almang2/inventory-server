@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
+# Blue/Green 무중단 배포 스크립트 (systemd + Nginx upstream.conf 스위치)
 
-set -e  # 에러 나면 즉시 종료
+set -euo pipefail
 
 APP_DIR=/home/ec2-user/app
 LOG_DIR=$APP_DIR/logs
@@ -9,7 +10,7 @@ DEPLOY_DIR=$APP_DIR/deploy
 DEPLOY_LOG=$LOG_DIR/deploy.log
 ACTIVE_COLOR_FILE=$DEPLOY_DIR/active-color
 
-# Blue/Green 포트 (실제 구성에 맞게 수정 가능)
+# Blue/Green 포트
 BLUE_PORT=8081
 GREEN_PORT=8082
 
@@ -86,8 +87,20 @@ fi
 # Nginx 전환 (upstream.conf 스위치)
 log "Nginx upstream을 $IDLE_COLOR 기준으로 전환 (port=$IDLE_PORT)"
 
-# 전환 직전 최종 확인(실패 시 즉시 중단)
-curl -sf "http://127.0.0.1:$IDLE_PORT/actuator/health" >/dev/null
+# 전환 직전 최종 확인(짧은 재시도: 3회, 1초 간격)
+PRECHECK_OK="false"
+for j in {1..3}; do
+  if curl -sf "http://127.0.0.1:$IDLE_PORT/actuator/health" >/dev/null; then
+    PRECHECK_OK="true"
+    break
+  fi
+  sleep 1
+done
+
+if [ "$PRECHECK_OK" != "true" ]; then
+  log "❌ 전환 직전 최종 헬스체크 실패! 배포 중단"
+  exit 1
+fi
 
 UPSTREAM_FILE="/etc/nginx/conf.d/upstream.conf"
 BACKUP_FILE="/etc/nginx/conf.d/upstream.conf.bak.$(date +%Y%m%d%H%M%S)"
@@ -109,7 +122,7 @@ else
   if [ -f "$BACKUP_FILE" ]; then
     sudo cp "$BACKUP_FILE" "$UPSTREAM_FILE"
     sudo nginx -t 2>&1 | tee -a "$DEPLOY_LOG" || true
-    sudo systemctl reload nginx || true
+    sudo systemctl reload nginx 2>&1 | tee -a "$DEPLOY_LOG" || true
     log "upstream 롤백 완료"
   fi
   exit 1

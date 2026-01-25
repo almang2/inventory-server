@@ -87,13 +87,21 @@ fi
 # Nginx 전환 (upstream.conf 스위치)
 log "Nginx upstream을 $IDLE_COLOR 기준으로 전환 (port=$IDLE_PORT)"
 
-# 전환 직전 최종 확인(짧은 재시도: 3회, 1초 간격)
+# 전환 직전 최종 확인(짧은 재시도: 3회, 1초 간격 + curl 타임아웃)
+# -connect-timeout: TCP 연결 단계 제한
+# -max-time: 전체 요청 제한(응답 지연/무한 대기 방지)
 PRECHECK_OK="false"
-for j in {1..3}; do
-  if curl -sf "http://127.0.0.1:$IDLE_PORT/actuator/health" >/dev/null; then
+for attempt in {1..3}; do
+  log "전환 직전 최종 헬스체크 시도 (${attempt}/3): http://127.0.0.1:${IDLE_PORT}/actuator/health"
+
+  if curl -sf \
+    --connect-timeout 2 \
+    --max-time 3 \
+    "http://127.0.0.1:${IDLE_PORT}/actuator/health" >/dev/null; then
     PRECHECK_OK="true"
     break
   fi
+
   sleep 1
 done
 

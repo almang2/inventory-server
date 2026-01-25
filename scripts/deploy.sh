@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
+# Blue/Green 무중단 배포 스크립트 (systemd + Nginx upstream.conf 스위치)
 
-set -e  # 에러 나면 즉시 종료
+set -euo pipefail
 
 APP_DIR=/home/ec2-user/app
 LOG_DIR=$APP_DIR/logs
@@ -9,7 +10,7 @@ DEPLOY_DIR=$APP_DIR/deploy
 DEPLOY_LOG=$LOG_DIR/deploy.log
 ACTIVE_COLOR_FILE=$DEPLOY_DIR/active-color
 
-# Blue/Green 포트 (실제 구성에 맞게 수정 가능)
+# Blue/Green 포트
 BLUE_PORT=8081
 GREEN_PORT=8082
 
@@ -83,18 +84,89 @@ if [ "$SUCCESS" != "true" ]; then
   exit 1
 fi
 
-# Nginx 전환 (sites-enabled/app.conf 심볼릭 링크 교체)
-log "Nginx 설정을 $IDLE_COLOR 기준으로 전환"
+# Nginx 전환 (upstream.conf 스위치)
+log "Nginx upstream을 $IDLE_COLOR 기준으로 전환 (port=$IDLE_PORT)"
 
-if [ "$IDLE_COLOR" = "blue" ]; then
-  sudo ln -sf /etc/nginx/sites-available/app-blue.conf /etc/nginx/sites-enabled/app.conf
-else
-  sudo ln -sf /etc/nginx/sites-available/app-green.conf /etc/nginx/sites-enabled/app.conf
+# 전환 직전 최종 확인(짧은 재시도: 3회, 1초 간격 + curl 타임아웃)
+# -connect-timeout: TCP 연결 단계 제한
+# -max-time: 전체 요청 제한(응답 지연/무한 대기 방지)
+PRECHECK_OK="false"
+for attempt in {1..3}; do
+  log "전환 직전 최종 헬스체크 시도 (${attempt}/3): http://127.0.0.1:${IDLE_PORT}/actuator/health"
+
+  if curl -sf \
+    --connect-timeout 2 \
+    --max-time 3 \
+    "http://127.0.0.1:${IDLE_PORT}/actuator/health" >/dev/null; then
+    PRECHECK_OK="true"
+    break
+  fi
+
+  sleep 1
+done
+
+if [ "$PRECHECK_OK" != "true" ]; then
+  log "❌ 전환 직전 최종 헬스체크 실패! 배포 중단"
+  exit 1
 fi
 
-sudo nginx -t
-sudo systemctl reload nginx
-log "Nginx reload 완료"
+UPSTREAM_FILE="/etc/nginx/conf.d/upstream.conf"
+BACKUP_FILE="/etc/nginx/conf.d/upstream.conf.bak.$(date +%Y%m%d%H%M%S)"
+
+# ✅ 백업 성공 여부 추적 (백업 실패를 조용히 삼키지 않음)
+BACKUP_OK="true"
+if ! sudo cp "$UPSTREAM_FILE" "$BACKUP_FILE" 2>>"$DEPLOY_LOG"; then
+  BACKUP_OK="false"
+  log "⚠️ upstream.conf 백업 실패 (기존 파일이 없을 수 있음). 롤백이 제한될 수 있습니다."
+else
+  log "upstream.conf 백업 완료: $BACKUP_FILE"
+fi
+
+sudo tee "$UPSTREAM_FILE" >/dev/null <<EOF
+upstream app_upstream {
+    server 127.0.0.1:$IDLE_PORT;  # $IDLE_COLOR
+}
+EOF
+
+# 설정 검증 후 reload (실패 시 롤백)
+if sudo nginx -t 2>&1 | tee -a "$DEPLOY_LOG"; then
+
+  # ✅ reload 실패 감지/처리
+  if sudo systemctl reload nginx 2>&1 | tee -a "$DEPLOY_LOG"; then
+    log "Nginx reload 완료 (upstream → $IDLE_COLOR:$IDLE_PORT)"
+  else
+    log "❌ Nginx reload 실패! 배포 중단 및 롤백 시도"
+
+    if [ "$BACKUP_OK" = "true" ] && [ -f "$BACKUP_FILE" ]; then
+      log "upstream 롤백 시작: $BACKUP_FILE → $UPSTREAM_FILE"
+      sudo cp "$BACKUP_FILE" "$UPSTREAM_FILE"
+      sudo nginx -t 2>&1 | tee -a "$DEPLOY_LOG" || true
+      sudo systemctl reload nginx 2>&1 | tee -a "$DEPLOY_LOG" || true
+      log "upstream 롤백 완료"
+    else
+      log "⚠️ 롤백 불가: 백업 파일이 존재하지 않습니다. (BACKUP_OK=$BACKUP_OK)"
+    fi
+
+    # 관찰성 강화: nginx 상태 출력
+    sudo systemctl status nginx -n 30 --no-pager | tee -a "$DEPLOY_LOG" || true
+    exit 1
+  fi
+
+else
+  log "❌ nginx -t 실패! upstream 롤백 후 배포 중단"
+
+  if [ "$BACKUP_OK" = "true" ] && [ -f "$BACKUP_FILE" ]; then
+    sudo cp "$BACKUP_FILE" "$UPSTREAM_FILE"
+    sudo nginx -t 2>&1 | tee -a "$DEPLOY_LOG" || true
+    sudo systemctl reload nginx 2>&1 | tee -a "$DEPLOY_LOG" || true
+    log "upstream 롤백 완료"
+  else
+    log "⚠️ 롤백 불가: 백업 파일이 존재하지 않습니다. (BACKUP_OK=$BACKUP_OK)"
+  fi
+
+  sudo systemctl status nginx -n 30 --no-pager | tee -a "$DEPLOY_LOG" || true
+  exit 1
+fi
 
 # active-color 갱신
 echo "$IDLE_COLOR" > "$ACTIVE_COLOR_FILE"

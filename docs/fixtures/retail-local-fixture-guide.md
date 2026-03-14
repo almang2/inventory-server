@@ -30,14 +30,14 @@ LOGGING_LEVEL_ORG_HIBERNATE_ENGINE_INTERNAL_STATISTICALLOGGINGSESSIONEVENTLISTEN
 
 1. 브라우저에서 `/h2-console` 접속
 2. JDBC URL: `jdbc:h2:mem:testdb`
-3. [`docs/fixtures/retail-seed-h2.sql`](/Users/joonkyo/inventory-server/docs/fixtures/retail-seed-h2.sql) 전체 실행
+3. [`docs/fixtures/retail-seed-h2.sql`](/inventory-server/docs/fixtures/retail-seed-h2.sql) 전체 실행
 
 시드 결과로 `P-0001` ~ `P-2000` 코드가 생성됩니다.
 
 ## 3) 샘플 엑셀 업로드
 
 업로드 파일:
-[`docs/fixtures/retail-upload-sample.xlsx`](/Users/joonkyo/inventory-server/docs/fixtures/retail-upload-sample.xlsx)
+[`docs/fixtures/retail-upload-sample.xlsx`](/inventory-server/docs/fixtures/retail-upload-sample.xlsx)
 
 컬럼 포맷(파서 기준):
 - B열: 상품 코드
@@ -70,10 +70,10 @@ brew install k6
 ```bash
 TOKEN='<ACCESS_TOKEN>' \
 BASE_URL='http://localhost:8080' \
-FILE_PATH='/Users/joonkyo/inventory-server/docs/fixtures/retail-upload-bulk-3000.xlsx' \
+FILE_PATH='/inventory-server/docs/fixtures/retail-upload-bulk-3000.xlsx' \
 VUS=1 \
 ITERATIONS=6 \
-k6 run /Users/joonkyo/inventory-server/scripts/k6-retail-upload.js
+k6 run /inventory-server/scripts/k6-retail-upload.js
 ```
 
 ### 결과에서 볼 항목
@@ -95,6 +95,77 @@ k6 run /Users/joonkyo/inventory-server/scripts/k6-retail-upload.js
 - 최대 부하 확인: `10,000+` rows
 
 현재 기본 벤치 파일:
-[`docs/fixtures/retail-upload-bulk-3000.xlsx`](/Users/joonkyo/inventory-server/docs/fixtures/retail-upload-bulk-3000.xlsx)
+[`docs/fixtures/retail-upload-bulk-3000.xlsx`](/inventory-server/docs/fixtures/retail-upload-bulk-3000.xlsx)
 
 `ITERATIONS=6`으로 두고 1회 워밍업을 제외한 5회 평균/중앙값 비교를 권장합니다.
+
+## 6) Grafana/Prometheus 관측 스택(선택)
+
+아래 파일이 준비되어 있어야 합니다.
+
+- [`docker-compose.metrics.yml`](/inventory-server/docker-compose.metrics.yml)
+- [`monitoring/prometheus.yml`](/inventory-server/monitoring/prometheus.yml)
+
+### 6-1. 앱 실행(통계 로그 포함 권장)
+
+`application-local.yml`의 `show-sql` 값과 무관하게, 측정 시에는 아래 명령으로 실행하면 됩니다.
+
+```bash
+SPRING_JPA_SHOW_SQL=false \
+SPRING_JPA_PROPERTIES_HIBERNATE_GENERATE_STATISTICS=true \
+LOGGING_LEVEL_ORG_HIBERNATE_STAT=DEBUG \
+LOGGING_LEVEL_ORG_HIBERNATE_ENGINE_INTERNAL_STATISTICALLOGGINGSESSIONEVENTLISTENER=DEBUG \
+./gradlew bootRun
+```
+
+### 6-2. Prometheus + Grafana 실행
+
+```bash
+docker compose -f /inventory-server/docker-compose.metrics.yml up -d
+```
+
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000` (`admin` / `admin`)
+
+### 6-3. k6 결과를 Prometheus로 전송
+
+리팩토링 전:
+
+```bash
+K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
+K6_PROMETHEUS_RW_TREND_STATS=p(95),avg,med,min,max \
+TOKEN='<ACCESS_TOKEN>' \
+BASE_URL='http://localhost:8080' \
+FILE_PATH='/inventory-server/docs/fixtures/retail-upload-bulk-3000.xlsx' \
+VUS=1 \
+ITERATIONS=6 \
+k6 run -o experimental-prometheus-rw \
+  --tag testid=before \
+  /inventory-server/scripts/k6-retail-upload.js
+
+```
+
+리팩토링 후:
+
+```bash
+K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
+K6_PROMETHEUS_RW_TREND_STATS=p(95),avg,med,min,max \
+TOKEN='<ACCESS_TOKEN>' \
+BASE_URL='http://localhost:8080' \
+FILE_PATH='/inventory-server/docs/fixtures/retail-upload-bulk-3000.xlsx' \
+VUS=1 \
+ITERATIONS=6 \
+k6 run -o experimental-prometheus-rw \
+  --tag testid=after \
+  /inventory-server/scripts/k6-retail-upload.js
+```
+
+Grafana에서 `testid=before`, `testid=after`를 같은 패널에서 비교합니다.
+
+## 7) 테스트 전 점검표
+
+- [ ] Redis 실행 중(`localhost:6379`)
+- [ ] 앱 실행 중(`http://localhost:8080`)
+- [ ] H2 시드 SQL 실행 완료
+- [ ] k6 설치 완료(`k6 version`)
+- [ ] (선택) Prometheus/Grafana 컨테이너 실행 완료

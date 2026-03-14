@@ -17,7 +17,6 @@ import com.almang.inventory.retail.parser.RetailExcelParser;
 import com.almang.inventory.retail.repository.RetailRepository;
 import com.almang.inventory.store.domain.Store;
 import java.io.InputStream;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -80,10 +79,13 @@ public class RetailService {
             throw new BaseException(ErrorCode.EXCEL_PARSE_ERROR);
         }
 
-        Set<String> productCodes = new HashSet<>();
-        for (RetailExcelRowDto row : rows) {
-            productCodes.add(row.code());
+        Set<String> productCodes = rows.stream()
+                .map(RetailExcelRowDto::code)
+                .collect(Collectors.toSet());
+        if (productCodes.isEmpty()) {
+            return new RetailUploadResult(0, List.of());
         }
+
         List<Product> products = productRepository.findByStoreIdAndCodeIn(store.getId(), productCodes);
         Map<String, Product> productByCode = products.stream()
                 .collect(Collectors.toMap(
@@ -93,6 +95,10 @@ public class RetailService {
                 ));
 
         List<Long> productIds = products.stream().map(Product::getId).toList();
+        if (productIds.isEmpty()) {
+            return new RetailUploadResult(0, List.of());
+        }
+
         List<Inventory> inventories = inventoryRepository.findAllByProduct_IdIn(productIds);
         Map<Long, Inventory> inventoryByProductId = inventories.stream()
                 .collect(Collectors.toMap(

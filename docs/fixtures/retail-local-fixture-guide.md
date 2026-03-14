@@ -16,6 +16,16 @@
 SPRING_JPA_SHOW_SQL=false ./gradlew bootRun
 ```
 
+쿼리 수/flush 통계까지 로그로 확인하려면 아래처럼 실행합니다.
+
+```bash
+SPRING_JPA_SHOW_SQL=false \
+SPRING_JPA_PROPERTIES_HIBERNATE_GENERATE_STATISTICS=true \
+LOGGING_LEVEL_ORG_HIBERNATE_STAT=DEBUG \
+LOGGING_LEVEL_ORG_HIBERNATE_ENGINE_INTERNAL_STATISTICALLOGGINGSESSIONEVENTLISTENER=DEBUG \
+./gradlew bootRun
+```
+
 ## 2) H2 콘솔에서 시드 SQL 실행
 
 1. 브라우저에서 `/h2-console` 접속

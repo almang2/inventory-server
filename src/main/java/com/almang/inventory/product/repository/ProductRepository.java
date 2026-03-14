@@ -1,6 +1,7 @@
 package com.almang.inventory.product.repository;
 
 import com.almang.inventory.product.domain.Product;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,4 +33,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     // 상품 코드로 상품 찾기 (카페24 주문 처리용)
     Optional<Product> findByCode(String code);
+
+    List<Product> findByStoreIdAndCodeIn(Long storeId, Collection<String> codes);
 }

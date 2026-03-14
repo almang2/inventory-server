@@ -17,6 +17,10 @@ import com.almang.inventory.retail.parser.RetailExcelParser;
 import com.almang.inventory.retail.repository.RetailRepository;
 import com.almang.inventory.store.domain.Store;
 import java.io.InputStream;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -76,6 +80,18 @@ public class RetailService {
             throw new BaseException(ErrorCode.EXCEL_PARSE_ERROR);
         }
 
+        Set<String> productCodes = new HashSet<>();
+        for (RetailExcelRowDto row : rows) {
+            productCodes.add(row.code());
+        }
+        List<Product> products = productRepository.findByStoreIdAndCodeIn(store.getId(), productCodes);
+        Map<String, Product> productByCode = products.stream()
+                .collect(Collectors.toMap(
+                        Product::getCode,
+                        p -> p,
+                        (existing, ignored) -> existing
+                ));
+
         List<Retail> retails = new ArrayList<>();
         List<String> skippedProducts = new ArrayList<>();
 
@@ -85,7 +101,7 @@ public class RetailService {
             BigDecimal quantity = row.quantity();
             Integer actualSales = row.actualSales();
 
-            Product product = productRepository.findByCode(code).orElse(null);
+            Product product = productByCode.get(code);
             if (product == null) {
                 String skippedInfo = String.format("%s (%s)", code, productName);
                 skippedProducts.add(skippedInfo);

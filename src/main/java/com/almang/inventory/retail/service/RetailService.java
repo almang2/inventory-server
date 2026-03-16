@@ -96,7 +96,10 @@ public class RetailService {
 
         List<Long> productIds = products.stream().map(Product::getId).toList();
         if (productIds.isEmpty()) {
-            return new RetailUploadResult(0, List.of());
+            List<String> allSkipped = rows.stream()
+                    .map(r -> String.format("%s (%s)", r.code(), r.productName()))
+                    .toList();
+            return new RetailUploadResult(0, allSkipped);
         }
 
         List<Inventory> inventories = inventoryRepository.findAllByProduct_IdIn(productIds);

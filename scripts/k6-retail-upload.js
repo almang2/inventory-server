@@ -6,7 +6,7 @@ const baseUrl = __ENV.BASE_URL || 'http://localhost:8080';
 const token = __ENV.TOKEN || '';
 const filePath =
   __ENV.FILE_PATH ||
-  '/inventory-server/docs/fixtures/retail-upload-bulk-3000.xlsx';
+  './docs/fixtures/retail-upload-bulk-3000.xlsx';
 const vus = Number(__ENV.VUS || 1);
 const iterations = Number(__ENV.ITERATIONS || 5);
 const pauseSeconds = Number(__ENV.SLEEP || 0);

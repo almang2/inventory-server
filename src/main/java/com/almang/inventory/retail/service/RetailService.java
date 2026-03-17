@@ -11,7 +11,10 @@ import com.almang.inventory.inventory.repository.InventoryRepository;
 import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.retail.domain.Retail;
+import com.almang.inventory.retail.dto.excel.RetailUploadResult;
 import com.almang.inventory.retail.dto.excel.RetailExcelRowDto;
+import com.almang.inventory.retail.dto.excel.SkipReason;
+import com.almang.inventory.retail.dto.excel.SkippedRow;
 import com.almang.inventory.retail.dto.response.RetailResponse;
 import com.almang.inventory.retail.parser.RetailExcelParser;
 import com.almang.inventory.retail.repository.RetailRepository;
@@ -96,9 +99,12 @@ public class RetailService {
 
         List<Long> productIds = products.stream().map(Product::getId).toList();
         if (productIds.isEmpty()) {
-            List<String> allSkipped = rows.stream()
-                    .map(r -> String.format("%s (%s)", r.code(), r.productName()))
-                    .toList();
+            List<SkippedRow> allSkipped = rows.stream()
+                    .map(r -> SkippedRow.of(
+                            r.rowIndex(),
+                            r.code(),
+                            SkipReason.PRODUCT_NOT_FOUND
+                    )).toList();
             return new RetailUploadResult(0, allSkipped);
         }
 
@@ -109,7 +115,7 @@ public class RetailService {
                 ));
 
         List<Retail> retails = new ArrayList<>();
-        List<String> skippedProducts = new ArrayList<>();
+        List<SkippedRow> skippedRows = new ArrayList<>();
 
         for (RetailExcelRowDto row : rows) {
             String code = row.code();
@@ -119,10 +125,9 @@ public class RetailService {
 
             Product product = productByCode.get(code);
             if (product == null) {
-                String skippedInfo = String.format("%s (%s)", code, productName);
-                skippedProducts.add(skippedInfo);
-                log.warn("[RetailService] 상품을 찾을 수 없어 스킵합니다 - rowIndex: {}, code: {}, productName: {}",
-                        row.rowIndex(), code, productName);
+                addSkip(skippedRows, SkippedRow.of(
+                        row.rowIndex(), code, SkipReason.PRODUCT_NOT_FOUND
+                ));
                 continue;  // 상품이 없으면 해당 행 스킵하고 계속 진행
             }
 
@@ -131,10 +136,9 @@ public class RetailService {
             Inventory inventory = inventoryByProductId.get(product.getId());
 
             if (inventory == null) {
-                String skippedInfo = String.format("%s (%s) - 재고 레코드 없음", code, productName);
-                skippedProducts.add(skippedInfo);
-                log.warn("[RetailService] 재고 레코드가 없어 스킵합니다 - productId: {}, productCode: {}, productName: {}",
-                        product.getId(), code, productName);
+                addSkip(skippedRows, SkippedRow.of(
+                        row.rowIndex(), code, SkipReason.INVENTORY_NOT_FOUND
+                ));
                 continue;  // 재고 레코드가 없으면 해당 행 스킵하고 계속 진행
             }
 
@@ -146,11 +150,10 @@ public class RetailService {
                 // 재고 부족 시 해당 상품을 스킵하고 계속 진행
                 // decreaseDisplay() 메서드는 DISPLAY_STOCK_NOT_ENOUGH 예외를 던짐
                 BigDecimal currentStock = inventory.getDisplayStock();
-                String skippedInfo = String.format("%s (%s) - 재고 부족 (필요: %s, 현재: %s)",
-                        code, productName, quantity, currentStock);
-                skippedProducts.add(skippedInfo);
-                log.warn("[RetailService] 재고 부족으로 스킵합니다 - productCode: {}, productName: {}, required: {}, available: {}",
-                        code, productName, quantity, currentStock);
+                String detail = String.format("재고 부족 (필요: %s, 현재: %s)", quantity, currentStock);
+                addSkip(skippedRows, SkippedRow.of(
+                        row.rowIndex(), code, SkipReason.INSUFFICIENT_STOCK, detail
+                ));
                 continue;  // 재고 부족이면 해당 행 스킵하고 계속 진행
             }
 
@@ -169,14 +172,16 @@ public class RetailService {
         // 5. Retail 저장
         retailRepository.saveAll(retails);
 
-        return new RetailUploadResult(retails.size(), skippedProducts);
+        return new RetailUploadResult(retails.size(), skippedRows);
     }
 
-    // 업로드 결과를 담는 내부 클래스
-    public record RetailUploadResult(
-            int processedCount,  // 처리된 상품 수
-            List<String> skippedProducts  // 스킵된 상품 목록 (코드 + 상품명)
-    ) {}
+    private void addSkip(
+            List<SkippedRow> skippedRows, SkippedRow skippedRow
+    ) {
+        skippedRows.add(skippedRow);
+        log.warn("[RetailService] 업로드 스킵 - rowIndex: {}, code: {}, reason: {}, message: {}",
+                skippedRow.rowIndex(), skippedRow.code(), skippedRow.reason(), skippedRow.message());
+    }
 
     @Transactional(readOnly = true)
     public PageResponse<RetailResponse> getRetailList(

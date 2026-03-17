@@ -5,6 +5,7 @@ import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
+import com.almang.inventory.retail.dto.excel.RetailUploadResult;
 import com.almang.inventory.retail.dto.response.RetailResponse;
 import com.almang.inventory.retail.service.RetailService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,21 +49,24 @@ public class RetailController {
         }
 
         try {
-            RetailService.RetailUploadResult result = retailService.processRetailExcel(file, userId);
+            RetailUploadResult result = retailService.processRetailExcel(file, userId);
             
             Map<String, Object> response = new java.util.HashMap<>();
             response.put("success", true);
             response.put("message", "Retail data processed successfully");
             response.put("processedCount", result.processedCount());
-            response.put("skippedProducts", result.skippedProducts());
-            response.put("skippedCount", result.skippedProducts().size());
-            
-            if (!result.skippedProducts().isEmpty()) {
-                response.put("warning", String.format("%d개의 상품이 스킵되었습니다.", result.skippedProducts().size()));
+            response.put("skippedRows", result.skippedRows());
+            response.put("skippedCount", result.skippedRows().size());
+
+            if (!result.skippedRows().isEmpty()) {
+                response.put("warning", String.format("%d개의 항목이 스킵되었습니다.", result.skippedRows().size()));
             }
-            
-            log.info("[RetailController] 엑셀 파일 업로드 성공 - userId: {}, processedCount: {}, skippedCount: {}", 
-                    userId, result.processedCount(), result.skippedProducts().size());
+
+            log.info(
+                    "[RetailController] 엑셀 파일 업로드 성공 - userId: {}, processedCount: {}, skippedCount: {}",
+                    userId, result.processedCount(), result.skippedRows().size() // 변경
+            );
+
             return ResponseEntity.ok(response);
         } catch (BaseException e) {
             // BaseException은 GlobalExceptionHandler가 처리하도록 그대로 던짐

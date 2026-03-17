@@ -172,6 +172,18 @@ public class RetailService {
         // 5. Retail 저장
         retailRepository.saveAll(retails);
 
+        Map<SkipReason, Long> skipReasonCounts = skippedRows.stream()
+                .collect(Collectors.groupingBy(SkippedRow::reason, Collectors.counting()));
+        log.info(
+                "[RetailService] 업로드 처리 완료 - storeId: {}, soldDate: {}, totalRows: {}, processedCount: {}, skippedCount: {}, skipReasonCounts: {}",
+                store.getId(),
+                soldDate,
+                rows.size(),
+                retails.size(),
+                skippedRows.size(),
+                skipReasonCounts
+        );
+
         return new RetailUploadResult(retails.size(), skippedRows);
     }
 

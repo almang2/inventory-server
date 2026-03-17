@@ -17,6 +17,9 @@ import com.almang.inventory.retail.parser.RetailExcelParser;
 import com.almang.inventory.retail.repository.RetailRepository;
 import com.almang.inventory.store.domain.Store;
 import java.io.InputStream;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -76,6 +79,35 @@ public class RetailService {
             throw new BaseException(ErrorCode.EXCEL_PARSE_ERROR);
         }
 
+        Set<String> productCodes = rows.stream()
+                .map(RetailExcelRowDto::code)
+                .collect(Collectors.toSet());
+        if (productCodes.isEmpty()) {
+            return new RetailUploadResult(0, List.of());
+        }
+
+        List<Product> products = productRepository.findByStoreIdAndCodeIn(store.getId(), productCodes);
+        Map<String, Product> productByCode = products.stream()
+                .collect(Collectors.toMap(
+                        Product::getCode,
+                        p -> p,
+                        (existing, ignored) -> existing
+                ));
+
+        List<Long> productIds = products.stream().map(Product::getId).toList();
+        if (productIds.isEmpty()) {
+            List<String> allSkipped = rows.stream()
+                    .map(r -> String.format("%s (%s)", r.code(), r.productName()))
+                    .toList();
+            return new RetailUploadResult(0, allSkipped);
+        }
+
+        List<Inventory> inventories = inventoryRepository.findAllByProduct_IdIn(productIds);
+        Map<Long, Inventory> inventoryByProductId = inventories.stream()
+                .collect(Collectors.toMap(
+                        i -> i.getProduct().getId(), i -> i
+                ));
+
         List<Retail> retails = new ArrayList<>();
         List<String> skippedProducts = new ArrayList<>();
 
@@ -85,7 +117,7 @@ public class RetailService {
             BigDecimal quantity = row.quantity();
             Integer actualSales = row.actualSales();
 
-            Product product = productRepository.findByCode(code).orElse(null);
+            Product product = productByCode.get(code);
             if (product == null) {
                 String skippedInfo = String.format("%s (%s)", code, productName);
                 skippedProducts.add(skippedInfo);
@@ -96,8 +128,9 @@ public class RetailService {
 
             // 품목 생성 시 자동으로 재고 레코드가 생성되므로, 재고 레코드가 없는 경우는 매우 드뭅니다
             // 재고 차감 시 마이너스 방지 검증(decreaseDisplay)이 있으므로, 재고 레코드가 없으면 스킵
-            var inventoryOpt = inventoryRepository.findByProduct(product);
-            if (inventoryOpt.isEmpty()) {
+            Inventory inventory = inventoryByProductId.get(product.getId());
+
+            if (inventory == null) {
                 String skippedInfo = String.format("%s (%s) - 재고 레코드 없음", code, productName);
                 skippedProducts.add(skippedInfo);
                 log.warn("[RetailService] 재고 레코드가 없어 스킵합니다 - productId: {}, productCode: {}, productName: {}",
@@ -107,7 +140,6 @@ public class RetailService {
 
             // 재고 차감을 먼저 시도 (성공한 경우에만 Retail 엔티티 생성)
             // 재고 부족 시 예외를 catch하여 해당 상품만 스킵하고 나머지는 계속 처리
-            Inventory inventory = inventoryOpt.get();
             try {
                 inventory.decreaseDisplay(quantity);
             } catch (BaseException e) {

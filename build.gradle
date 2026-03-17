@@ -58,6 +58,9 @@ dependencies {
 
 	// Spring Boot DevTools (자동 재시작)
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+	// Prometheus
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 }
 
 tasks.named('test') {

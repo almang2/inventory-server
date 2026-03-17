@@ -175,6 +175,22 @@ http://localhost:8080/swagger-ui/index.html
 
 ---
 
+## 🗄️ RDS 스키마 적용 가이드
+
+RDS(MySQL) 배포 시 스키마 적용은 아래 두 가지 케이스로 구분합니다.
+
+- 신규 환경(테이블이 아직 없는 경우):
+  - `docs/rds_create_tables.sql`
+- 기존 환경 업그레이드(이미 `products` 테이블이 있는 경우):
+  - `docs/rds_migrate_products_constraints.sql`
+
+주의:
+- `CREATE TABLE IF NOT EXISTS`는 기존 테이블 구조를 변경하지 않습니다.
+- 기존 환경에서 `products`의 `(store_id, code)` 유니크 제약/인덱스 반영은 업그레이드 스크립트를 별도로 실행해야 합니다.
+- 업그레이드 스크립트 실행 전, 중복 `(store_id, code)` 데이터가 있으면 제약 추가가 실패할 수 있습니다.
+
+---
+
 ## ☁️ 배포 구조
 
 본 프로젝트는 **무중단 배포(Blue-Green)** 방식으로 운영됩니다.

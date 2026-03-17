@@ -93,3 +93,7 @@ CREATE TABLE IF NOT EXISTS retails (
     INDEX idx_sold_date (sold_date),
     INDEX idx_product_id (product_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 기존 RDS 업그레이드(이미 존재하는 products 테이블에 제약/인덱스 추가)는
+-- 아래 별도 마이그레이션 파일을 사용하세요.
+-- docs/rds_migrate_products_constraints.sql

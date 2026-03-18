@@ -1,4 +1,4 @@
-package com.almang.inventory.retail.dto.excel;
+package com.almang.inventory.retail.dto.upload;
 
 public enum SkipReason {
     PRODUCT_NOT_FOUND("상품을 찾을 수 없어 스킵"),

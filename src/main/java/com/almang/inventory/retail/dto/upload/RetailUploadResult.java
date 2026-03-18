@@ -1,4 +1,4 @@
-package com.almang.inventory.retail.dto.excel;
+package com.almang.inventory.retail.dto.upload;
 
 import java.util.List;
 

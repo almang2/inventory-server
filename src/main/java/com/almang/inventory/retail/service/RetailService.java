@@ -11,11 +11,12 @@ import com.almang.inventory.inventory.repository.InventoryRepository;
 import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.retail.domain.Retail;
-import com.almang.inventory.retail.dto.excel.RetailUploadResult;
+import com.almang.inventory.retail.dto.upload.RetailUploadResult;
 import com.almang.inventory.retail.dto.excel.RetailExcelRowDto;
-import com.almang.inventory.retail.dto.excel.SkipReason;
-import com.almang.inventory.retail.dto.excel.SkippedRow;
+import com.almang.inventory.retail.dto.upload.SkipReason;
+import com.almang.inventory.retail.dto.upload.SkippedRow;
 import com.almang.inventory.retail.dto.response.RetailResponse;
+import com.almang.inventory.retail.dto.upload.UploadPreparationResult;
 import com.almang.inventory.retail.parser.RetailExcelParser;
 import com.almang.inventory.retail.repository.RetailRepository;
 import com.almang.inventory.store.domain.Store;
@@ -60,6 +61,9 @@ public class RetailService {
         // 2. soldDate 계산
         LocalDate soldDate = LocalDate.now(SEOUL_ZONE);
 
+        // 3.
+        UploadPreparationResult ctx = prepareUploadContext(file, store);
+
         // 3. 기존 데이터 soft delete
         List<Retail> existingRetails = retailRepository.findAllByStoreIdAndSoldDate(store.getId(), soldDate);
         if (!existingRetails.isEmpty()) {
@@ -75,55 +79,16 @@ public class RetailService {
             retailRepository.saveAll(existingRetails);
         }
 
-        List<RetailExcelRowDto> rows;
-        try (InputStream inputStream = file.getInputStream()) {
-            rows = retailExcelParser.parse(inputStream);
-        } catch (IOException e) {
-            throw new BaseException(ErrorCode.EXCEL_PARSE_ERROR);
-        }
-
-        Set<String> productCodes = rows.stream()
-                .map(RetailExcelRowDto::code)
-                .collect(Collectors.toSet());
-        if (productCodes.isEmpty()) {
-            return new RetailUploadResult(0, List.of());
-        }
-
-        List<Product> products = productRepository.findByStoreIdAndCodeIn(store.getId(), productCodes);
-        Map<String, Product> productByCode = products.stream()
-                .collect(Collectors.toMap(
-                        Product::getCode,
-                        p -> p,
-                        (existing, ignored) -> existing
-                ));
-
-        List<Long> productIds = products.stream().map(Product::getId).toList();
-        if (productIds.isEmpty()) {
-            List<SkippedRow> allSkipped = rows.stream()
-                    .map(r -> SkippedRow.of(
-                            r.rowIndex(),
-                            r.code(),
-                            SkipReason.PRODUCT_NOT_FOUND
-                    )).toList();
-            return new RetailUploadResult(0, allSkipped);
-        }
-
-        List<Inventory> inventories = inventoryRepository.findAllByProduct_IdIn(productIds);
-        Map<Long, Inventory> inventoryByProductId = inventories.stream()
-                .collect(Collectors.toMap(
-                        i -> i.getProduct().getId(), i -> i
-                ));
-
         List<Retail> retails = new ArrayList<>();
-        List<SkippedRow> skippedRows = new ArrayList<>();
+        List<SkippedRow> skippedRows = new ArrayList<>(ctx.skippedRows());
 
-        for (RetailExcelRowDto row : rows) {
+        for (RetailExcelRowDto row : ctx.rows()) {
             String code = row.code();
             String productName = row.productName();
             BigDecimal quantity = row.quantity();
             Integer actualSales = row.actualSales();
 
-            Product product = productByCode.get(code);
+            Product product = ctx.productByCode().get(code);
             if (product == null) {
                 addSkip(skippedRows, SkippedRow.of(
                         row.rowIndex(), code, SkipReason.PRODUCT_NOT_FOUND
@@ -133,7 +98,7 @@ public class RetailService {
 
             // 품목 생성 시 자동으로 재고 레코드가 생성되므로, 재고 레코드가 없는 경우는 매우 드뭅니다
             // 재고 차감 시 마이너스 방지 검증(decreaseDisplay)이 있으므로, 재고 레코드가 없으면 스킵
-            Inventory inventory = inventoryByProductId.get(product.getId());
+            Inventory inventory = ctx.inventoryByProductId().get(product.getId());
 
             if (inventory == null) {
                 addSkip(skippedRows, SkippedRow.of(
@@ -178,13 +143,64 @@ public class RetailService {
                 "[RetailService] 업로드 처리 완료 - storeId: {}, soldDate: {}, totalRows: {}, processedCount: {}, skippedCount: {}, skipReasonCounts: {}",
                 store.getId(),
                 soldDate,
-                rows.size(),
+                ctx.rows().size(),
                 retails.size(),
                 skippedRows.size(),
                 skipReasonCounts
         );
 
         return new RetailUploadResult(retails.size(), skippedRows);
+    }
+
+    private UploadPreparationResult prepareUploadContext(MultipartFile file, Store store) {
+        List<RetailExcelRowDto> rows;
+        List<SkippedRow> skippedRows = new ArrayList<>();
+
+        try (InputStream inputStream = file.getInputStream()) {
+            rows = retailExcelParser.parse(inputStream);
+        } catch (IOException e) {
+            throw new BaseException(ErrorCode.EXCEL_PARSE_ERROR);
+        }
+
+        Set<String> productCodes = rows.stream()
+                .map(RetailExcelRowDto::code)
+                .collect(Collectors.toSet());
+        if (productCodes.isEmpty()) {
+            return new UploadPreparationResult(
+                    rows, skippedRows, Map.of(), Map.of()
+            );
+        }
+
+        List<Product> products = productRepository.findByStoreIdAndCodeIn(store.getId(), productCodes);
+        Map<String, Product> productByCode = products.stream()
+                .collect(Collectors.toMap(
+                        Product::getCode,
+                        p -> p,
+                        (existing, ignored) -> existing
+                ));
+
+        List<Long> productIds = products.stream().map(Product::getId).toList();
+        if (productIds.isEmpty()) {
+            List<SkippedRow> allSkipped = rows.stream()
+                    .map(r -> SkippedRow.of(
+                            r.rowIndex(),
+                            r.code(),
+                            SkipReason.PRODUCT_NOT_FOUND
+                    )).toList();
+            return new UploadPreparationResult(
+                    rows, allSkipped, productByCode, Map.of()
+            );
+        }
+
+        List<Inventory> inventories = inventoryRepository.findAllByProduct_IdIn(productIds);
+        Map<Long, Inventory> inventoryByProductId = inventories.stream()
+                .collect(Collectors.toMap(
+                        i -> i.getProduct().getId(), i -> i
+                ));
+
+        return new UploadPreparationResult(
+                rows, skippedRows, productByCode, inventoryByProductId
+        );
     }
 
     private void addSkip(

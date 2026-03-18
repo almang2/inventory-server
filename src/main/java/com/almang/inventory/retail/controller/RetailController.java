@@ -5,7 +5,7 @@ import com.almang.inventory.global.api.PageResponse;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.security.principal.CustomUserPrincipal;
-import com.almang.inventory.retail.dto.excel.RetailUploadResult;
+import com.almang.inventory.retail.dto.upload.RetailUploadResult;
 import com.almang.inventory.retail.dto.response.RetailResponse;
 import com.almang.inventory.retail.service.RetailService;
 import io.swagger.v3.oas.annotations.Operation;

@@ -54,17 +54,89 @@ public class RetailService {
 
     @Transactional
     public RetailUploadResult processRetailExcel(MultipartFile file, Long userId) {
-        // 1. 상점 조회
+        // 상점 조회
         UserStoreContext context = userContextProvider.findUserAndStore(userId);
         Store store = context.store();
 
-        // 2. soldDate 계산
+        // soldDate 계산
         LocalDate soldDate = LocalDate.now(SEOUL_ZONE);
 
-        // 3.
         UploadPreparationResult ctx = prepareUploadContext(file, store);
 
-        // 3. 기존 데이터 soft delete
+        if (!ctx.rows().isEmpty() && ctx.rows().size() == ctx.skippedRows().size()) {
+            return new RetailUploadResult(0, ctx.skippedRows());
+        }
+
+        RetailUploadResult uploadResult = applyUploadChanges(ctx, store, soldDate);
+
+        Map<SkipReason, Long> skipReasonCounts = uploadResult.skippedRows().stream()
+                .collect(Collectors.groupingBy(SkippedRow::reason, Collectors.counting()));
+        log.info(
+                "[RetailService] 업로드 처리 완료 - storeId: {}, soldDate: {}, totalRows: {}, processedCount: {}, skippedCount: {}, skipReasonCounts: {}",
+                store.getId(),
+                soldDate,
+                ctx.rows().size(),
+                uploadResult.processedCount(),
+                uploadResult.skippedRows().size(),
+                skipReasonCounts
+        );
+
+        return uploadResult;
+    }
+
+    private UploadPreparationResult prepareUploadContext(MultipartFile file, Store store) {
+        List<RetailExcelRowDto> rows;
+        List<SkippedRow> skippedRows = new ArrayList<>();
+
+        try (InputStream inputStream = file.getInputStream()) {
+            rows = retailExcelParser.parse(inputStream);
+        } catch (IOException e) {
+            throw new BaseException(ErrorCode.EXCEL_PARSE_ERROR);
+        }
+
+        Set<String> productCodes = rows.stream()
+                .map(RetailExcelRowDto::code)
+                .collect(Collectors.toSet());
+        if (productCodes.isEmpty()) {
+            return new UploadPreparationResult(
+                    rows, skippedRows, Map.of(), Map.of()
+            );
+        }
+
+        List<Product> products = productRepository.findByStoreIdAndCodeIn(store.getId(), productCodes);
+        Map<String, Product> productByCode = products.stream()
+                .collect(Collectors.toMap(
+                        Product::getCode,
+                        p -> p,
+                        (existing, ignored) -> existing
+                ));
+
+        List<Long> productIds = products.stream().map(Product::getId).toList();
+        if (productIds.isEmpty()) {
+            List<SkippedRow> allSkipped = rows.stream()
+                    .map(r -> SkippedRow.of(
+                            r.rowIndex(),
+                            r.code(),
+                            SkipReason.PRODUCT_NOT_FOUND
+                    )).toList();
+            return new UploadPreparationResult(
+                    rows, allSkipped, productByCode, Map.of()
+            );
+        }
+
+        List<Inventory> inventories = inventoryRepository.findAllByProduct_IdIn(productIds);
+        Map<Long, Inventory> inventoryByProductId = inventories.stream()
+                .collect(Collectors.toMap(
+                        i -> i.getProduct().getId(), i -> i
+                ));
+
+        return new UploadPreparationResult(
+                rows, skippedRows, productByCode, inventoryByProductId
+        );
+    }
+
+    private RetailUploadResult applyUploadChanges(UploadPreparationResult ctx, Store store, LocalDate soldDate) {
+        // 기존 데이터 soft delete
         List<Retail> existingRetails = retailRepository.findAllByStoreIdAndSoldDate(store.getId(), soldDate);
         if (!existingRetails.isEmpty()) {
             log.warn("[RetailService] 해당 날짜({})에 이미 소매 데이터가 존재합니다. 기존 데이터를 소프트 삭제하고 새로 저장합니다. - storeId: {}, count: {}",
@@ -134,73 +206,10 @@ public class RetailService {
             retails.add(retail);
         }
 
-        // 5. Retail 저장
+        // Retail 저장
         retailRepository.saveAll(retails);
 
-        Map<SkipReason, Long> skipReasonCounts = skippedRows.stream()
-                .collect(Collectors.groupingBy(SkippedRow::reason, Collectors.counting()));
-        log.info(
-                "[RetailService] 업로드 처리 완료 - storeId: {}, soldDate: {}, totalRows: {}, processedCount: {}, skippedCount: {}, skipReasonCounts: {}",
-                store.getId(),
-                soldDate,
-                ctx.rows().size(),
-                retails.size(),
-                skippedRows.size(),
-                skipReasonCounts
-        );
-
         return new RetailUploadResult(retails.size(), skippedRows);
-    }
-
-    private UploadPreparationResult prepareUploadContext(MultipartFile file, Store store) {
-        List<RetailExcelRowDto> rows;
-        List<SkippedRow> skippedRows = new ArrayList<>();
-
-        try (InputStream inputStream = file.getInputStream()) {
-            rows = retailExcelParser.parse(inputStream);
-        } catch (IOException e) {
-            throw new BaseException(ErrorCode.EXCEL_PARSE_ERROR);
-        }
-
-        Set<String> productCodes = rows.stream()
-                .map(RetailExcelRowDto::code)
-                .collect(Collectors.toSet());
-        if (productCodes.isEmpty()) {
-            return new UploadPreparationResult(
-                    rows, skippedRows, Map.of(), Map.of()
-            );
-        }
-
-        List<Product> products = productRepository.findByStoreIdAndCodeIn(store.getId(), productCodes);
-        Map<String, Product> productByCode = products.stream()
-                .collect(Collectors.toMap(
-                        Product::getCode,
-                        p -> p,
-                        (existing, ignored) -> existing
-                ));
-
-        List<Long> productIds = products.stream().map(Product::getId).toList();
-        if (productIds.isEmpty()) {
-            List<SkippedRow> allSkipped = rows.stream()
-                    .map(r -> SkippedRow.of(
-                            r.rowIndex(),
-                            r.code(),
-                            SkipReason.PRODUCT_NOT_FOUND
-                    )).toList();
-            return new UploadPreparationResult(
-                    rows, allSkipped, productByCode, Map.of()
-            );
-        }
-
-        List<Inventory> inventories = inventoryRepository.findAllByProduct_IdIn(productIds);
-        Map<Long, Inventory> inventoryByProductId = inventories.stream()
-                .collect(Collectors.toMap(
-                        i -> i.getProduct().getId(), i -> i
-                ));
-
-        return new UploadPreparationResult(
-                rows, skippedRows, productByCode, inventoryByProductId
-        );
     }
 
     private void addSkip(

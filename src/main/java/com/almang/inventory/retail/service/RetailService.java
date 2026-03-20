@@ -33,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -64,6 +63,18 @@ public class RetailService {
         UploadPreparationResult ctx = prepareUploadContext(file, store);
 
         if (!ctx.rows().isEmpty() && ctx.rows().size() == ctx.skippedRows().size()) {
+            Map<SkipReason, Long> skipReasonCounts = ctx.skippedRows().stream()
+                    .collect(Collectors.groupingBy(SkippedRow::reason, Collectors.counting()));
+
+            log.info(
+                    "[RetailService] 업로드 처리 완료(전량 스킵) - storeId: {}, soldDate: {}, totalRows: {}, processedCount: {}, skippedCount: {}, skipReasonCounts: {}",
+                    store.getId(),
+                    soldDate,
+                    ctx.rows().size(),
+                    0,
+                    ctx.skippedRows().size(),
+                    skipReasonCounts
+            );
             return new RetailUploadResult(0, ctx.skippedRows());
         }
 

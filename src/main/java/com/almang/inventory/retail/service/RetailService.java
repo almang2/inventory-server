@@ -198,29 +198,33 @@ public class RetailService {
                 userId, store.getId(), soldDate, startDate, endDate);
 
         PageRequest pageable = PaginationUtil.createPageRequest(page, size, "soldDate");
-        Page<Retail> retailPage;
-
-        if (soldDate != null) {
-            // 특정 날짜 조회
-            retailPage = retailRepository.findAllByStoreIdAndSoldDate(store.getId(), soldDate, pageable);
-        } else if (startDate != null && endDate != null) {
-            // 날짜 범위 조회
-            retailPage = retailRepository.findAllByStoreIdAndSoldDateBetween(
-                    store.getId(), startDate, endDate, pageable);
-        } else {
-            // 날짜 조건 없이 최근 데이터 조회 (최근 30일)
-            // Asia/Seoul 타임존을 명시적으로 사용하여 서버 타임존과 무관하게 일관된 날짜 계산
-            LocalDate defaultEndDate = LocalDate.now(SEOUL_ZONE);
-            LocalDate defaultStartDate = defaultEndDate.minusDays(30);
-            retailPage = retailRepository.findAllByStoreIdAndSoldDateBetween(
-                    store.getId(), defaultStartDate, defaultEndDate, pageable);
-        }
+        Page<Retail> retailPage = findRetailPageByDateCondition(soldDate, startDate, endDate, store, pageable);
 
         Page<RetailResponse> mapped = retailPage.map(RetailResponse::from);
 
         log.info("[RetailService] 소매 내역 목록 조회 성공 - userId: {}, storeId: {}, totalElements: {}",
                 userId, store.getId(), mapped.getTotalElements());
         return PageResponse.from(mapped);
+    }
+
+    private Page<Retail> findRetailPageByDateCondition(
+            LocalDate soldDate, LocalDate startDate, LocalDate endDate, Store store, PageRequest pageable
+    ) {
+        if (soldDate != null) {
+            // 특정 날짜 조회
+            return retailRepository.findAllByStoreIdAndSoldDate(store.getId(), soldDate, pageable);
+        } else if (startDate != null && endDate != null) {
+            // 날짜 범위 조회
+            return retailRepository.findAllByStoreIdAndSoldDateBetween(
+                    store.getId(), startDate, endDate, pageable);
+        } else {
+            // 날짜 조건 없이 최근 데이터 조회 (최근 30일)
+            // Asia/Seoul 타임존을 명시적으로 사용하여 서버 타임존과 무관하게 일관된 날짜 계산
+            LocalDate defaultEndDate = LocalDate.now(SEOUL_ZONE);
+            LocalDate defaultStartDate = defaultEndDate.minusDays(30);
+            return retailRepository.findAllByStoreIdAndSoldDateBetween(
+                    store.getId(), defaultStartDate, defaultEndDate, pageable);
+        }
     }
 
     @Transactional(readOnly = true)

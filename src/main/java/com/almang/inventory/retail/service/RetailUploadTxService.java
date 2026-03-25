@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,12 @@ public class RetailUploadTxService {
 
     @Transactional
     public RetailUploadResult applyUploadChanges(UploadPreparationResult ctx, Store store, LocalDate soldDate) {
+        softDeleteExistingRetails(store, soldDate);
+
+        return processRows(ctx, store, soldDate);
+    }
+
+    private void softDeleteExistingRetails(Store store, LocalDate soldDate) {
         // 기존 데이터 soft delete
         List<Retail> existingRetails = retailRepository.findAllByStoreIdAndSoldDate(store.getId(), soldDate);
         if (!existingRetails.isEmpty()) {
@@ -43,66 +50,106 @@ public class RetailUploadTxService {
             existingRetails.forEach(Retail::delete);
             retailRepository.saveAll(existingRetails);
         }
+    }
 
+    private RetailUploadResult processRows(UploadPreparationResult ctx, Store store, LocalDate soldDate) {
         List<Retail> retails = new ArrayList<>();
         List<SkippedRow> skippedRows = new ArrayList<>(ctx.skippedRows());
 
         for (RetailExcelRowDto row : ctx.rows()) {
-            String code = row.code();
-            String productName = row.productName();
-            BigDecimal quantity = row.quantity();
-            Integer actualSales = row.actualSales();
-
-            Product product = ctx.productByCode().get(code);
-            if (product == null) {
-                addSkip(skippedRows, SkippedRow.of(
-                        row.rowIndex(), code, SkipReason.PRODUCT_NOT_FOUND
-                ));
-                continue;  // 상품이 없으면 해당 행 스킵하고 계속 진행
-            }
-
-            // 품목 생성 시 자동으로 재고 레코드가 생성되므로, 재고 레코드가 없는 경우는 매우 드뭅니다
-            // 재고 차감 시 마이너스 방지 검증(decreaseDisplay)이 있으므로, 재고 레코드가 없으면 스킵
-            Inventory inventory = ctx.inventoryByProductId().get(product.getId());
-
-            if (inventory == null) {
-                addSkip(skippedRows, SkippedRow.of(
-                        row.rowIndex(), code, SkipReason.INVENTORY_NOT_FOUND
-                ));
-                continue;  // 재고 레코드가 없으면 해당 행 스킵하고 계속 진행
-            }
-
-            // 재고 차감을 먼저 시도 (성공한 경우에만 Retail 엔티티 생성)
-            // 재고 부족 시 예외를 catch하여 해당 상품만 스킵하고 나머지는 계속 처리
-            try {
-                inventory.decreaseDisplay(quantity);
-            } catch (BaseException e) {
-                // 재고 부족 시 해당 상품을 스킵하고 계속 진행
-                // decreaseDisplay() 메서드는 DISPLAY_STOCK_NOT_ENOUGH 예외를 던짐
-                BigDecimal currentStock = inventory.getDisplayStock();
-                String detail = String.format("재고 부족 (필요: %s, 현재: %s)", quantity, currentStock);
-                addSkip(skippedRows, SkippedRow.of(
-                        row.rowIndex(), code, SkipReason.INSUFFICIENT_STOCK, detail
-                ));
-                continue;  // 재고 부족이면 해당 행 스킵하고 계속 진행
-            }
-
-            Retail retail = Retail.builder()
-                    .store(store)
-                    .product(product)
-                    .productCode(code)  // 판매 시점의 상품 코드
-                    .productName(productName)  // 판매 시점의 상품명 (POS에서 저장된 값)
-                    .soldDate(soldDate)  // 판매일자
-                    .quantity(quantity)
-                    .actualSales(actualSales)  // 실매출
-                    .build();
-            retails.add(retail);
+            processSingleRow(ctx, store, soldDate, skippedRows, row)
+                    .ifPresent(retails::add);
         }
 
         // Retail 저장
         retailRepository.saveAll(retails);
 
         return new RetailUploadResult(retails.size(), skippedRows);
+    }
+
+    private Optional<Retail> processSingleRow(
+            UploadPreparationResult ctx, Store store, LocalDate soldDate,
+            List<SkippedRow> skippedRows, RetailExcelRowDto row
+    ) {
+        String code = row.code();
+        BigDecimal quantity = row.quantity();
+
+        Product product = findProductOrSkip(ctx, skippedRows, row, code);
+        if (product == null) {
+            return Optional.empty();
+        }
+
+        // 재고 차감 시 마이너스 방지 검증(decreaseDisplay)이 있으므로, 재고 레코드가 없으면 스킵
+        Inventory inventory = findInventoryOrSkip(ctx, skippedRows, row, code, product);
+        if (inventory == null) {
+            return Optional.empty();
+        }
+
+        // 재고 차감을 먼저 시도 (성공한 경우에만 Retail 엔티티 생성)
+        if (!tryDecreaseOrSkip(skippedRows, row, code, quantity, inventory)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(createRetail(store, product, row, soldDate));
+    }
+
+    private Product findProductOrSkip(
+            UploadPreparationResult ctx, List<SkippedRow> skippedRows,
+            RetailExcelRowDto row, String code
+    ) {
+        Product product = ctx.productByCode().get(code);
+        if (product == null) {
+            addSkip(skippedRows, SkippedRow.of(
+                    row.rowIndex(), code, SkipReason.PRODUCT_NOT_FOUND
+            ));
+        }
+        return product;
+    }
+
+    private Inventory findInventoryOrSkip(
+            UploadPreparationResult ctx, List<SkippedRow> skippedRows,
+            RetailExcelRowDto row, String code, Product product
+    ) {
+        Inventory inventory = ctx.inventoryByProductId().get(product.getId());
+        if (inventory == null) {
+            addSkip(skippedRows, SkippedRow.of(
+                    row.rowIndex(), code, SkipReason.INVENTORY_NOT_FOUND
+            ));
+        }
+        return inventory;
+    }
+
+    private boolean tryDecreaseOrSkip(
+            List<SkippedRow> skippedRows, RetailExcelRowDto row, String code,
+            BigDecimal quantity, Inventory inventory
+    ) {
+        try {
+            inventory.decreaseDisplay(quantity);
+            return true;
+        } catch (BaseException e) {
+            // 재고 부족 시 해당 상품을 스킵하고 계속 진행
+            // decreaseDisplay() 메서드는 DISPLAY_STOCK_NOT_ENOUGH 예외를 던짐
+            BigDecimal currentStock = inventory.getDisplayStock();
+            String detail = String.format("재고 부족 (필요: %s, 현재: %s)", quantity, currentStock);
+            addSkip(skippedRows, SkippedRow.of(
+                    row.rowIndex(), code, SkipReason.INSUFFICIENT_STOCK, detail
+            ));
+            return false;
+        }
+    }
+
+    private Retail createRetail(
+            Store store, Product product, RetailExcelRowDto row, LocalDate soldDate
+    ) {
+        return Retail.builder()
+                .store(store)
+                .product(product)
+                .productCode(row.code()) // 판매 시점의 상품 코드
+                .productName(row.productName()) // 판매 시점의 상품명 (POS에서 저장된 값)
+                .soldDate(soldDate) // 판매일자
+                .quantity(row.quantity())
+                .actualSales(row.actualSales()) // 실매출
+                .build();
     }
 
     private void addSkip(

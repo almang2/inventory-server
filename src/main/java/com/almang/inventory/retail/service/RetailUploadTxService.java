@@ -30,8 +30,6 @@ public class RetailUploadTxService {
 
     @Transactional
     public RetailUploadResult applyUploadChanges(UploadPreparationResult ctx, Store store, LocalDate soldDate) {
-        softDeleteExistingRetails(store, soldDate);
-
         return processRows(ctx, store, soldDate);
     }
 
@@ -60,6 +58,18 @@ public class RetailUploadTxService {
             processSingleRow(ctx, store, soldDate, skippedRows, row)
                     .ifPresent(retails::add);
         }
+
+        if (retails.isEmpty()) {
+            log.info(
+                    "[RetailUploadTxService] 유효한 업로드 행이 없어 기존 데이터를 유지합니다. - storeId: {}, soldDate: {}, skippedCount: {}",
+                    store.getId(),
+                    soldDate,
+                    skippedRows.size()
+            );
+            return new RetailUploadResult(0, skippedRows);
+        }
+
+        softDeleteExistingRetails(store, soldDate);
 
         // Retail 저장
         retailRepository.saveAll(retails);

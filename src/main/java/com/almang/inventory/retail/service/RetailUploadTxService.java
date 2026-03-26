@@ -1,6 +1,7 @@
 package com.almang.inventory.retail.service;
 
 import com.almang.inventory.global.exception.BaseException;
+import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.inventory.domain.Inventory;
 import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.retail.domain.Retail;
@@ -139,12 +140,22 @@ public class RetailUploadTxService {
         } catch (BaseException e) {
             // 재고 부족 시 해당 상품을 스킵하고 계속 진행
             // decreaseDisplay() 메서드는 DISPLAY_STOCK_NOT_ENOUGH 예외를 던짐
-            BigDecimal currentStock = inventory.getDisplayStock();
-            String detail = String.format("재고 부족 (필요: %s, 현재: %s)", quantity, currentStock);
-            addSkip(skippedRows, SkippedRow.of(
-                    row.rowIndex(), code, SkipReason.INSUFFICIENT_STOCK, detail
-            ));
-            return false;
+            if (e.getErrorCode() == ErrorCode.DISPLAY_STOCK_NOT_ENOUGH) {
+                BigDecimal currentStock = inventory.getDisplayStock();
+                String detail = String.format("재고 부족 (필요: %s, 현재: %s)", quantity, currentStock);
+                addSkip(skippedRows, SkippedRow.of(
+                        row.rowIndex(), code, SkipReason.INSUFFICIENT_STOCK, detail
+                ));
+                return false;
+            }
+            log.error(
+                    "[RetailUploadTxService] 재고 차감 중 예외 발생 - rowIndex: {}, code: {}, errorCode: {}",
+                    row.rowIndex(),
+                    code,
+                    e.getErrorCode(),
+                    e
+            );
+            throw e;
         }
     }
 

@@ -105,8 +105,7 @@ public class RetailService {
     private RetailUploadResult handleAllSkippedIfNeeded(
             Store store, LocalDate soldDate, UploadPreparationResult ctx
     ) {
-        Map<SkipReason, Long> skipReasonCounts = ctx.skippedRows().stream()
-                .collect(Collectors.groupingBy(SkippedRow::reason, Collectors.counting()));
+        Map<SkipReason, Long> skipReasonCounts = summarizeSkipReasons(ctx.skippedRows());
 
         log.info(
                 "[RetailService] 업로드 처리 완료(전량 스킵) - storeId: {}, soldDate: {}, totalRows: {}, processedCount: {}, skippedCount: {}, skipReasonCounts: {}",
@@ -123,8 +122,7 @@ public class RetailService {
     private void logUploadSummary(
             Store store, LocalDate soldDate, UploadPreparationResult ctx, RetailUploadResult uploadResult
     ) {
-        Map<SkipReason, Long> skipReasonCounts = uploadResult.skippedRows().stream()
-                .collect(Collectors.groupingBy(SkippedRow::reason, Collectors.counting()));
+        Map<SkipReason, Long> skipReasonCounts = summarizeSkipReasons(uploadResult.skippedRows());
         log.info(
                 "[RetailService] 업로드 처리 완료 - storeId: {}, soldDate: {}, totalRows: {}, processedCount: {}, skippedCount: {}, skipReasonCounts: {}",
                 store.getId(),
@@ -134,6 +132,11 @@ public class RetailService {
                 uploadResult.skippedRows().size(),
                 skipReasonCounts
         );
+    }
+
+    private Map<SkipReason, Long> summarizeSkipReasons(List<SkippedRow> skippedRows) {
+        return skippedRows.stream()
+                .collect(Collectors.groupingBy(SkippedRow::reason, Collectors.counting()));
     }
 
     private Map<String, Product> loadProductsByCode(List<Product> products) {

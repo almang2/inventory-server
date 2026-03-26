@@ -38,42 +38,51 @@ public class RetailExcelParser {
 
             // 헤더 행 스킵 (첫 번째 행이 헤더라고 가정)
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-                Row row = sheet.getRow(i);
-                if (row == null) {
+                RetailExcelRowDto rowDto = parseRow(sheet, formatter, i);
+                if (rowDto == null) {
                     continue;
                 }
-
-                String code = getCellValueAsString(row.getCell(COLUMN_CODE), formatter);
-                if (code == null || code.isEmpty()) {
-                    continue; // 기본 스킵 규칙: 코드 없음
-                }
-
-                String productName = getCellValueAsString(row.getCell(COLUMN_NAME), formatter);
-                if (productName == null || productName.isEmpty()) {
-                    productName = ""; // 기본 정리: 상품명 공백 허용
-                }
-
-                BigDecimal quantity = getCellValueAsBigDecimal(row.getCell(COLUMN_QUANTITY), formatter);
-                if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
-                    continue; // 기본 스킵 규칙: 수량 0 이하
-                }
-
-                Integer actualSales = getCellValueAsInteger(row.getCell(COLUMN_SALES), formatter);
-
-                // rowIndex는 "엑셀 상의 행 번호"로 유지(헤더 포함 기준 1부터)
-                int rowIndex = i + 1;
-
-                rows.add(new RetailExcelRowDto(
-                        rowIndex,
-                        code,
-                        productName,
-                        quantity,
-                        actualSales
-                ));
+                rows.add(rowDto);
             }
 
             return rows;
         }
+    }
+
+    private RetailExcelRowDto parseRow(Sheet sheet, DataFormatter formatter, int i) {
+        Row row = sheet.getRow(i);
+        if (row == null) {
+            return null;
+        }
+
+        String code = getCellValueAsString(row.getCell(COLUMN_CODE), formatter);
+        if (code == null || code.isEmpty()) {
+            return null;
+        }
+
+        String productName = getCellValueAsString(row.getCell(COLUMN_NAME), formatter);
+        if (productName == null || productName.isEmpty()) {
+            productName = ""; // 기본 정리: 상품명 공백 허용
+        }
+
+        BigDecimal quantity = getCellValueAsBigDecimal(row.getCell(COLUMN_QUANTITY));
+        // 수량은 null(미입력/파싱 실패) 또는 0 이하인 경우 스킵
+        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+
+        Integer actualSales = getCellValueAsInteger(row.getCell(COLUMN_SALES));
+
+        // rowIndex는 "엑셀 상의 행 번호"로 유지(헤더 포함 기준 1부터)
+        int rowIndex = i + 1;
+
+        return new RetailExcelRowDto(
+                rowIndex,
+                code,
+                productName,
+                quantity,
+                actualSales
+        );
     }
 
     private String getCellValueAsString(Cell cell, DataFormatter formatter) {
@@ -89,9 +98,9 @@ public class RetailExcelParser {
         return "";
     }
 
-    private BigDecimal getCellValueAsBigDecimal(Cell cell, DataFormatter formatter) {
+    private BigDecimal getCellValueAsBigDecimal(Cell cell) {
         if (cell == null) {
-            return BigDecimal.ZERO;
+            return null;
         }
         if (cell.getCellType() == CellType.NUMERIC) {
             return BigDecimal.valueOf(cell.getNumericCellValue()).stripTrailingZeros();
@@ -100,19 +109,19 @@ public class RetailExcelParser {
             try {
                 String v = cell.getStringCellValue().trim();
                 if (v.isEmpty()) {
-                    return BigDecimal.ZERO;
+                    return null;
                 }
                 String cleaned = v.replace(",", "").trim();
                 return new BigDecimal(cleaned).stripTrailingZeros();
             } catch (NumberFormatException e) {
                 log.warn("[RetailExcelParser] BigDecimal 파싱 실패 - cellValue: {}", cell.getStringCellValue(), e);
-                return BigDecimal.ZERO;
+                return null;
             }
         }
-        return BigDecimal.ZERO;
+        return null;
     }
 
-    private Integer getCellValueAsInteger(Cell cell, DataFormatter formatter) {
+    private Integer getCellValueAsInteger(Cell cell) {
         if (cell == null) {
             return null;
         }

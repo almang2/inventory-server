@@ -34,4 +34,12 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     Page<Inventory> findByFilter(
             @Param("storeId") Long storeId, @Param("scope") String scope, @Param("q") String q, Pageable pageable
     );
+
+    @Query("""
+        SELECT inventory 
+        FROM Inventory inventory 
+        JOIN FETCH inventory.product product
+        WHERE product.id in :productIds
+    """)
+    List<Inventory> findAllWithProductByProductIds(@Param("productIds") List<Long> productIds);
 }

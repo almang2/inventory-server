@@ -94,7 +94,7 @@ public class RetailService {
             return buildNoProductResult(rows, productByCode);
         }
 
-        List<Inventory> inventories = inventoryRepository.findAllByProduct_IdIn(productIds);
+        List<Inventory> inventories = inventoryRepository.findAllWithProductByProductIds(productIds);
         Map<Long, Inventory> inventoryByProductId = loadInventoryByProductId(inventories);
 
         return new UploadPreparationResult(

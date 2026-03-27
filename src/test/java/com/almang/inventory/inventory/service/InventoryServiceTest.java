@@ -26,11 +26,22 @@ import com.almang.inventory.vendor.domain.Vendor;
 import com.almang.inventory.vendor.domain.VendorChannel;
 import com.almang.inventory.vendor.repository.VendorRepository;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest
 @Transactional
@@ -43,6 +54,7 @@ class InventoryServiceTest {
     @Autowired private UserRepository userRepository;
     @Autowired private VendorRepository vendorRepository;
     @Autowired private ProductRepository productRepository;
+    @Autowired private PlatformTransactionManager transactionManager;
 
     private Store newStore(String name) {
         return storeRepository.save(
@@ -151,6 +163,116 @@ class InventoryServiceTest {
         assertThat(updated.getOutgoingReserved()).isEqualByComparingTo(newOutgoing);
         assertThat(updated.getIncomingReserved()).isEqualByComparingTo(newIncoming);
         assertThat(updated.getReorderTriggerPoint()).isEqualByComparingTo(newReorderTrigger);
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void 동일한_재고를_동시에_수정하면_마지막_커밋이_앞선_변경을_덮어쓸_수_있다() throws Exception {
+        // given
+        Store store = newStore("동시성이동상점");
+        User user = newUser(store, "concurrencyUser");
+        Vendor vendor = newVendor(store, "발주처");
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        InitialInventoryValues initialInventoryValues = new InitialInventoryValues(
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(10),
+                BigDecimal.valueOf(20),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
+        );
+        inventoryService.createInventory(product, initialInventoryValues);
+        Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        int requestCount = 2;
+        ExecutorService executorService = Executors.newFixedThreadPool(requestCount);
+        CountDownLatch ready = new CountDownLatch(requestCount);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Callable<BigDecimal[]>> tasks = List.of(
+                () -> transactionTemplate.execute(status -> {
+                    Inventory loaded = inventoryRepository.findById(inventory.getId()).orElseThrow();
+                    System.out.printf(
+                            "[T1] loaded display=%s, warehouse=%s%n",
+                            loaded.getDisplayStock().stripTrailingZeros().toPlainString(),
+                            loaded.getWarehouseStock().stripTrailingZeros().toPlainString()
+                    );
+                    ready.countDown();
+                    await(start);
+                    loaded.updateManually(BigDecimal.valueOf(100), null, null, null, null);
+                    System.out.printf(
+                            "[T1] updated display=%s, warehouse=%s%n",
+                            loaded.getDisplayStock().stripTrailingZeros().toPlainString(),
+                            loaded.getWarehouseStock().stripTrailingZeros().toPlainString()
+                    );
+                    return new BigDecimal[]{loaded.getDisplayStock(), loaded.getWarehouseStock()};
+                }),
+                () -> transactionTemplate.execute(status -> {
+                    Inventory loaded = inventoryRepository.findById(inventory.getId()).orElseThrow();
+                    System.out.printf(
+                            "[T2] loaded display=%s, warehouse=%s%n",
+                            loaded.getDisplayStock().stripTrailingZeros().toPlainString(),
+                            loaded.getWarehouseStock().stripTrailingZeros().toPlainString()
+                    );
+                    ready.countDown();
+                    await(start);
+                    loaded.updateManually(null, BigDecimal.valueOf(200), null, null, null);
+                    System.out.printf(
+                            "[T2] updated display=%s, warehouse=%s%n",
+                            loaded.getDisplayStock().stripTrailingZeros().toPlainString(),
+                            loaded.getWarehouseStock().stripTrailingZeros().toPlainString()
+                    );
+                    return new BigDecimal[]{loaded.getDisplayStock(), loaded.getWarehouseStock()};
+                })
+        );
+
+        // when
+        List<Future<BigDecimal[]>> futures = new ArrayList<>();
+        for (Callable<BigDecimal[]> task : tasks) {
+            futures.add(executorService.submit(task));
+        }
+
+        ready.await(5, TimeUnit.SECONDS);
+        start.countDown();
+
+        List<BigDecimal[]> results = new ArrayList<>();
+        for (Future<BigDecimal[]> future : futures) {
+            results.add(future.get(10, TimeUnit.SECONDS));
+        }
+        executorService.shutdown();
+
+        // then
+        Inventory updated = inventoryRepository.findById(inventory.getId())
+                .orElseThrow();
+        System.out.printf(
+                "[FINAL] display=%s, warehouse=%s%n",
+                updated.getDisplayStock().stripTrailingZeros().toPlainString(),
+                updated.getWarehouseStock().stripTrailingZeros().toPlainString()
+        );
+
+        assertThat(results)
+                .extracting(result -> result[0].stripTrailingZeros().toPlainString() + "," + result[1].stripTrailingZeros().toPlainString())
+                .containsExactlyInAnyOrder("100,20", "10,200");
+        assertThat(
+                updated.getDisplayStock().compareTo(BigDecimal.valueOf(10)) == 0
+                        || updated.getDisplayStock().compareTo(BigDecimal.valueOf(100)) == 0
+        ).isTrue();
+        assertThat(
+                updated.getWarehouseStock().compareTo(BigDecimal.valueOf(20)) == 0
+                        || updated.getWarehouseStock().compareTo(BigDecimal.valueOf(200)) == 0
+        ).isTrue();
+        assertThat(updated.getDisplayStock().equals(BigDecimal.valueOf(100))
+                && updated.getWarehouseStock().equals(BigDecimal.valueOf(200))).isFalse();
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            latch.await(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("동시성 테스트 대기 중 인터럽트가 발생했습니다.", e);
+        }
     }
 
     @Test

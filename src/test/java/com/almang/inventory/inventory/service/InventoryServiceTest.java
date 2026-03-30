@@ -250,6 +250,21 @@ class InventoryServiceTest {
                 updated.getDisplayStock().stripTrailingZeros().toPlainString(),
                 updated.getWarehouseStock().stripTrailingZeros().toPlainString()
         );
+        System.out.println("=== BEFORE LOCK SUMMARY ===");
+        System.out.printf(
+                "INITIAL: display=%s, warehouse=%s%n",
+                BigDecimal.valueOf(10).stripTrailingZeros().toPlainString(),
+                BigDecimal.valueOf(20).stripTrailingZeros().toPlainString()
+        );
+        System.out.println("T1 TARGET: display=100, warehouse=20");
+        System.out.println("T2 TARGET: display=10, warehouse=200");
+        System.out.printf(
+                "FINAL: display=%s, warehouse=%s%n",
+                updated.getDisplayStock().stripTrailingZeros().toPlainString(),
+                updated.getWarehouseStock().stripTrailingZeros().toPlainString()
+        );
+        System.out.println("RESULT: lost update reproduced");
+        System.out.println("===========================");
 
         assertThat(results)
                 .extracting(result -> result[0].stripTrailingZeros().toPlainString() + "," + result[1].stripTrailingZeros().toPlainString())
@@ -264,6 +279,112 @@ class InventoryServiceTest {
         ).isTrue();
         assertThat(updated.getDisplayStock().equals(BigDecimal.valueOf(100))
                 && updated.getWarehouseStock().equals(BigDecimal.valueOf(200))).isFalse();
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void 비관적_락을_적용한_재고_수정은_동시_요청에도_정합성을_보장한다() throws Exception {
+        // given
+        Store store = newStore("락검증상점");
+        User user = newUser(store, "lockUser");
+        Vendor vendor = newVendor(store, "발주처");
+        Product product = newProduct(store, vendor, "상품1", "LOCK-001");
+
+        InitialInventoryValues initialInventoryValues = new InitialInventoryValues(
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(10),
+                BigDecimal.valueOf(20),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
+        );
+        inventoryService.createInventory(product, initialInventoryValues);
+        Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+
+        UpdateInventoryRequest displayUpdateRequest = new UpdateInventoryRequest(
+                product.getId(),
+                BigDecimal.valueOf(100),
+                null,
+                null,
+                null,
+                null
+        );
+        UpdateInventoryRequest warehouseUpdateRequest = new UpdateInventoryRequest(
+                product.getId(),
+                null,
+                BigDecimal.valueOf(200),
+                null,
+                null,
+                null
+        );
+
+        Callable<InventoryResponse> displayTask = () -> {
+            ready.countDown();
+            await(start);
+            InventoryResponse response = inventoryService.updateInventory(inventory.getId(), displayUpdateRequest, user.getId());
+            System.out.printf(
+                    "[LOCK-T1] response display=%s, warehouse=%s%n",
+                    response.displayStock().stripTrailingZeros().toPlainString(),
+                    response.warehouseStock().stripTrailingZeros().toPlainString()
+            );
+            return response;
+        };
+
+        Callable<InventoryResponse> warehouseTask = () -> {
+            ready.countDown();
+            await(start);
+            InventoryResponse response = inventoryService.updateInventory(inventory.getId(), warehouseUpdateRequest, user.getId());
+            System.out.printf(
+                    "[LOCK-T2] response display=%s, warehouse=%s%n",
+                    response.displayStock().stripTrailingZeros().toPlainString(),
+                    response.warehouseStock().stripTrailingZeros().toPlainString()
+            );
+            return response;
+        };
+
+        // when
+        Future<InventoryResponse> displayFuture = executorService.submit(displayTask);
+        Future<InventoryResponse> warehouseFuture = executorService.submit(warehouseTask);
+
+        ready.await(5, TimeUnit.SECONDS);
+        start.countDown();
+
+        InventoryResponse firstResponse = displayFuture.get(10, TimeUnit.SECONDS);
+        InventoryResponse secondResponse = warehouseFuture.get(10, TimeUnit.SECONDS);
+        executorService.shutdown();
+
+        // then
+        Inventory updated = inventoryRepository.findById(inventory.getId())
+                .orElseThrow();
+        System.out.printf(
+                "[LOCK-FINAL] display=%s, warehouse=%s%n",
+                updated.getDisplayStock().stripTrailingZeros().toPlainString(),
+                updated.getWarehouseStock().stripTrailingZeros().toPlainString()
+        );
+        System.out.println("=== AFTER LOCK SUMMARY ===");
+        System.out.printf(
+                "INITIAL: display=%s, warehouse=%s%n",
+                BigDecimal.valueOf(10).stripTrailingZeros().toPlainString(),
+                BigDecimal.valueOf(20).stripTrailingZeros().toPlainString()
+        );
+        System.out.println("T1 TARGET: display=100, warehouse=20");
+        System.out.println("T2 TARGET: display=10, warehouse=200");
+        System.out.printf(
+                "FINAL: display=%s, warehouse=%s%n",
+                updated.getDisplayStock().stripTrailingZeros().toPlainString(),
+                updated.getWarehouseStock().stripTrailingZeros().toPlainString()
+        );
+        System.out.println("RESULT: both changes preserved");
+        System.out.println("==========================");
+
+        assertThat(firstResponse).isNotNull();
+        assertThat(secondResponse).isNotNull();
+        assertThat(updated.getDisplayStock()).isEqualByComparingTo(BigDecimal.valueOf(100));
+        assertThat(updated.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(200));
     }
 
     private static void await(CountDownLatch latch) {

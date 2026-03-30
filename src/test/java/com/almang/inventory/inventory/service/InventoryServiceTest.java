@@ -250,21 +250,21 @@ class InventoryServiceTest {
                 updated.getDisplayStock().stripTrailingZeros().toPlainString(),
                 updated.getWarehouseStock().stripTrailingZeros().toPlainString()
         );
-        System.out.println("=== BEFORE LOCK SUMMARY ===");
+        System.out.println("=== 락 적용 전 요약 ===");
         System.out.printf(
-                "INITIAL: display=%s, warehouse=%s%n",
+                "초기값: display=%s, warehouse=%s%n",
                 BigDecimal.valueOf(10).stripTrailingZeros().toPlainString(),
                 BigDecimal.valueOf(20).stripTrailingZeros().toPlainString()
         );
-        System.out.println("T1 TARGET: display=100, warehouse=20");
-        System.out.println("T2 TARGET: display=10, warehouse=200");
+        System.out.println("T1 목표값: display=100, warehouse=20");
+        System.out.println("T2 목표값: display=10, warehouse=200");
         System.out.printf(
-                "FINAL: display=%s, warehouse=%s%n",
+                "최종값: display=%s, warehouse=%s%n",
                 updated.getDisplayStock().stripTrailingZeros().toPlainString(),
                 updated.getWarehouseStock().stripTrailingZeros().toPlainString()
         );
-        System.out.println("RESULT: lost update reproduced");
-        System.out.println("===========================");
+        System.out.println("결과: lost update 재현");
+        System.out.println("======================");
 
         assertThat(results)
                 .extracting(result -> result[0].stripTrailingZeros().toPlainString() + "," + result[1].stripTrailingZeros().toPlainString())
@@ -327,7 +327,7 @@ class InventoryServiceTest {
             await(start);
             InventoryResponse response = inventoryService.updateInventory(inventory.getId(), displayUpdateRequest, user.getId());
             System.out.printf(
-                    "[LOCK-T1] response display=%s, warehouse=%s%n",
+                    "[LOCK-T1] 응답값 display=%s, warehouse=%s%n",
                     response.displayStock().stripTrailingZeros().toPlainString(),
                     response.warehouseStock().stripTrailingZeros().toPlainString()
             );
@@ -339,7 +339,7 @@ class InventoryServiceTest {
             await(start);
             InventoryResponse response = inventoryService.updateInventory(inventory.getId(), warehouseUpdateRequest, user.getId());
             System.out.printf(
-                    "[LOCK-T2] response display=%s, warehouse=%s%n",
+                    "[LOCK-T2] 응답값 display=%s, warehouse=%s%n",
                     response.displayStock().stripTrailingZeros().toPlainString(),
                     response.warehouseStock().stripTrailingZeros().toPlainString()
             );
@@ -365,26 +365,105 @@ class InventoryServiceTest {
                 updated.getDisplayStock().stripTrailingZeros().toPlainString(),
                 updated.getWarehouseStock().stripTrailingZeros().toPlainString()
         );
-        System.out.println("=== AFTER LOCK SUMMARY ===");
+        System.out.println("=== 락 적용 후 요약 ===");
         System.out.printf(
-                "INITIAL: display=%s, warehouse=%s%n",
+                "초기값: display=%s, warehouse=%s%n",
                 BigDecimal.valueOf(10).stripTrailingZeros().toPlainString(),
                 BigDecimal.valueOf(20).stripTrailingZeros().toPlainString()
         );
-        System.out.println("T1 TARGET: display=100, warehouse=20");
-        System.out.println("T2 TARGET: display=10, warehouse=200");
+        System.out.println("T1 목표값: display=100, warehouse=20");
+        System.out.println("T2 목표값: display=10, warehouse=200");
         System.out.printf(
-                "FINAL: display=%s, warehouse=%s%n",
+                "최종값: display=%s, warehouse=%s%n",
                 updated.getDisplayStock().stripTrailingZeros().toPlainString(),
                 updated.getWarehouseStock().stripTrailingZeros().toPlainString()
         );
-        System.out.println("RESULT: both changes preserved");
-        System.out.println("==========================");
+        System.out.println("결과: 두 변경 모두 보존");
+        System.out.println("=====================");
 
         assertThat(firstResponse).isNotNull();
         assertThat(secondResponse).isNotNull();
         assertThat(updated.getDisplayStock()).isEqualByComparingTo(BigDecimal.valueOf(100));
         assertThat(updated.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(200));
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void 비관적_락을_적용하면_동일_재고에_대한_동시_이동_요청은_하나만_성공한다() throws Exception {
+        // given
+        Store store = newStore("락이동상점");
+        User user = newUser(store, "moveLockUser");
+        Vendor vendor = newVendor(store, "발주처");
+        Product product = newProduct(store, vendor, "상품1", "MOVE-LOCK-001");
+
+        InitialInventoryValues initialInventoryValues = new InitialInventoryValues(
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(10),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
+        );
+        inventoryService.createInventory(product, initialInventoryValues);
+        Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+
+        Callable<String> moveTask = () -> {
+            ready.countDown();
+            await(start);
+            try {
+                InventoryResponse response = inventoryService.moveInventory(
+                        inventory.getId(),
+                        new MoveInventoryRequest(BigDecimal.valueOf(7), InventoryMoveDirection.WAREHOUSE_TO_DISPLAY),
+                        user.getId()
+                );
+                String successLog = String.format(
+                        "성공 display=%s, warehouse=%s",
+                        response.displayStock().stripTrailingZeros().toPlainString(),
+                        response.warehouseStock().stripTrailingZeros().toPlainString()
+                );
+                System.out.printf("[MOVE] %s%n", successLog);
+                return successLog;
+            } catch (BaseException e) {
+                String failLog = "실패 error=" + e.getErrorCode().name();
+                System.out.printf("[MOVE] %s%n", failLog);
+                return failLog;
+            }
+        };
+
+        // when
+        Future<String> future1 = executorService.submit(moveTask);
+        Future<String> future2 = executorService.submit(moveTask);
+
+        ready.await(5, TimeUnit.SECONDS);
+        start.countDown();
+
+        String result1 = future1.get(10, TimeUnit.SECONDS);
+        String result2 = future2.get(10, TimeUnit.SECONDS);
+        executorService.shutdown();
+
+        // then
+        Inventory updated = inventoryRepository.findById(inventory.getId())
+                .orElseThrow();
+        System.out.println("=== 동시 이동 락 검증 요약 ===");
+        System.out.println("초기값: display=0, warehouse=10");
+        System.out.printf("결과1: %s%n", result1);
+        System.out.printf("결과2: %s%n", result2);
+        System.out.printf(
+                "최종값: display=%s, warehouse=%s%n",
+                updated.getDisplayStock().stripTrailingZeros().toPlainString(),
+                updated.getWarehouseStock().stripTrailingZeros().toPlainString()
+        );
+        System.out.println("기대결과: 하나 성공, 하나 실패(WAREHOUSE_STOCK_NOT_ENOUGH)");
+        System.out.println("==================================");
+
+        assertThat(List.of(result1, result2).stream().filter(result -> result.startsWith("성공")).count()).isEqualTo(1);
+        assertThat(List.of(result1, result2).stream().filter(result -> result.contains(ErrorCode.WAREHOUSE_STOCK_NOT_ENOUGH.name())).count()).isEqualTo(1);
+        assertThat(updated.getDisplayStock()).isEqualByComparingTo(BigDecimal.valueOf(7));
+        assertThat(updated.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(3));
     }
 
     private static void await(CountDownLatch latch) {

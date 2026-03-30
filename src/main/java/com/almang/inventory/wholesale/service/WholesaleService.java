@@ -6,8 +6,8 @@ import com.almang.inventory.global.context.UserContextProvider.UserStoreContext;
 import com.almang.inventory.global.exception.BaseException;
 import com.almang.inventory.global.exception.ErrorCode;
 import com.almang.inventory.global.util.PaginationUtil;
-import com.almang.inventory.inventory.domain.Inventory;
 import com.almang.inventory.inventory.repository.InventoryRepository;
+import com.almang.inventory.inventory.service.InventoryService;
 import com.almang.inventory.product.domain.Product;
 import com.almang.inventory.product.repository.ProductRepository;
 import com.almang.inventory.store.domain.Store;
@@ -44,6 +44,7 @@ public class WholesaleService {
     private final WholesaleRepository wholesaleRepository;
     private final ProductRepository productRepository;
     private final InventoryRepository inventoryRepository;
+    private final InventoryService inventoryService;
     private final UserContextProvider userContextProvider;
 
     @Transactional
@@ -109,11 +110,9 @@ public class WholesaleService {
 
         // 출고 완료 후 재고 차감
         for (WholesaleItem item : wholesale.getItems()) {
-            Inventory inventory = findInventoryByProductId(item.getProduct().getId());
-            
             // 재고 부족 항목인 경우, 현재 oversubscription(가용 재고 < 0)이 해소됐는지 확인
             if (item.getInsufficientStock()) {
-                BigDecimal availableStock = inventory.getAvailableStock();
+                BigDecimal availableStock = inventoryService.getAvailableStockWithLock(item.getProduct());
                 if (availableStock.compareTo(BigDecimal.ZERO) < 0) {
                     // 여전히 전체 출고 예약 합보다 창고 재고가 적으면 확정을 막음
                     throw new BaseException(ErrorCode.NOT_ENOUGH_STOCK,
@@ -123,8 +122,8 @@ public class WholesaleService {
                 // oversubscription이 해소되었으면 부족 플래그 해제
                 item.setInsufficientStock(false);
             }
-            
-            inventory.confirmOutgoing(item.getQuantity());
+
+            inventoryService.confirmOutgoing(item.getProduct(), item.getQuantity());
         }
 
         log.info("[WholesaleService] 출고 완료 처리 성공 - wholesaleId: {}", wholesale.getId());
@@ -148,8 +147,7 @@ public class WholesaleService {
 
         // 출고 취소 후 출고 예정 수량 차감
         for (WholesaleItem item : wholesale.getItems()) {
-            Inventory inventory = findInventoryByProductId(item.getProduct().getId());
-            inventory.decreaseOutgoing(item.getQuantity());
+            inventoryService.decreaseOutgoingReservation(item.getProduct(), item.getQuantity());
         }
 
         log.info("[WholesaleService] 출고 취소 성공 - wholesaleId: {}", wholesale.getId());
@@ -204,34 +202,32 @@ public class WholesaleService {
                                 String.format("출고 항목 ID %d를 찾을 수 없습니다.", itemRequest.wholesaleItemId())));
 
                 Product product = item.getProduct();
-                Inventory inventory = findInventoryByProductId(product.getId());
 
                 // 수량 차이 계산
                 BigDecimal diff = itemRequest.quantity().subtract(item.getQuantity());
 
                 if (diff.compareTo(BigDecimal.ZERO) > 0) {
                     // 수량 증가: 가용 재고 검증 후 출고 예정 증가
-                    BigDecimal availableStock = inventory.getAvailableStock();
+                    BigDecimal availableStock = inventoryService.getAvailableStockWithLock(product);
                     boolean isInsufficient = availableStock.compareTo(diff) < 0;
-                    
+
                     if (isInsufficient) {
                         throw new BaseException(ErrorCode.NOT_ENOUGH_STOCK,
                                 String.format("상품 '%s'의 창고 재고가 부족합니다. (요청 증가: %s, 가용 재고: %s)",
                                         product.getName(), diff, availableStock));
                     }
-                    inventory.increaseOutgoing(diff);
+                    inventoryService.updateOutgoingReservation(product, diff);
                     // 수량 증가 후 재고가 충분하면 부족 플래그 해제
                     item.setInsufficientStock(false);
                 } else if (diff.compareTo(BigDecimal.ZERO) < 0) {
-                    // 수량 감소: 출고 예정 감소
-                    inventory.decreaseOutgoing(diff.abs());
+                    inventoryService.updateOutgoingReservation(product, diff);
                     // 수량이 감소했으므로 재고 상태 재확인
-                    BigDecimal availableStock = inventory.getAvailableStock();
+                    BigDecimal availableStock = inventoryService.getAvailableStockWithLock(product);
                     boolean isInsufficient = availableStock.compareTo(itemRequest.quantity()) < 0;
                     item.setInsufficientStock(isInsufficient);
                 } else {
                     // 수량 변경 없음: 재고 상태 재확인
-                    BigDecimal availableStock = inventory.getAvailableStock();
+                    BigDecimal availableStock = inventoryService.getAvailableStockWithLock(product);
                     boolean isInsufficient = availableStock.compareTo(itemRequest.quantity()) < 0;
                     item.setInsufficientStock(isInsufficient);
                 }
@@ -262,17 +258,14 @@ public class WholesaleService {
 
         for (CreateWholesaleItemRequest request : requests) {
             Product product = findProductByIdAndValidateAccess(request.productId(), store);
-            Inventory inventory = findInventoryByProductId(product.getId());
 
             // 재고 검증 (가용 재고 = 창고 재고 - 출고 예정 수량)
-            BigDecimal availableStock = inventory.getAvailableStock();
+            BigDecimal availableStock = inventoryService.getAvailableStockWithLock(product);
             boolean isInsufficient = availableStock.compareTo(request.quantity()) < 0;
-            
-            // 재고 부족 여부와 관계없이 출고 예정 수량 증가 (데이터 일관성 유지)
-            inventory.increaseOutgoing(request.quantity());
-            
+            inventoryService.increaseOutgoingReservation(product, request.quantity());
+
             if (isInsufficient) {
-                log.warn("[WholesaleService] 재고 부족 - 상품: {}, 요청 수량: {}, 가용 재고: {}", 
+                log.warn("[WholesaleService] 재고 부족 - 상품: {}, 요청 수량: {}, 가용 재고: {}",
                         product.getName(), request.quantity(), availableStock);
             }
 
@@ -316,11 +309,6 @@ public class WholesaleService {
             throw new BaseException(ErrorCode.PRODUCT_ACCESS_DENIED);
         }
         return product;
-    }
-
-    private Inventory findInventoryByProductId(Long productId) {
-        return inventoryRepository.findByProduct_Id(productId)
-                .orElseThrow(() -> new BaseException(ErrorCode.INVENTORY_NOT_FOUND));
     }
 
     private void validateWholesaleItemsNotEmpty(List<CreateWholesaleItemRequest> items) {
@@ -372,4 +360,3 @@ public class WholesaleService {
                 storeId, status, orderReference, start, end, pageable);
     }
 }
-

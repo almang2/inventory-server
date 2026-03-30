@@ -26,11 +26,22 @@ import com.almang.inventory.vendor.domain.Vendor;
 import com.almang.inventory.vendor.domain.VendorChannel;
 import com.almang.inventory.vendor.repository.VendorRepository;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest
 @Transactional
@@ -43,6 +54,7 @@ class InventoryServiceTest {
     @Autowired private UserRepository userRepository;
     @Autowired private VendorRepository vendorRepository;
     @Autowired private ProductRepository productRepository;
+    @Autowired private PlatformTransactionManager transactionManager;
 
     private Store newStore(String name) {
         return storeRepository.save(
@@ -151,6 +163,316 @@ class InventoryServiceTest {
         assertThat(updated.getOutgoingReserved()).isEqualByComparingTo(newOutgoing);
         assertThat(updated.getIncomingReserved()).isEqualByComparingTo(newIncoming);
         assertThat(updated.getReorderTriggerPoint()).isEqualByComparingTo(newReorderTrigger);
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void 동일한_재고를_동시에_수정하면_마지막_커밋이_앞선_변경을_덮어쓸_수_있다() throws Exception {
+        // given
+        Store store = newStore("동시성이동상점");
+        User user = newUser(store, "concurrencyUser");
+        Vendor vendor = newVendor(store, "발주처");
+        Product product = newProduct(store, vendor, "상품1", "P001");
+
+        InitialInventoryValues initialInventoryValues = new InitialInventoryValues(
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(10),
+                BigDecimal.valueOf(20),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
+        );
+        inventoryService.createInventory(product, initialInventoryValues);
+        Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        int requestCount = 2;
+        ExecutorService executorService = Executors.newFixedThreadPool(requestCount);
+        CountDownLatch ready = new CountDownLatch(requestCount);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Callable<BigDecimal[]>> tasks = List.of(
+                () -> transactionTemplate.execute(status -> {
+                    Inventory loaded = inventoryRepository.findById(inventory.getId()).orElseThrow();
+                    System.out.printf(
+                            "[T1] loaded display=%s, warehouse=%s%n",
+                            loaded.getDisplayStock().stripTrailingZeros().toPlainString(),
+                            loaded.getWarehouseStock().stripTrailingZeros().toPlainString()
+                    );
+                    ready.countDown();
+                    await(start);
+                    loaded.updateManually(BigDecimal.valueOf(100), null, null, null, null);
+                    System.out.printf(
+                            "[T1] updated display=%s, warehouse=%s%n",
+                            loaded.getDisplayStock().stripTrailingZeros().toPlainString(),
+                            loaded.getWarehouseStock().stripTrailingZeros().toPlainString()
+                    );
+                    return new BigDecimal[]{loaded.getDisplayStock(), loaded.getWarehouseStock()};
+                }),
+                () -> transactionTemplate.execute(status -> {
+                    Inventory loaded = inventoryRepository.findById(inventory.getId()).orElseThrow();
+                    System.out.printf(
+                            "[T2] loaded display=%s, warehouse=%s%n",
+                            loaded.getDisplayStock().stripTrailingZeros().toPlainString(),
+                            loaded.getWarehouseStock().stripTrailingZeros().toPlainString()
+                    );
+                    ready.countDown();
+                    await(start);
+                    loaded.updateManually(null, BigDecimal.valueOf(200), null, null, null);
+                    System.out.printf(
+                            "[T2] updated display=%s, warehouse=%s%n",
+                            loaded.getDisplayStock().stripTrailingZeros().toPlainString(),
+                            loaded.getWarehouseStock().stripTrailingZeros().toPlainString()
+                    );
+                    return new BigDecimal[]{loaded.getDisplayStock(), loaded.getWarehouseStock()};
+                })
+        );
+
+        // when
+        List<Future<BigDecimal[]>> futures = new ArrayList<>();
+        for (Callable<BigDecimal[]> task : tasks) {
+            futures.add(executorService.submit(task));
+        }
+
+        ready.await(5, TimeUnit.SECONDS);
+        start.countDown();
+
+        List<BigDecimal[]> results = new ArrayList<>();
+        for (Future<BigDecimal[]> future : futures) {
+            results.add(future.get(10, TimeUnit.SECONDS));
+        }
+        executorService.shutdown();
+
+        // then
+        Inventory updated = inventoryRepository.findById(inventory.getId())
+                .orElseThrow();
+        System.out.printf(
+                "[FINAL] display=%s, warehouse=%s%n",
+                updated.getDisplayStock().stripTrailingZeros().toPlainString(),
+                updated.getWarehouseStock().stripTrailingZeros().toPlainString()
+        );
+        System.out.println("=== 락 적용 전 요약 ===");
+        System.out.printf(
+                "초기값: display=%s, warehouse=%s%n",
+                BigDecimal.valueOf(10).stripTrailingZeros().toPlainString(),
+                BigDecimal.valueOf(20).stripTrailingZeros().toPlainString()
+        );
+        System.out.println("T1 목표값: display=100, warehouse=20");
+        System.out.println("T2 목표값: display=10, warehouse=200");
+        System.out.printf(
+                "최종값: display=%s, warehouse=%s%n",
+                updated.getDisplayStock().stripTrailingZeros().toPlainString(),
+                updated.getWarehouseStock().stripTrailingZeros().toPlainString()
+        );
+        System.out.println("결과: lost update 재현");
+        System.out.println("======================");
+
+        assertThat(results)
+                .extracting(result -> result[0].stripTrailingZeros().toPlainString() + "," + result[1].stripTrailingZeros().toPlainString())
+                .containsExactlyInAnyOrder("100,20", "10,200");
+        assertThat(
+                updated.getDisplayStock().compareTo(BigDecimal.valueOf(10)) == 0
+                        || updated.getDisplayStock().compareTo(BigDecimal.valueOf(100)) == 0
+        ).isTrue();
+        assertThat(
+                updated.getWarehouseStock().compareTo(BigDecimal.valueOf(20)) == 0
+                        || updated.getWarehouseStock().compareTo(BigDecimal.valueOf(200)) == 0
+        ).isTrue();
+        assertThat(updated.getDisplayStock().equals(BigDecimal.valueOf(100))
+                && updated.getWarehouseStock().equals(BigDecimal.valueOf(200))).isFalse();
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void 비관적_락을_적용한_재고_수정은_동시_요청에도_정합성을_보장한다() throws Exception {
+        // given
+        Store store = newStore("락검증상점");
+        User user = newUser(store, "lockUser");
+        Vendor vendor = newVendor(store, "발주처");
+        Product product = newProduct(store, vendor, "상품1", "LOCK-001");
+
+        InitialInventoryValues initialInventoryValues = new InitialInventoryValues(
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(10),
+                BigDecimal.valueOf(20),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
+        );
+        inventoryService.createInventory(product, initialInventoryValues);
+        Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+
+        UpdateInventoryRequest displayUpdateRequest = new UpdateInventoryRequest(
+                product.getId(),
+                BigDecimal.valueOf(100),
+                null,
+                null,
+                null,
+                null
+        );
+        UpdateInventoryRequest warehouseUpdateRequest = new UpdateInventoryRequest(
+                product.getId(),
+                null,
+                BigDecimal.valueOf(200),
+                null,
+                null,
+                null
+        );
+
+        Callable<InventoryResponse> displayTask = () -> {
+            ready.countDown();
+            await(start);
+            InventoryResponse response = inventoryService.updateInventory(inventory.getId(), displayUpdateRequest, user.getId());
+            System.out.printf(
+                    "[LOCK-T1] 응답값 display=%s, warehouse=%s%n",
+                    response.displayStock().stripTrailingZeros().toPlainString(),
+                    response.warehouseStock().stripTrailingZeros().toPlainString()
+            );
+            return response;
+        };
+
+        Callable<InventoryResponse> warehouseTask = () -> {
+            ready.countDown();
+            await(start);
+            InventoryResponse response = inventoryService.updateInventory(inventory.getId(), warehouseUpdateRequest, user.getId());
+            System.out.printf(
+                    "[LOCK-T2] 응답값 display=%s, warehouse=%s%n",
+                    response.displayStock().stripTrailingZeros().toPlainString(),
+                    response.warehouseStock().stripTrailingZeros().toPlainString()
+            );
+            return response;
+        };
+
+        // when
+        Future<InventoryResponse> displayFuture = executorService.submit(displayTask);
+        Future<InventoryResponse> warehouseFuture = executorService.submit(warehouseTask);
+
+        ready.await(5, TimeUnit.SECONDS);
+        start.countDown();
+
+        InventoryResponse firstResponse = displayFuture.get(10, TimeUnit.SECONDS);
+        InventoryResponse secondResponse = warehouseFuture.get(10, TimeUnit.SECONDS);
+        executorService.shutdown();
+
+        // then
+        Inventory updated = inventoryRepository.findById(inventory.getId())
+                .orElseThrow();
+        System.out.printf(
+                "[LOCK-FINAL] display=%s, warehouse=%s%n",
+                updated.getDisplayStock().stripTrailingZeros().toPlainString(),
+                updated.getWarehouseStock().stripTrailingZeros().toPlainString()
+        );
+        System.out.println("=== 락 적용 후 요약 ===");
+        System.out.printf(
+                "초기값: display=%s, warehouse=%s%n",
+                BigDecimal.valueOf(10).stripTrailingZeros().toPlainString(),
+                BigDecimal.valueOf(20).stripTrailingZeros().toPlainString()
+        );
+        System.out.println("T1 목표값: display=100, warehouse=20");
+        System.out.println("T2 목표값: display=10, warehouse=200");
+        System.out.printf(
+                "최종값: display=%s, warehouse=%s%n",
+                updated.getDisplayStock().stripTrailingZeros().toPlainString(),
+                updated.getWarehouseStock().stripTrailingZeros().toPlainString()
+        );
+        System.out.println("결과: 두 변경 모두 보존");
+        System.out.println("=====================");
+
+        assertThat(firstResponse).isNotNull();
+        assertThat(secondResponse).isNotNull();
+        assertThat(updated.getDisplayStock()).isEqualByComparingTo(BigDecimal.valueOf(100));
+        assertThat(updated.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(200));
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void 비관적_락을_적용하면_동일_재고에_대한_동시_이동_요청은_하나만_성공한다() throws Exception {
+        // given
+        Store store = newStore("락이동상점");
+        User user = newUser(store, "moveLockUser");
+        Vendor vendor = newVendor(store, "발주처");
+        Product product = newProduct(store, vendor, "상품1", "MOVE-LOCK-001");
+
+        InitialInventoryValues initialInventoryValues = new InitialInventoryValues(
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(10),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
+        );
+        inventoryService.createInventory(product, initialInventoryValues);
+        Inventory inventory = inventoryRepository.findByProduct_Id(product.getId())
+                .orElseThrow();
+
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+
+        Callable<String> moveTask = () -> {
+            ready.countDown();
+            await(start);
+            try {
+                InventoryResponse response = inventoryService.moveInventory(
+                        inventory.getId(),
+                        new MoveInventoryRequest(BigDecimal.valueOf(7), InventoryMoveDirection.WAREHOUSE_TO_DISPLAY),
+                        user.getId()
+                );
+                String successLog = String.format(
+                        "성공 display=%s, warehouse=%s",
+                        response.displayStock().stripTrailingZeros().toPlainString(),
+                        response.warehouseStock().stripTrailingZeros().toPlainString()
+                );
+                System.out.printf("[MOVE] %s%n", successLog);
+                return successLog;
+            } catch (BaseException e) {
+                String failLog = "실패 error=" + e.getErrorCode().name();
+                System.out.printf("[MOVE] %s%n", failLog);
+                return failLog;
+            }
+        };
+
+        // when
+        Future<String> future1 = executorService.submit(moveTask);
+        Future<String> future2 = executorService.submit(moveTask);
+
+        ready.await(5, TimeUnit.SECONDS);
+        start.countDown();
+
+        String result1 = future1.get(10, TimeUnit.SECONDS);
+        String result2 = future2.get(10, TimeUnit.SECONDS);
+        executorService.shutdown();
+
+        // then
+        Inventory updated = inventoryRepository.findById(inventory.getId())
+                .orElseThrow();
+        System.out.println("=== 동시 이동 락 검증 요약 ===");
+        System.out.println("초기값: display=0, warehouse=10");
+        System.out.printf("결과1: %s%n", result1);
+        System.out.printf("결과2: %s%n", result2);
+        System.out.printf(
+                "최종값: display=%s, warehouse=%s%n",
+                updated.getDisplayStock().stripTrailingZeros().toPlainString(),
+                updated.getWarehouseStock().stripTrailingZeros().toPlainString()
+        );
+        System.out.println("기대결과: 하나 성공, 하나 실패(WAREHOUSE_STOCK_NOT_ENOUGH)");
+        System.out.println("==================================");
+
+        assertThat(List.of(result1, result2).stream().filter(result -> result.startsWith("성공")).count()).isEqualTo(1);
+        assertThat(List.of(result1, result2).stream().filter(result -> result.contains(ErrorCode.WAREHOUSE_STOCK_NOT_ENOUGH.name())).count()).isEqualTo(1);
+        assertThat(updated.getDisplayStock()).isEqualByComparingTo(BigDecimal.valueOf(7));
+        assertThat(updated.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(3));
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            latch.await(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("동시성 테스트 대기 중 인터럽트가 발생했습니다.", e);
+        }
     }
 
     @Test

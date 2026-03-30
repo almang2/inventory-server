@@ -45,7 +45,7 @@ public class InventoryService {
     @Transactional
     public void increaseIncomingStockFromOrder(Product product, BigDecimal quantity) {
         log.info("[InventoryService] 발주 생성으로 입고 예정 수량 증가 요청 - productId: {}", product.getId());
-        Inventory inventory = findInventoryByProductId(product.getId());
+        Inventory inventory = findInventoryByProductIdWithLock(product.getId());
         inventory.increaseIncoming(quantity);
         log.info("[InventoryService] 발주 생성으로 입고 예정 수량 증가 성공 - inventoryId: {}", inventory.getId());
     }
@@ -53,7 +53,7 @@ public class InventoryService {
     @Transactional
     public void decreaseIncomingStockFromOrder(Product product, BigDecimal quantity) {
         log.info("[InventoryService] 발주 항목 삭제로 입고 예정 수량 감소 요청 - productId: {}", product.getId());
-        Inventory inventory = findInventoryByProductId(product.getId());
+        Inventory inventory = findInventoryByProductIdWithLock(product.getId());
         inventory.decreaseIncoming(quantity);
         log.info("[InventoryService] 발주 항목 삭제로 입고 예정 수량 감소 성공 - inventoryId: {}", inventory.getId());
     }
@@ -65,7 +65,7 @@ public class InventoryService {
         }
 
         log.info("[InventoryService] 발주 수정으로 입고 예정 수량 변경 요청 - productId: {}", product.getId());
-        Inventory inventory = findInventoryByProductId(product.getId());
+        Inventory inventory = findInventoryByProductIdWithLock(product.getId());
 
         if (diff.compareTo(BigDecimal.ZERO) > 0) {
             inventory.increaseIncoming(diff);
@@ -79,7 +79,7 @@ public class InventoryService {
     @Transactional
     public void applyReceipt(Product product, BigDecimal expected, BigDecimal actual) {
         log.info("[InventoryService] 입고 이후 입고 예정 수량 감소 및 재고 수량 증가 요청 - productId: {}", product.getId());
-        Inventory inventory = findInventoryByProductId(product.getId());
+        Inventory inventory = findInventoryByProductIdWithLock(product.getId());
         inventory.confirmIncoming(expected, actual);
         log.info("[InventoryService] 입고 이후 입고 예정 수량 감소 및 재고 수량 증가 성공 - inventoryId: {}", inventory.getId());
     }
@@ -87,9 +87,54 @@ public class InventoryService {
     @Transactional
     public void cancelIncomingReservation(Product product, BigDecimal quantity) {
         log.info("[InventoryService] 입고 취소로 입고 예정 수량 감소 요청 - productId: {}", product.getId());
-        Inventory inventory = findInventoryByProductId(product.getId());
+        Inventory inventory = findInventoryByProductIdWithLock(product.getId());
         inventory.decreaseIncoming(quantity);
         log.info("[InventoryService] 입고 취소로 입고 예정 수량 감소 성공 - inventoryId: {}", inventory.getId());
+    }
+
+    @Transactional
+    public BigDecimal getAvailableStockWithLock(Product product) {
+        log.info("[InventoryService] 출고용 가용 재고 조회 요청 - productId: {}", product.getId());
+        Inventory inventory = findInventoryByProductIdWithLock(product.getId());
+        return inventory.getAvailableStock();
+    }
+
+    @Transactional
+    public void increaseOutgoingReservation(Product product, BigDecimal quantity) {
+        log.info("[InventoryService] 출고 생성으로 출고 예정 수량 증가 요청 - productId: {}", product.getId());
+        Inventory inventory = findInventoryByProductIdWithLock(product.getId());
+        inventory.increaseOutgoing(quantity);
+        log.info("[InventoryService] 출고 생성으로 출고 예정 수량 증가 성공 - inventoryId: {}", inventory.getId());
+    }
+
+    @Transactional
+    public void decreaseOutgoingReservation(Product product, BigDecimal quantity) {
+        log.info("[InventoryService] 출고 취소로 출고 예정 수량 감소 요청 - productId: {}", product.getId());
+        Inventory inventory = findInventoryByProductIdWithLock(product.getId());
+        inventory.decreaseOutgoing(quantity);
+        log.info("[InventoryService] 출고 취소로 출고 예정 수량 감소 성공 - inventoryId: {}", inventory.getId());
+    }
+
+    @Transactional
+    public void updateOutgoingReservation(Product product, BigDecimal diff) {
+        log.info("[InventoryService] 출고 수정으로 출고 예정 수량 변경 요청 - productId: {}", product.getId());
+        Inventory inventory = findInventoryByProductIdWithLock(product.getId());
+
+        if (diff.compareTo(BigDecimal.ZERO) > 0) {
+            inventory.increaseOutgoing(diff);
+        } else if (diff.compareTo(BigDecimal.ZERO) < 0) {
+            inventory.decreaseOutgoing(diff.abs());
+        }
+
+        log.info("[InventoryService] 출고 수정으로 출고 예정 수량 변경 성공 - inventoryId: {}", inventory.getId());
+    }
+
+    @Transactional
+    public void confirmOutgoing(Product product, BigDecimal quantity) {
+        log.info("[InventoryService] 출고 확정으로 출고 예정 및 창고 재고 차감 요청 - productId: {}", product.getId());
+        Inventory inventory = findInventoryByProductIdWithLock(product.getId());
+        inventory.confirmOutgoing(quantity);
+        log.info("[InventoryService] 출고 확정으로 출고 예정 및 창고 재고 차감 성공 - inventoryId: {}", inventory.getId());
     }
 
     @Transactional
@@ -98,7 +143,7 @@ public class InventoryService {
         Store store = context.store();
 
         log.info("[InventoryService] 재고 수동 수정 요청 - userId: {}, storeId: {}", userId, store.getId());
-        Inventory inventory = findInventoryByIdAndValidateAccess(inventoryId, store);
+        Inventory inventory = findInventoryByIdWithLockAndValidateAccess(inventoryId, store);
         validateProductMatch(inventory, request.productId());
 
         inventory.updateManually(
@@ -169,12 +214,12 @@ public class InventoryService {
     }
 
     @Transactional
-        public InventoryResponse moveInventory(Long inventoryId, MoveInventoryRequest request, Long userId) {
+    public InventoryResponse moveInventory(Long inventoryId, MoveInventoryRequest request, Long userId) {
         UserStoreContext context = userContextProvider.findUserAndStore(userId);
         Store store = context.store();
 
         log.info("[InventoryService] 재고 이동 요청 - userId: {}, storeId: {}", userId, store.getId());
-        Inventory inventory = findInventoryByIdAndValidateAccess(inventoryId, store);
+        Inventory inventory = findInventoryByIdWithLockAndValidateAccess(inventoryId, store);
 
         if (request.direction() == InventoryMoveDirection.WAREHOUSE_TO_DISPLAY) {
             inventory.moveWarehouseToDisplay(request.quantity());
@@ -204,8 +249,23 @@ public class InventoryService {
                 .orElseThrow(() -> new BaseException(ErrorCode.INVENTORY_NOT_FOUND));
     }
 
+    private Inventory findInventoryByProductIdWithLock(Long productId) {
+        return inventoryRepository.findWithLockByProductId(productId)
+                .orElseThrow(() -> new BaseException(ErrorCode.INVENTORY_NOT_FOUND));
+    }
+
     private Inventory findInventoryByIdAndValidateAccess(Long inventoryId, Store store) {
         Inventory inventory =  inventoryRepository.findById(inventoryId)
+                .orElseThrow(() -> new BaseException(ErrorCode.INVENTORY_NOT_FOUND));
+
+        if (!inventory.getProduct().getStore().getId().equals(store.getId())) {
+            throw new BaseException(ErrorCode.INVENTORY_ACCESS_DENIED);
+        }
+        return inventory;
+    }
+
+    private Inventory findInventoryByIdWithLockAndValidateAccess(Long inventoryId, Store store) {
+        Inventory inventory =  inventoryRepository.findWithLockById(inventoryId)
                 .orElseThrow(() -> new BaseException(ErrorCode.INVENTORY_NOT_FOUND));
 
         if (!inventory.getProduct().getStore().getId().equals(store.getId())) {

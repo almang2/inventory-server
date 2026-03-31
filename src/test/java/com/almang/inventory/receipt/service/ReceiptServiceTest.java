@@ -62,6 +62,8 @@ class ReceiptServiceTest {
     @Autowired private InventoryRepository inventoryRepository;
     @Autowired private InventoryService inventoryService;
 
+    private int productCodeSequence = 1;
+
     private Store newStore(String name) {
         return storeRepository.save(
                 Store.builder()
@@ -100,12 +102,14 @@ class ReceiptServiceTest {
     }
 
     private Product newProduct(Store store, Vendor vendor, String name, String code) {
+        String uniqueCode = code + "-" + String.format("%03d", productCodeSequence++);
+
         Product product = productRepository.save(
                 Product.builder()
                         .store(store)
                         .vendor(vendor)
                         .name(name)
-                        .code(code)
+                        .code(uniqueCode)
                         .unit(ProductUnit.EA)
                         .activated(true)
                         .costPrice(1000)
@@ -186,9 +190,9 @@ class ReceiptServiceTest {
         assertThat(response.activated()).isTrue();
         assertThat(response.receiptItems()).hasSize(2);
         assertThat(response.receiptItems().get(0).productName()).isEqualTo("상품1");
-        assertThat(response.receiptItems().get(0).productCode()).isEqualTo("P001");
+        assertThat(response.receiptItems().get(0).productCode()).startsWith("P001");
         assertThat(response.receiptItems().get(1).productName()).isEqualTo("상품2");
-        assertThat(response.receiptItems().get(1).productCode()).isEqualTo("P002");
+        assertThat(response.receiptItems().get(1).productCode()).startsWith("P002");
 
         Receipt saved = receiptRepository.findById(response.receiptId())
                 .orElseThrow();

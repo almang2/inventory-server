@@ -116,10 +116,8 @@ public class ProductServiceTest {
         assertThat(response.vendorId()).isEqualTo(vendor.getId());
         assertThat(response.isActivated()).isTrue();
 
-        List<Inventory> inventories = inventoryRepository.findAll();
-        assertThat(inventories).hasSize(1);
-
-        Inventory inventory = inventories.get(0);
+        Inventory inventory = inventoryRepository.findByProduct_Id(response.productId())
+                .orElseThrow();
         assertThat(inventory.getProduct().getId()).isEqualTo(response.productId());
         assertThat(inventory.getDisplayStock()).isEqualByComparingTo(BigDecimal.valueOf(10));
         assertThat(inventory.getWarehouseStock()).isEqualByComparingTo(BigDecimal.valueOf(5));

@@ -1,6 +1,7 @@
 package com.almang.inventory.receipt.dto.response;
 
 import com.almang.inventory.receipt.domain.Receipt;
+import com.almang.inventory.receipt.domain.ReceiptItem;
 import com.almang.inventory.receipt.domain.ReceiptStatus;
 import java.time.LocalDate;
 import java.util.List;
@@ -14,7 +15,7 @@ public record ReceiptResponse(
         boolean activated,
         List<ReceiptItemResponse> receiptItems
 ) {
-    public static ReceiptResponse from(Receipt receipt) {
+    public static ReceiptResponse of(Receipt receipt, List<ReceiptItem> receiptItems) {
         return new ReceiptResponse(
                 receipt.getId(),
                 receipt.getStore().getId(),
@@ -22,7 +23,7 @@ public record ReceiptResponse(
                 receipt.getReceiptDate(),
                 receipt.getStatus(),
                 receipt.isActivated(),
-                receipt.getItems().stream()
+                receiptItems.stream()
                         .map(ReceiptItemResponse::from)
                         .toList()
         );

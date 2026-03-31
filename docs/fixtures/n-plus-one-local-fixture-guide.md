@@ -258,7 +258,7 @@ tail -n +201 /tmp/nplusone.log > /tmp/order-size10.log
 #### 6-5. 전체 SQL 개수 집계
 
 ```bash
-rg -c "Hibernate:" /tmp/order-size10.log
+grep -c "Hibernate:" /tmp/order-size10.log
 ```
 
 이 값은 5회 호출 동안 실행된 전체 SQL 개수입니다.
@@ -269,34 +269,34 @@ rg -c "Hibernate:" /tmp/order-size10.log
 Order 목록:
 
 ```bash
-rg -c "from order_items" /tmp/order-size10.log
-rg -c "from products" /tmp/order-size10.log
-rg -c "count\\(" /tmp/order-size10.log
+grep -c "order_items" /tmp/order-size10.log
+grep -c "products" /tmp/order-size10.log
+grep -c "count(" /tmp/order-size10.log
 ```
 
 Product 목록:
 
 ```bash
-rg -c "from products" /tmp/product-size50.log
-rg -c "from vendors" /tmp/product-size50.log
-rg -c "from stores" /tmp/product-size50.log
-rg -c "count\\(" /tmp/product-size50.log
+grep -c "products" /tmp/product-size50.log
+grep -c "vendors" /tmp/product-size50.log
+grep -c "stores" /tmp/product-size50.log
+grep -c "count(" /tmp/product-size50.log
 ```
 
 Inventory 목록:
 
 ```bash
-rg -c "from inventories" /tmp/inventory-size50.log
-rg -c "from products" /tmp/inventory-size50.log
-rg -c "count\\(" /tmp/inventory-size50.log
+grep -c "inventories" /tmp/inventory-size50.log
+grep -c "products" /tmp/inventory-size50.log
+grep -c "count(" /tmp/inventory-size50.log
 ```
 
 Receipt 목록:
 
 ```bash
-rg -c "from receipt_items" /tmp/receipt-size10.log
-rg -c "from products" /tmp/receipt-size10.log
-rg -c "count\\(" /tmp/receipt-size10.log
+grep -c "receipt_items" /tmp/receipt-size10.log
+grep -c "products" /tmp/receipt-size10.log
+grep -c "count(" /tmp/receipt-size10.log
 ```
 
 #### 6-7. 기록 예시
@@ -415,7 +415,7 @@ curl -s -o /dev/null 'http://localhost:8080/api/v1/receipt?page=0&size=30' -H "A
 - `wc -l /tmp/nplusone.log` 로 시작 줄 수 확인
 - 대상 API 5회 호출
 - `tail -n +<시작줄수+1> /tmp/nplusone.log > /tmp/<target>.log`
-- `rg -c "Hibernate:" /tmp/<target>.log` 로 총 SQL 수 집계
+- `grep -c "Hibernate:" /tmp/<target>.log` 로 총 SQL 수 집계
 
 6. `Order`와 `Receipt`는 `size=10`, `size=50` 둘 다 기록합니다.
 
@@ -445,6 +445,47 @@ curl -s -o /dev/null 'http://localhost:8080/api/v1/receipt?page=0&size=30' -H "A
 - `Order`는 `size=10`에서 1회 평균 SQL 94개, `size=50`에서 354개로 증가해 가장 강한 N+1 패턴이 보였습니다.
 - `Receipt`도 `size=10`에서 94개, `size=50`에서 228개로 증가해 컬렉션 연관 기반 N+1이 확인됐습니다.
 - 그래서 리팩토링 우선순위는 `Order`, `Receipt`, `Inventory`, `Product` 순으로 잡았습니다.
+
+### 8-4. After 측정 결과 예시
+
+아래는 목록 조회 리팩토링 이후 같은 조건으로 다시 측정한 결과입니다.
+
+| API | 조건 | 5회 총 SQL 수 | 1회 평균 SQL 수 | 평균 응답(ms) | 관찰 포인트 |
+|---|---|---:|---:|---:|---|
+| Product 목록 | `page=0,size=50` | 20 | 4.0 | 41.5 | `products 10`, `vendors 5`, `stores 15`로 상수 수준 유지 |
+| Inventory 목록 | `page=0,size=50&scope=ALL&sort=updatedAt` | 20 | 4.0 | 31.0 | `inventories 10`, `products 10`으로 정리됨 |
+| Order 목록 | `page=0,size=10` | 25 | 5.0 | 46.7 | `order_items 5`, `products 5`로 반복 조회 제거 |
+| Order 목록 | `page=0,size=50` | 25 | 5.0 | 50.5 | page size가 커져도 SQL 수가 거의 일정하게 유지 |
+| Receipt 목록 | `page=0,size=10` | 25 | 5.0 | 28.0 | `receipt_items 5`, `products 5`로 정리됨 |
+| Receipt 목록 | `page=0,size=50` | 20 | 4.0 | 45.0 | page size 증가에도 상수 수준 유지 |
+
+응답 시간 평균은 워밍업을 제외한 5회 측정값 기준입니다.
+각 측정값은 아래와 같습니다.
+
+- Product `size=50`: `236.9`, `22.7`, `22.8`, `55.9`, `53.0`
+- Inventory `size=50`: `78.1`, `19.4`, `17.9`, `21.2`, `18.1`
+- Order `size=10`: `118.5`, `45.5`, `25.6`, `22.7`, `21.0`
+- Order `size=50`: `96.2`, `34.5`, `47.3`, `37.0`, `37.3`
+- Receipt `size=10`: `70.1`, `15.3`, `17.8`, `19.0`, `19.1`
+- Receipt `size=50`: `111.4`, `24.0`, `49.1`, `19.9`, `20.7`
+
+### 8-5. Before / After 비교
+
+| API | 조건 | 개선 전 평균 SQL 수 | 개선 후 평균 SQL 수 | 개선 전 평균 응답(ms) | 개선 후 평균 응답(ms) | 비고 |
+|---|---|---:|---:|---:|---:|---|
+| Product 목록 | `page=0,size=50` | 4.0 | 4.0 | 22.1 | 41.5 | 구조상 큰 차이는 없고 조회 전략을 명시적으로 정리했습니다. |
+| Inventory 목록 | `page=0,size=50&scope=ALL&sort=updatedAt` | 54.0 | 4.0 | 17.3 | 31.0 | `Inventory -> product` 반복 조회가 제거됐습니다. |
+| Order 목록 | `page=0,size=10` | 94.0 | 5.0 | 38.5 | 46.7 | 주문별 `items`, 아이템별 `product` 조회가 일괄 조회로 바뀌었습니다. |
+| Order 목록 | `page=0,size=50` | 354.0 | 5.0 | 31.7 | 50.5 | page size 증가와 무관하게 SQL 수가 상수 수준으로 유지됩니다. |
+| Receipt 목록 | `page=0,size=10` | 94.0 | 5.0 | 20.3 | 28.0 | 입고별 `items`, 아이템별 `product` 반복 조회가 제거됐습니다. |
+| Receipt 목록 | `page=0,size=50` | 228.0 | 4.0 | 22.6 | 45.0 | page size 증가에도 SQL 수가 거의 늘지 않습니다. |
+
+정리는 아래와 같습니다.
+
+- `Order`, `Receipt`는 page size가 커져도 SQL 수가 거의 일정하게 유지되도록 바뀌었습니다.
+- `Inventory`는 `54 -> 4`로 줄어 `product` lazy 접근 비용이 제거됐습니다.
+- `Product`는 개선 전부터 SQL 수가 낮았고, 이번에는 목록 조회 전략을 명시적으로 정리하는 데 의미가 있었습니다.
+- 로컬 H2 환경에서는 absolute 응답 시간보다 SQL 수 감소와 증가 패턴 제거를 더 중요한 근거로 봤습니다.
 
 ## 9) 측정 전 체크
 

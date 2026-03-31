@@ -20,19 +20,36 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     
     List<Inventory> findAllByProduct_IdIn(List<Long> productIds);
 
-    @Query("""
-        SELECT inventory
-        FROM Inventory inventory
-        WHERE inventory.product.store.id = :storeId
-          AND (:q IS NULL OR LOWER(inventory.product.name) LIKE LOWER(CONCAT('%', :q, '%')))
-          AND (
-                :scope = 'ALL'
-             OR (:scope = 'DISPLAY' AND inventory.displayStock > 0)
-             OR (:scope = 'WAREHOUSE' AND inventory.warehouseStock > 0)
-             OR (:scope = 'OUTGOING' AND inventory.outgoingReserved > 0)
-             OR (:scope = 'INCOMING' AND inventory.incomingReserved > 0)
-          )
-        """)
+    @Query(
+        value = """
+            SELECT inventory
+            FROM Inventory inventory
+            JOIN FETCH inventory.product product
+            WHERE inventory.product.store.id = :storeId
+                AND (:q IS NULL OR LOWER(inventory.product.name) LIKE LOWER(CONCAT('%', :q, '%')))
+                AND (
+                    :scope = 'ALL'
+                    OR (:scope = 'DISPLAY' AND inventory.displayStock > 0)
+                    OR (:scope = 'WAREHOUSE' AND inventory.warehouseStock > 0)
+                    OR (:scope = 'OUTGOING' AND inventory.outgoingReserved > 0)
+                    OR (:scope = 'INCOMING' AND inventory.incomingReserved > 0)
+                )
+        """,
+        countQuery = """
+            SELECT COUNT(inventory)
+            FROM Inventory inventory
+            JOIN inventory.product product
+            WHERE inventory.product.store.id = :storeId
+                AND (:q IS NULL OR LOWER(inventory.product.name) LIKE LOWER(CONCAT('%', :q, '%')))
+                AND (
+                    :scope = 'ALL'
+                    OR (:scope = 'DISPLAY' AND inventory.displayStock > 0)
+                    OR (:scope = 'WAREHOUSE' AND inventory.warehouseStock > 0)
+                    OR (:scope = 'OUTGOING' AND inventory.outgoingReserved > 0)
+                    OR (:scope = 'INCOMING' AND inventory.incomingReserved > 0)
+                )
+        """
+    )
     Page<Inventory> findByFilter(
             @Param("storeId") Long storeId, @Param("scope") String scope, @Param("q") String q, Pageable pageable
     );

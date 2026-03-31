@@ -5,24 +5,31 @@ import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
+    @EntityGraph(attributePaths = {"store", "vendor"})
     Page<Product> findAllByStoreId(Long storeId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"store", "vendor"})
     Page<Product> findAllByStoreIdAndActivatedTrue(Long storeId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"store", "vendor"})
     Page<Product> findAllByStoreIdAndActivatedFalse(Long storeId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"store", "vendor"})
     Page<Product> findAllByStoreIdAndNameContainingIgnoreCase(Long storeId, String name, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"store", "vendor"})
     Page<Product> findAllByStoreIdAndActivatedTrueAndNameContainingIgnoreCase(
             Long storeId, String name, Pageable pageable
     );
 
+    @EntityGraph(attributePaths = {"store", "vendor"})
     Page<Product> findAllByStoreIdAndActivatedFalseAndNameContainingIgnoreCase(
             Long storeId, String name, Pageable pageable
     );

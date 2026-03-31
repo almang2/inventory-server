@@ -32,6 +32,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -98,10 +100,34 @@ public class OrderService {
         log.info("[OrderService] 발주 목록 조회 요청 - userId: {}, storeId: {}", userId, store.getId());
         PageRequest pageable = PaginationUtil.createPageRequest(page, size, "createdAt");
         Page<Order> orderPage = findOrdersByFilter(store.getId(), vendorId, status, fromDate, toDate, pageable);
-        Page<OrderResponse> mapped = orderPage.map(order -> OrderResponse.of(order, order.getItems()));
+
+        List<Long> orderIds = extractOrderIds(orderPage);
+        List<OrderItem> orderItems = findOrderItemsWithProduct(orderIds);
+        Map<Long, List<OrderItem>> itemsByOrderId = groupOrderItemsByOrderId(orderItems);
+
+        Page<OrderResponse> mapped =
+                orderPage.map(order -> OrderResponse.of(order, itemsByOrderId.getOrDefault(order.getId(), List.of())));
 
         log.info("[OrderService] 발주 목록 조회 성공 - userId: {}, storeId: {}", userId, store.getId());
         return PageResponse.from(mapped);
+    }
+
+    private List<Long> extractOrderIds(Page<Order> orderPage) {
+        return orderPage.getContent().stream()
+                .map(Order::getId)
+                .toList();
+    }
+
+    private List<OrderItem> findOrderItemsWithProduct(List<Long> orderIds) {
+        if (orderIds.isEmpty()) {
+            return List.of();
+        }
+        return orderItemRepository.findAllByOrderIdInWithProduct(orderIds);
+    }
+
+    private Map<Long, List<OrderItem>> groupOrderItemsByOrderId(List<OrderItem> orderItems) {
+        return orderItems.stream()
+                .collect(Collectors.groupingBy(item -> item.getOrder().getId()));
     }
 
     @Transactional

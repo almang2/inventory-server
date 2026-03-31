@@ -28,6 +28,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -66,7 +68,7 @@ public class ReceiptService {
 
         log.info("[ReceiptService] 발주 기반 입고 생성 성공 - userId: {}, storeId: {}, orderId: {}",
                 userId, store.getId(), orderId);
-        return ReceiptResponse.from(saved);
+        return ReceiptResponse.of(saved, items);
     }
 
     @Transactional(readOnly = true)
@@ -77,11 +79,11 @@ public class ReceiptService {
         log.info("[ReceiptService] 발주 기반 입고 조회 요청 - userId: {}, storeId: {}, orderId: {}",
                 userId, store.getId(), orderId);
 
-        Order order = findOrderByIdAndValidateAccess(orderId, store);
+        findOrderByIdAndValidateAccess(orderId, store);
         Receipt receipt = findReceiptByOrderId(orderId);
 
         log.info("[ReceiptService] 발주 기반 입고 조회 성공 - receiptId: {}", receipt.getId());
-        return ReceiptResponse.from(receipt);
+        return ReceiptResponse.of(receipt, receipt.getItems());
     }
 
     @Transactional(readOnly = true)
@@ -93,7 +95,7 @@ public class ReceiptService {
         Receipt receipt = findReceiptByIdAndValidateAccess(receiptId, store);
 
         log.info("[ReceiptService] 입고 조회 성공 - receiptId: {}", receipt.getId());
-        return ReceiptResponse.from(receipt);
+        return ReceiptResponse.of(receipt, receipt.getItems());
     }
 
     @Transactional(readOnly = true)
@@ -108,10 +110,35 @@ public class ReceiptService {
 
         PageRequest pageable = PaginationUtil.createPageRequest(page, size, Direction.DESC, "createdAt");
         Page<Receipt> receiptPage = findReceiptsByFilter(store.getId(), vendorId, status, fromDate, toDate, pageable);
-        Page<ReceiptResponse> mapped = receiptPage.map(ReceiptResponse::from);
+
+        List<Long> receiptIds = extractReceiptIds(receiptPage);
+        List<ReceiptItem> receiptItems = findReceiptItemsWithProduct(receiptIds);
+        Map<Long, List<ReceiptItem>> itemsByReceiptId = groupReceiptItemsByReceiptId(receiptItems);
+
+        Page<ReceiptResponse> mapped = receiptPage.map(receipt ->
+                ReceiptResponse.of(receipt, itemsByReceiptId.getOrDefault(receipt.getId(), List.of()))
+        );
 
         log.info("[ReceiptService] 입고 목록 조회 성공 - userId: {}, storeId: {}", userId, store.getId());
         return PageResponse.from(mapped);
+    }
+
+    private List<Long> extractReceiptIds(Page<Receipt> receiptPage) {
+        return receiptPage.getContent().stream()
+                .map(Receipt::getId)
+                .toList();
+    }
+
+    private List<ReceiptItem> findReceiptItemsWithProduct(List<Long> receiptIds) {
+        if (receiptIds.isEmpty()) {
+            return List.of();
+        }
+        return receiptItemRepository.findAllByReceiptIdInWithProduct(receiptIds);
+    }
+
+    private Map<Long, List<ReceiptItem>> groupReceiptItemsByReceiptId(List<ReceiptItem> receiptItems) {
+        return receiptItems.stream()
+                .collect(Collectors.groupingBy(item -> item.getReceipt().getId()));
     }
 
     @Transactional
@@ -132,7 +159,7 @@ public class ReceiptService {
         updateReceiptItems(receipt, request);
 
         log.info("[ReceiptService] 입고 수정 성공 - receiptId: {}", receipt.getId());
-        return ReceiptResponse.from(receipt);
+        return ReceiptResponse.of(receipt, receipt.getItems());
     }
 
     @Transactional
